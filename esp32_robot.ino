@@ -9,7 +9,14 @@
 
 
 // python serial command:
-//
+//import serial
+//try:
+//   arduino = serial.Serial(port='/dev/cu.SLAB_USBtoUART', baudrate=115200, timeout=.1)
+//except:
+//   print("Cannot set up serial port")
+//   return False
+//arduino.write(bytes(str("x50"),'utf-8'))
+
 
 // wifi libraries
 #include <WiFi.h>

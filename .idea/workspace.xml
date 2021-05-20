@@ -1,11 +1,22 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="ChangeListManager">
-    <list default="true" id="7c57f5bc-62f0-4916-a378-e221f12e6aa4" name="Default Changelist" comment="" />
+    <list default="true" id="7c57f5bc-62f0-4916-a378-e221f12e6aa4" name="Default Changelist" comment="">
+      <change afterPath="$PROJECT_DIR$/robot_navigation.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/esp32_robot.ino" beforeDir="false" afterPath="$PROJECT_DIR$/esp32_robot/esp32_robot.ino" afterDir="false" />
+    </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
     <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="FileTemplateManagerImpl">
+    <option name="RECENT_TEMPLATES">
+      <list>
+        <option value="Python Script" />
+      </list>
+    </option>
   </component>
   <component name="Git.Settings">
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
@@ -20,28 +31,12 @@
     <property name="RunOnceActivity.ShowReadmeOnStart" value="true" />
     <property name="settings.editor.selected.configurable" value="com.jetbrains.python.configuration.PyActiveSdkModuleConfigurable" />
   </component>
+  <component name="RecentsManager">
+    <key name="MoveFile.RECENT_KEYS">
+      <recent name="$PROJECT_DIR$/esp32_robot" />
+    </key>
+  </component>
   <component name="RunManager">
-    <configuration name="ROS_field_robot2" type="PythonConfigurationType" factoryName="Python" nameIsGenerated="true">
-      <module name="ROS_field_robot2" />
-      <option name="INTERPRETER_OPTIONS" value="" />
-      <option name="PARENT_ENVS" value="true" />
-      <envs>
-        <env name="PYTHONUNBUFFERED" value="1" />
-      </envs>
-      <option name="SDK_HOME" value="$USER_HOME$/dev/visionenv/bin/python" />
-      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/.." />
-      <option name="IS_MODULE_SDK" value="false" />
-      <option name="ADD_CONTENT_ROOTS" value="true" />
-      <option name="ADD_SOURCE_ROOTS" value="true" />
-      <option name="SCRIPT_NAME" value="$PROJECT_DIR$" />
-      <option name="PARAMETERS" value="" />
-      <option name="SHOW_COMMAND_LINE" value="false" />
-      <option name="EMULATE_TERMINAL" value="false" />
-      <option name="MODULE_MODE" value="false" />
-      <option name="REDIRECT_INPUT" value="false" />
-      <option name="INPUT_FILE" value="" />
-      <method v="2" />
-    </configuration>
     <configuration default="true" type="PythonConfigurationType" factoryName="Python">
       <module name="ROS_field_robot2" />
       <option name="INTERPRETER_OPTIONS" value="" />
@@ -63,6 +58,27 @@
       <option name="INPUT_FILE" value="" />
       <method v="2" />
     </configuration>
+    <configuration name="robot_navigation" type="PythonConfigurationType" factoryName="Python" nameIsGenerated="true">
+      <module name="ROS_field_robot2" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs>
+        <env name="PYTHONUNBUFFERED" value="1" />
+      </envs>
+      <option name="SDK_HOME" value="$USER_HOME$/dev/visionenv/bin/python" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$" />
+      <option name="IS_MODULE_SDK" value="false" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/robot_navigation.py" />
+      <option name="PARAMETERS" value="" />
+      <option name="SHOW_COMMAND_LINE" value="false" />
+      <option name="EMULATE_TERMINAL" value="false" />
+      <option name="MODULE_MODE" value="false" />
+      <option name="REDIRECT_INPUT" value="false" />
+      <option name="INPUT_FILE" value="" />
+      <method v="2" />
+    </configuration>
   </component>
   <component name="SvnConfiguration">
     <configuration />
@@ -75,20 +91,63 @@
       <option name="presentableId" value="Default" />
       <updated>1621456809712</updated>
     </task>
+    <task id="LOCAL-00001" summary="test. Please disregard">
+      <created>1621456939511</created>
+      <option name="number" value="00001" />
+      <option name="presentableId" value="LOCAL-00001" />
+      <option name="project" value="LOCAL" />
+      <updated>1621456939511</updated>
+    </task>
+    <task id="LOCAL-00002" summary="test. Please disregard">
+      <created>1621456965998</created>
+      <option name="number" value="00002" />
+      <option name="presentableId" value="LOCAL-00002" />
+      <option name="project" value="LOCAL" />
+      <updated>1621456965998</updated>
+    </task>
+    <option name="localTasksCounter" value="3" />
     <servers />
   </component>
+  <component name="VcsManagerConfiguration">
+    <MESSAGE value="test. Please disregard" />
+    <option name="LAST_COMMIT_MESSAGE" value="test. Please disregard" />
+  </component>
   <component name="WindowStateProjectService">
-    <state x="156" y="121" width="1071" height="702" key="#com.intellij.execution.impl.EditConfigurationsDialog" timestamp="1621456868036">
+    <state x="156" y="121" width="1071" height="702" key="#com.intellij.execution.impl.EditConfigurationsDialog" timestamp="1621458011628">
       <screen x="0" y="25" width="1440" height="875" />
     </state>
-    <state x="156" y="121" width="1071" height="702" key="#com.intellij.execution.impl.EditConfigurationsDialog/0.25.1440.875@0.25.1440.875" timestamp="1621456868036" />
-    <state x="311" y="64" key="CommitChangelistDialog2" timestamp="1621456939192">
+    <state x="156" y="121" width="1071" height="702" key="#com.intellij.execution.impl.EditConfigurationsDialog/0.25.1440.875@0.25.1440.875" timestamp="1621458011628" />
+    <state x="311" y="64" key="CommitChangelistDialog2" timestamp="1621456965818">
       <screen x="0" y="25" width="1440" height="875" />
     </state>
-    <state x="311" y="64" key="CommitChangelistDialog2/0.25.1440.875@0.25.1440.875" timestamp="1621456939192" />
+    <state x="311" y="64" key="CommitChangelistDialog2/0.25.1440.875@0.25.1440.875" timestamp="1621456965818" />
+    <state width="1362" height="143" key="GridCell.Tab.0.bottom" timestamp="1621460133557">
+      <screen x="0" y="25" width="1440" height="875" />
+    </state>
+    <state width="1362" height="143" key="GridCell.Tab.0.bottom/0.25.1440.875@0.25.1440.875" timestamp="1621460133557" />
+    <state width="1362" height="143" key="GridCell.Tab.0.center" timestamp="1621460133557">
+      <screen x="0" y="25" width="1440" height="875" />
+    </state>
+    <state width="1362" height="143" key="GridCell.Tab.0.center/0.25.1440.875@0.25.1440.875" timestamp="1621460133557" />
+    <state width="1362" height="143" key="GridCell.Tab.0.left" timestamp="1621460133556">
+      <screen x="0" y="25" width="1440" height="875" />
+    </state>
+    <state width="1362" height="143" key="GridCell.Tab.0.left/0.25.1440.875@0.25.1440.875" timestamp="1621460133556" />
+    <state width="1362" height="143" key="GridCell.Tab.0.right" timestamp="1621460133557">
+      <screen x="0" y="25" width="1440" height="875" />
+    </state>
+    <state width="1362" height="143" key="GridCell.Tab.0.right/0.25.1440.875@0.25.1440.875" timestamp="1621460133557" />
     <state x="200" y="98" key="SettingsEditor" timestamp="1621456829213">
       <screen x="0" y="25" width="1440" height="875" />
     </state>
     <state x="200" y="98" key="SettingsEditor/0.25.1440.875@0.25.1440.875" timestamp="1621456829213" />
+    <state x="291" y="188" key="Vcs.Push.Dialog.v2" timestamp="1621456968674">
+      <screen x="0" y="25" width="1440" height="875" />
+    </state>
+    <state x="291" y="188" key="Vcs.Push.Dialog.v2/0.25.1440.875@0.25.1440.875" timestamp="1621456968674" />
+    <state x="356" y="214" width="670" height="676" key="search.everywhere.popup" timestamp="1621515987122">
+      <screen x="0" y="25" width="1440" height="875" />
+    </state>
+    <state x="356" y="214" width="670" height="676" key="search.everywhere.popup/0.25.1440.875@0.25.1440.875" timestamp="1621515987122" />
   </component>
 </project>

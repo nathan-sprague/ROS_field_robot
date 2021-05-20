@@ -133,9 +133,6 @@ void setupPages(){
     request->send(200, "text/plain", info);
     
   } );
-  
-
-
 }
 
 long lastPrintTime = 0;
@@ -171,7 +168,8 @@ void loop() {
   
     if (serialControl) {
       if (motorChange == 'x'){
-         destAngle = command;
+         destAngle = angleToXParameter(command);
+
       } else if (motorChange == 'y'){
          motorSpeed = command;
       }
@@ -201,6 +199,32 @@ void loop() {
 
   // take care of speed
   ledcWrite(motorChannel, motorSpeed);
+}
 
-  
+float angleToXParameter(int angle) {
+// x50 - Center
+// x10 - left
+// x80 - right
+//-45 = 20
+//0 = 50
+//45 = 80
+    int maxX = 80;
+    int minX = 20;
+    int centerX = 50;
+
+    int maxAngle = -45
+    int minAngle = 45
+    int centerAngle = 0;
+
+    float x = (angle-centerAngle) * (maxX - minX) / 90 + centerX;
+
+
+    if (x<minX){
+        x = minX;
+    } else if (x> maxX){
+        x = maxX;
+    }
+
+    return x;
+
 }

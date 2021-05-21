@@ -11,6 +11,8 @@ class Robot:
 
         self.maxSpeed = 10
 
+        self.arduino = False
+
         self.coords = (0, 0)
         self.headingAngle = 0
         self.speed = (0, 0)
@@ -38,6 +40,7 @@ class Robot:
     def beginSerial(self):
         try:
             self.arduino = serial.Serial(port='/dev/cu.SLAB_USBtoUART', baudrate=115200, timeout=.1)
+            print("Set up serial port")
             return True
         except:
             print("Cannot set up serial port")
@@ -88,9 +91,6 @@ class Robot:
         self.compassThread.join()
 
     def move(self, heading, speed):
-        # y60 forward top speed
-        # y38 - middle
-        # y20 backward top speed
         self.arduino.write(bytes(str("x" + str(heading)), 'utf-8'))
         time.sleep(0.1)
         self.arduino.write(bytes(str("y" + str(speed)), 'utf-8'))
@@ -117,27 +117,35 @@ class Robot:
         return realAngle
 
     def atDestination(self, coords1, coords2):
-        return False
+        dist = self.findDistBetween(coords1, coords2)
+        if dist < 5:
+            return True
+        else:
+            return False
 
     def findDistBetween(self, coords1, coords2):
         # 1 deg lat = 364,000 feet
         # 1 deg long = 288,200 feet
-        return math.sqrt(math.pow((coords1[0]-coords2[0])*364000, 2) + math.pow((coords1[1]-coords2[1])*288200, 2))
-
+        return math.sqrt(
+            math.pow((coords1[0] - coords2[0]) * 364000, 2) + math.pow((coords1[1] - coords2[1]) * 288200, 2))
 
     def findSpeed(self, coords1, coords2):
         dist = self.findDistBetween(coords1, coords2)
-        if dist<0:
-            return 0
-
+        if dist < 0:
+            return -40
+        elif dist < 10:
+            return 40
+        else:
+            return 90
 
     def navigate(self, destinations):
 
         for self.targetCoords in destinations:
             while True:
-                if not self.atDestination(self.coords,self.targetCoords):
+                if not self.atDestination(self.coords, self.targetCoords):
                     self.targetHeadingAngle = self.findAngleBetween(self.coords, self.targetCoords)
                     self.targetSpeed = self.findSpeed(self.coords, self.targetCoords)
+
                     self.move(self.targetHeadingAngle, self.targetSpeed)
                     time.sleep(1)
                 else:

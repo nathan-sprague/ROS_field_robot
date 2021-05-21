@@ -199,17 +199,17 @@ void loop() {
   realAngle = potToAngle(analogRead(potPin));
   
   
-  Serial.print ("Real angle: " + String(realAngle) + ", dest: " + String(destAngle) + "   ");
+//  Serial.print ("Real angle: " + String(realAngle) + ", dest: " + String(destAngle) + "   ");
   
   if (realAngle<destAngle-4){
-    Serial.println("forward");
+//    Serial.println("forward");
     analogWrite(steerPin, steerForwardSpeed*1024/256-1);
     
   } else if (realAngle>destAngle+4){
-    Serial.println("backward");
+//    Serial.println("backward");
     analogWrite(steerPin, steerBackwardSpeed*1024/256-1);
   } else {
-    Serial.println("reached destination");
+//    Serial.println("reached destination");
     analogWrite(steerPin, 0);
   }
 
@@ -225,10 +225,10 @@ void loop() {
   if (motorSpeed == 0){
     analogWrite(motorPin, 0);
   } else {
-    Serial.println("motor speed: " + String(motorSpeed));
+//    Serial.println("motor speed: " + String(motorSpeed));
     int mSpeed = (motorSpeed+100)*18/100+20;
-    Serial.print("mspeed: ");
-    Serial.println(mSpeed);
+//    Serial.print("mspeed: ");
+//    Serial.println(mSpeed);
     analogWrite(motorPin, mSpeed*1024/256-1);
   }
 }

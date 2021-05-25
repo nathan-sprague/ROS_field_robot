@@ -8,9 +8,6 @@ testLocations = [(1, 2), (2, 3), (3, 4)]
 
 class Robot:
     def __init__(self):
-
-        self.maxSpeed = 10
-
         self.arduino = False
 
         self.coords = (0, 0)

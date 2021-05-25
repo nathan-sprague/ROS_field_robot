@@ -11,14 +11,13 @@ https://varhowto.com/install-ros-noetic-raspberry-pi-4/ <br />
 
 ## Components Necessary
 ### Compass
-$ sudo apt-get install git i2c-tools python-smbus python3 python-pip python-virtualenv python3-setuptools
-VCC -> 3.3V (Pin 1), GND -> GND (Pin 6), SCL -> GPIO3 (Pin 5), SDA -> GPIO2 (Pin 3) 
-enable I2C
-
+Follow this tutorial:<br />
+https://tutorials-raspberrypi.com/build-your-own-raspberry-pi-compass-hmc5883l/
+VCC -> 3.3V (Pin 1), GND -> GND (Pin 6), SCL -> GPIO3 (Pin 5), SDA -> GPIO2 (Pin 3) <br />
 
 ### GPS
 $ pip3 install gps
 $ pip3 install geographiclib
 
 ### Serial
-(Already there)
+(Already installed on the Raspberry Pi)

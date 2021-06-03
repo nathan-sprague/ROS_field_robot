@@ -8,89 +8,108 @@ testLocations = [(1, 2), (2, 3), (3, 4)]
 
 class Robot:
     def __init__(self):
-        self.arduino = False
 
-        self.coords = (0, 0)
+        self.coords = [0, 0]
         self.headingAngle = 0
-        self.speed = (0, 0)
+        self.wheelSpeed = 0
         self.steeringDirection = 0
 
         self.targetCoords = (0, 0)
         self.targetHeadingAngle = 0
         self.targetSpeed = 0
 
-        self.GPSThread = Thread(target=self.getCoords)
+        self.distanceTraveled = 0
+
         self.compassThread = Thread(target=self.getHeadings)
-        self.encoderThread = Thread(target=self.getSpeed)
+        self.SteerSerialThread = Thread(target=self.readSteerSerial)
+        self.MoveSerialThread = Thread(target=self.readMoveSerial)
 
-        self.beginSensors()
-
-    def beginGPS(self):
-        return True
-
-    def beginEncoder(self):
-        return True
-
-    def beginCompass(self):
-        return True
-
-    def beginSerial(self):
-        try:
-            self.arduino = serial.Serial(port='/dev/cu.SLAB_USBtoUART', baudrate=115200, timeout=.1)
-            print("Set up serial port")
-            return True
-        except:
-            print("Cannot set up serial port")
-            return False
-
-    def getCoords(self):
-        self.coords = (0, 0, 0)
-        time.sleep(1)
-
-    def getSpeed(self):
-        self.speed = (0, 0)
-        time.sleep(1)
-
-    def getHeadings(self):
-        self.heading = (0, 0, 0)
-        time.sleep(1)
-
-    def beginSensors(self):
-        if self.beginGPS():
-            print("successfully began GPS")
-
-            self.GPSThread.start()
-        else:
-            print("Unable to begin GPS")
-
-        if self.beginEncoder():
-            print("successfully began encoder")
-
-            self.encoderThread.start()
-        else:
-            print("Unable to begin encoder")
-
-        if self.beginCompass():
-            print("successfully began compass")
-
+        if (self.beginCompass()):
             self.compassThread.start()
         else:
-            print("Unable to begin compass")
+            print("unable to begin compass")
 
-        if self.beginSerial():
-            print("successfully began serial")
-        else:
-            print("Unable to begin serial")
+        try:
+            self.moveESP = serial.Serial(port='/dev/cu.SLAB_USBtoUART0', baudrate=115200, timeout=.1)
+            self.steerESP = serial.Serial(port='/dev/cu.SLAB_USBtoUART1', baudrate=115200, timeout=.1)
+            print("Set up serial port")
+            self.SteerSerialThread.start()
+            self.MoveSerialThread.start()
+        except:
+            print("Cannot set up serial port")
+
+
+
+    def beginCompass(self):
+        try:
+            from i2clibraries import i2c_hmc5883l
+
+            self.hmc5883l = i2c_hmc5883l.i2c_hmc5883l(1)
+
+            self.hmc5883l.setContinuousMode()
+            return True
+        except:
+            return False
+
+
+    def readSteerSerial(self):
+        line = self.moveESP.readline()
+        self.processSerial(line)
+        time.sleep(0.1)
+
+    def readMoveSerial(self):
+        line = self.steerESP.readline()
+        self.processSerial(line)
+        time.sleep(0.1)
+
+    def processSerial(self, message):
+        if len(message)>0:
+            msgType = message[0]
+
+            if msgType == '.':
+                print(message[1::])
+
+            try:
+                res = int(message[1::])
+            except:
+                print ("invalid message: " + message)
+                return
+
+            if msgType == 'x': # compass latitude
+                self.coords[0] = res
+
+            elif msgType == 'y':  # compass longitude
+                self.coords[1] = res
+
+            elif msgType == 'w': # wheel speed
+                self.wheelSpeed = res
+
+            elif msgType == 'd': # distance
+                self.distanceTraveled  = res
+
+            elif msgType == 'a': # steering angle
+                self.steeringDirection = self.heading[1] + res
+
+
+    def getHeadings(self):
+        (x, y, z) = self.hmc5883l.getAxes()
+        self.heading = (x,y,z)
+        time.sleep(1)
 
     def endSensors(self):
-        self.GPSThread.join()
-        self.encoderThread.join()
         self.compassThread.join()
+        self.SteerSerialThread.join()
+        self.MoveSerialThread.join()
+
+        self.moveESP.close()
+        self.steerESP.close()
+
 
     def move(self, heading, speed):
-        self.arduino.write(bytes(str("x" + str(heading)), 'utf-8'))
+        self.steerESP.write(bytes(str("p" + str(heading)), 'utf-8'))
         time.sleep(0.1)
-        self.arduino.write(bytes(str("y" + str(speed)), 'utf-8'))
+
+        self.moveESP.write(bytes(str("f" + str(speed)), 'utf-8'))
         time.sleep(0.1)
 
     def findAngleBetween(self, coords1, coords2):

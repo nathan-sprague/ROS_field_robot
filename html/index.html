@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<script>
+
+var x=0;
+var y=0;
+
+var realX = 0;
+var realY = 0;
+
+
+ready = true;
+function sendInfo(){  
+ if (ready){
+   // ready = false;
+     var xhttp = new XMLHttpRequest();
+     xhttp.onreadystatechange = function() {
+       if (this.readyState == 4 && this.status == 200) {
+
+           console.log(this.responseText);
+           var i = 0;
+            text = this.responseText;
+           var val = "";
+           while (i<text.length) {
+             if (text[i]=='x'){
+                realX = parseInt(val);
+                val = "";
+             } else if (text[i]=='y'){
+               realY = parseInt(val);
+                val = "";
+             } else {
+                val += text[i];
+             }
+
+             i+=1;
+           }
+
+           document.getElementById("speed").innerHTML = realY;
+           document.getElementById("angle").innerHTML = realX;
+
+           ready = true;
+
+       } else if (this.status == 0){
+         // ready = false;
+         // console.log("rs", this.status);
+        }
+     };
+
+      //displaySpeed();
+
+     argList = "?override=1"  + "&x=" + x + "&y=" + y;
+      
+      console.log(argList);
+     xhttp.open('GET', '/_info' + argList, true);
+      xhttp.send();
+ } else {
+    console.log("not ready");
+ }
+}
+
+var requestInt = setInterval(sendInfo, 500);
+
+
+var shouldChange = false;
+
+function changeSpeed(val){
+	shouldChange = true;
+      if ((val == 87 || val == 38) && y<15) { // forward
+     y+=1;
+    } else if ((val == 83 || val == 40) && y>-15) {  // backward
+     y-=1;
+
+    } else if ((val == 65 || val == 37) && x>-40) { // left
+     x-=5;
+    } else if ((val == 68 || val == 39) && x<40) { //right
+     x+=5;
+    }
+    console.log(x,y);
+    
+    if ((val == 32)){ // stop
+      x=0;
+      y=0;
+      sendInfo();
+    }
+    displaySpeed();
+}
+
+document.onkeydown = function(evt) {
+    evt = evt || window.event;
+    console.log(evt.keyCode);
+
+    changeSpeed(evt.keyCode)
+    // sendInfo();
+    //w 87 38
+    //a 65 37
+    //s 83 40
+    //d 68 39
+    //space 32
+    
+};
+
+function displaySpeed(){
+
+     document.getElementById("desSpeed").innerHTML = y;
+      document.getElementById("desAngle").innerHTML = x;
+    }
+
+
+</script>
+
+<html>
+<title>Robot Controller</title>
+
+<!-- <input type="checkbox" id="override" checked = "true" onclick="displaySpeed();"> Override -->
+
+
+
+<br>
+Real Speed: <span id="speed">__</span> mph<br>
+Desired Speed: <span id="desSpeed">__</span> mph<br>
+
+<br>
+Real steering angle: <span id="angle">__</span> degrees<br>
+Desired angle: <span id="desAngle">__</span> degrees<br>
+<button type="button" id="stop", onclick="changeSpeed(32);" >STOP</button><br>
+<center>
+<button type="button" id="forward", onclick="changeSpeed(87);" >forward</button><br>
+<button type="button" id="left", onclick="changeSpeed(65);" >left</button>
+<button type="button" id="right", onclick="changeSpeed(68);" >right</button><br>
+<button type="button" id="back", onclick="changeSpeed(83);" >back</button>
+</center>
+
+<script>
+displaySpeed();
+</script>
+<!-- <body onload="setup();"> -->
+
+
+
+</html>

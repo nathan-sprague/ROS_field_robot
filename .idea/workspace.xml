@@ -2,10 +2,18 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="7c57f5bc-62f0-4916-a378-e221f12e6aa4" name="Default Changelist" comment="">
+      <change afterPath="$PROJECT_DIR$/esp8266_speed/ESP8266_speed.ino" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/esp8266_steer/esp8266_steer.ino" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/html/compiler.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/html/index.html" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/speed_tester/speed_tester.ino" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/steer_tester/steer_tester.ino" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/README.md" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/encoder_test/encoder_test.ino" beforeDir="false" afterPath="$PROJECT_DIR$/encoder_test/encoder_test.ino" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/esp8266_robot/esp8266_robot.ino" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/gps_simple_navi.py" beforeDir="false" />
       <change beforePath="$PROJECT_DIR$/robot_navigation.py" beforeDir="false" afterPath="$PROJECT_DIR$/robot_navigation.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/simple_controller.py" beforeDir="false" afterPath="$PROJECT_DIR$/simple_controller.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/simple_controller.py" beforeDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -171,7 +179,14 @@
       <option name="project" value="LOCAL" />
       <updated>1621628091381</updated>
     </task>
-    <option name="localTasksCounter" value="8" />
+    <task id="LOCAL-00008" summary="added encoder program">
+      <created>1621977986878</created>
+      <option name="number" value="00008" />
+      <option name="presentableId" value="LOCAL-00008" />
+      <option name="project" value="LOCAL" />
+      <updated>1621977986878</updated>
+    </task>
+    <option name="localTasksCounter" value="9" />
     <servers />
   </component>
   <component name="VcsManagerConfiguration">
@@ -180,17 +195,18 @@
     <MESSAGE value="Added a controller" />
     <MESSAGE value="Put ESP8266 code in folder" />
     <MESSAGE value="Added ways to test the sensors from the Pi" />
-    <option name="LAST_COMMIT_MESSAGE" value="Added ways to test the sensors from the Pi" />
+    <MESSAGE value="added encoder program" />
+    <option name="LAST_COMMIT_MESSAGE" value="added encoder program" />
   </component>
   <component name="WindowStateProjectService">
     <state x="156" y="121" width="1071" height="702" key="#com.intellij.execution.impl.EditConfigurationsDialog" timestamp="1621614745136">
       <screen x="0" y="25" width="1440" height="875" />
     </state>
     <state x="156" y="121" width="1071" height="702" key="#com.intellij.execution.impl.EditConfigurationsDialog/0.25.1440.875@0.25.1440.875" timestamp="1621614745136" />
-    <state x="311" y="64" key="CommitChangelistDialog2" timestamp="1621977900534">
+    <state x="311" y="64" key="CommitChangelistDialog2" timestamp="1621977986680">
       <screen x="0" y="25" width="1440" height="875" />
     </state>
-    <state x="311" y="64" key="CommitChangelistDialog2/0.25.1440.875@0.25.1440.875" timestamp="1621977900534" />
+    <state x="311" y="64" key="CommitChangelistDialog2/0.25.1440.875@0.25.1440.875" timestamp="1621977986680" />
     <state width="1362" height="143" key="GridCell.Tab.0.bottom" timestamp="1621618452530">
       <screen x="0" y="25" width="1440" height="875" />
     </state>
@@ -211,10 +227,10 @@
       <screen x="0" y="25" width="1440" height="875" />
     </state>
     <state x="200" y="98" key="SettingsEditor/0.25.1440.875@0.25.1440.875" timestamp="1621456829213" />
-    <state x="291" y="188" key="Vcs.Push.Dialog.v2" timestamp="1621628093392">
+    <state x="291" y="188" key="Vcs.Push.Dialog.v2" timestamp="1621977989984">
       <screen x="0" y="25" width="1440" height="875" />
     </state>
-    <state x="291" y="188" key="Vcs.Push.Dialog.v2/0.25.1440.875@0.25.1440.875" timestamp="1621628093392" />
+    <state x="291" y="188" key="Vcs.Push.Dialog.v2/0.25.1440.875@0.25.1440.875" timestamp="1621977989984" />
     <state x="477" y="383" key="com.intellij.openapi.vcs.update.UpdateOrStatusOptionsDialogupdate-v2" timestamp="1621628104830">
       <screen x="0" y="25" width="1440" height="875" />
     </state>

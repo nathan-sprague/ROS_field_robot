@@ -7,6 +7,9 @@ var y=0;
 var realX = 0;
 var realY = 0;
 
+var latitude = 0;
+var longitude = 0;
+
 var stop = 0;
 
 var targPosApplied = false;
@@ -25,20 +28,26 @@ function sendInfo(){
             text = this.responseText;
            var val = "";
            while (i<text.length) {
-             if (text[i]=='x'){
+             if (text[i]=='a'){
                 realX = parseInt(val);
                 val = "";
-             } else if (text[i]=='y'){
+             } else if (text[i]=='w'){
                realY = parseInt(val);
+                val = "";
+             } else if (text[i]=='x'){
+               latitude = parseInt(val);
+                val = "";
+             } else if (text[i]=='y'){
+               longitude = parseInt(val);
                 val = "";
              } else if (text[i]=='h'){
                heading = parseInt(val);
                 val = "";
              } else if (text[i]=='l'){
-               desLong = parseInt(val);
+               desLat = parseInt(val);
                 val = "";
              } else if (text[i]=='t'){
-               desLat = parseInt(val);
+               desLong = parseInt(val);
                 val = "";
              } else {
                 val += text[i];
@@ -49,8 +58,11 @@ function sendInfo(){
 
            document.getElementById("speed").innerHTML = realY;
            document.getElementById("angle").innerHTML = realX;
-           document.getElementById("desLong").innerHTML = desLong/10000000.0;
-           document.getElementById("desLat").innerHTML = desLat/10000000.0;
+           document.getElementById("desLong").innerHTML = desLong;
+           document.getElementById("desLat").innerHTML = desLat;
+
+           document.getElementById("lat").innerHTML = latitude;
+           document.getElementById("long").innerHTML = longitude;
 
            ready = true;
 

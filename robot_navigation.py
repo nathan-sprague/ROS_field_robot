@@ -3,7 +3,7 @@ import time
 import math
 from threading import Thread
 
-testLocations = [[1, 2], [2, 3], [3, 4]]
+testLocations = [[1, 1], [2, 3], [3, 4]]
 
 
 class Robot:
@@ -11,8 +11,11 @@ class Robot:
 
         self.coords = [0, 0]
         self.headingAngle = 0
+        self.heading = (0,0,0)
         self.wheelSpeed = 0
         self.steeringDirection = 0
+
+        self.steeringAngle = 0
 
         self.targetCoords = [0, 0]
         self.targetHeadingAngle = 0
@@ -21,21 +24,29 @@ class Robot:
         self.distanceTraveled = 0
 
         self.compassThread = Thread(target=self.getHeadings)
-        self.SteerSerialThread = Thread(target=self.readSteerSerial)
-        self.MoveSerialThread = Thread(target=self.readMoveSerial)
 
         if self.beginCompass():
             self.compassThread.start()
         else:
             print("unable to begin compass")
 
+        self.espList = []
+        self.espRxThreads = []
+        self.espTxThreads = []
+        # /dev/ttyUSB0
+        self.espList += [serial.Serial(port='/dev/cu.SLAB_USBtoUART', baudrate=115200, timeout=.1)]
 
-        self.moveESP = serial.Serial(port='/dev/cu.SLAB_USBtoUART0', baudrate=115200, timeout=.1)
-        self.steerESP = serial.Serial(port='/dev/cu.SLAB_USBtoUART1', baudrate=115200, timeout=.1)
-        print("Set up serial port")
-        self.SteerSerialThread.start()
-        self.MoveSerialThread.start()
+        self.espList += [serial.Serial(port='/dev/cu.SLAB_USBtoUART7', baudrate=115200, timeout=.1)]
 
+        print("Set up serial port(s)")
+
+        for esp in self.espList:
+            rxThread = Thread(target=self.readSerial, args=[esp])
+            txThread = Thread(target=self.sendSerial, args=[esp])
+            self.espRxThreads += [rxThread]
+            self.espTxThreads += [txThread]
+            rxThread.start()
+            txThread.start()
 
     def beginCompass(self):
         try:
@@ -48,51 +59,55 @@ class Robot:
         except:
             return False
 
-    def readSteerSerial(self):
-        line = self.moveESP.readline()
-        self.processSerial(line)
-        time.sleep(0.1)
+    def readSerial(self, serialDevice):
+        while True:
+            line = serialDevice.readline()
 
-    def readMoveSerial(self):
-        line = self.steerESP.readline()
-        self.processSerial(line)
-        time.sleep(0.1)
+            self.processSerial(line)
+            time.sleep(0.1)
 
-    def processSerial(self, message):
-
-        if len(message) > 0:
-            msgType = message[0]
-
-            if msgType == '.':
-                print(message[1::])
+    def processSerial(self, message_bin):
+        message = str(message_bin)
+        if len(message_bin) > 0:
 
             try:
-                res = int(message[1::])
+                message = message[2:-5]
+                msgType = message[0]
+            except:
+                print("odd message format")
+                return
+
+            if msgType == ".":
+                print(message[1::])
+                return
+
+            try:
+                res = float(message[1::])
             except:
                 print("invalid message: " + message)
                 return
 
-            if msgType == 'x':  # compass latitude
+            if msgType == "x":  # compass latitude
                 self.coords[0] = res
 
-            elif msgType == 'y':  # compass longitude
+            elif msgType == "y":  # compass longitude
                 self.coords[1] = res
 
-            elif msgType == 'w':  # wheel speed
+            elif msgType == "w":  # wheel speed
                 self.wheelSpeed = res
 
-            elif msgType == 'd':  # distance
+            elif msgType == "d":  # distance
                 self.distanceTraveled = res
 
-            elif msgType == 'a':  # steering angle
+            elif msgType == "a":  # steering angle
+                self.steeringAngle = res
                 self.steeringDirection = self.heading[1] + res
 
-            elif msgType == 'l':
+            elif msgType == "l":
                 self.targetCoords[0] = res
 
-            elif msgType == 't':
+            elif msgType == "t":
                 self.targetCoords[1] = res
-
 
     def getHeadings(self):
         (x, y, z) = self.hmc5883l.getAxes()
@@ -101,18 +116,31 @@ class Robot:
 
     def endSensors(self):
         self.compassThread.join()
-        self.SteerSerialThread.join()
-        self.MoveSerialThread.join()
 
-        self.moveESP.close()
-        self.steerESP.close()
+        for thread in self.espReadThreads:
+            thread.join()
 
-    def move(self, heading, speed):
-        self.steerESP.write(bytes(str("p" + str(heading)), 'utf-8'))
-        time.sleep(0.1)
+        for esp in self.espList:
+            esp.close()
 
-        self.moveESP.write(bytes(str("f" + str(speed)), 'utf-8'))
-        time.sleep(0.1)
+    def sendSerial(self, serialDevice):
+        while True:
+            serialDevice.write(bytes(str("p" + str(self.targetHeadingAngle)), 'utf-8'))
+            time.sleep(0.1)
+            serialDevice.write(bytes(str("f" + str(self.targetSpeed)), 'utf-8'))
+            time.sleep(0.1)
+            serialDevice.write(bytes(str("h" + str(self.heading[1])), 'utf-8'))  # heading
+            time.sleep(0.1)
+            serialDevice.write(bytes(str("x" + str(self.coords[0])), 'utf-8'))  # lat position
+            time.sleep(0.1)
+            serialDevice.write(bytes(str("y" + str(self.coords[1])), 'utf-8'))  # long position
+            time.sleep(0.1)
+            serialDevice.write(bytes(str("u" + str(self.targetCoords[0])), 'utf-8'))  # target lat
+            time.sleep(0.1)
+            serialDevice.write(bytes(str("v" + str(self.targetCoords[1])), 'utf-8'))  # heading long
+            time.sleep(0.1)
+
+            time.sleep(0.3)
 
     def findAngleBetween(self, coords1, coords2):
         if coords1[0] == coords2[0]:
@@ -161,10 +189,10 @@ class Robot:
         for self.targetCoords in destinations:
             while True:
                 if not self.atDestination(self.coords, self.targetCoords):
-                    self.targetHeadingAngle = self.findAngleBetween(self.coords, self.targetCoords)
+                    self.targetHeadingAngle = math.degrees(self.findAngleBetween(self.coords, self.targetCoords))
                     self.targetSpeed = self.findSpeed(self.coords, self.targetCoords)
+                    print("target heading:", self.targetHeadingAngle, "target speed", self.targetSpeed)
 
-                    self.move(self.targetHeadingAngle, self.targetSpeed)
                     time.sleep(1)
                 else:
                     print("reached destination")

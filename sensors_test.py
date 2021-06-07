@@ -1,6 +1,6 @@
 import time
 
-testType = "GPS"
+testType = "serial"
 
 if testType == "serial":
     import serial

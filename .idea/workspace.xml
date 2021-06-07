@@ -1,19 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="ChangeListManager">
-    <list default="true" id="7c57f5bc-62f0-4916-a378-e221f12e6aa4" name="Default Changelist" comment="Separated the motor and steering .ino files to have steering operate independent of the motor">
-      <change afterPath="$PROJECT_DIR$/tests/encoder_test/encoder_test.ino" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/tests/speed_tester/speed_tester.ino" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/tests/steer_tester/steer_tester.ino" afterDir="false" />
+    <list default="true" id="7c57f5bc-62f0-4916-a378-e221f12e6aa4" name="Default Changelist" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/encoder_test/encoder_test.ino" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/esp32_robot/esp32_robot.ino" beforeDir="false" />
       <change beforePath="$PROJECT_DIR$/esp8266_speed/ESP8266_speed.ino" beforeDir="false" afterPath="$PROJECT_DIR$/esp8266_speed/ESP8266_speed.ino" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/esp8266_steer/esp8266_steer.ino" beforeDir="false" afterPath="$PROJECT_DIR$/esp8266_steer/esp8266_steer.ino" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/html/index.html" beforeDir="false" afterPath="$PROJECT_DIR$/html/index.html" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/robot_navigation.py" beforeDir="false" afterPath="$PROJECT_DIR$/robot_navigation.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/speed_tester/speed_tester.ino" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/steer_tester/steer_tester.ino" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/sensors_test.py" beforeDir="false" afterPath="$PROJECT_DIR$/sensors_test.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -193,7 +186,14 @@
       <option name="project" value="LOCAL" />
       <updated>1622756590114</updated>
     </task>
-    <option name="localTasksCounter" value="10" />
+    <task id="LOCAL-00010" summary="Added PID logic and improved communication between controllers">
+      <created>1623085332366</created>
+      <option name="number" value="00010" />
+      <option name="presentableId" value="LOCAL-00010" />
+      <option name="project" value="LOCAL" />
+      <updated>1623085332366</updated>
+    </task>
+    <option name="localTasksCounter" value="11" />
     <servers />
   </component>
   <component name="VcsManagerConfiguration">
@@ -204,41 +204,42 @@
     <MESSAGE value="Added ways to test the sensors from the Pi" />
     <MESSAGE value="added encoder program" />
     <MESSAGE value="Separated the motor and steering .ino files to have steering operate independent of the motor" />
-    <option name="LAST_COMMIT_MESSAGE" value="Separated the motor and steering .ino files to have steering operate independent of the motor" />
+    <MESSAGE value="Added PID logic and improved communication between controllers" />
+    <option name="LAST_COMMIT_MESSAGE" value="Added PID logic and improved communication between controllers" />
   </component>
   <component name="WindowStateProjectService">
     <state x="156" y="121" width="1071" height="702" key="#com.intellij.execution.impl.EditConfigurationsDialog" timestamp="1621614745136">
       <screen x="0" y="25" width="1440" height="875" />
     </state>
     <state x="156" y="121" width="1071" height="702" key="#com.intellij.execution.impl.EditConfigurationsDialog/0.25.1440.875@0.25.1440.875" timestamp="1621614745136" />
-    <state x="311" y="64" key="CommitChangelistDialog2" timestamp="1622756596036">
+    <state x="311" y="64" key="CommitChangelistDialog2" timestamp="1623085331984">
       <screen x="0" y="25" width="1440" height="875" />
     </state>
-    <state x="311" y="64" key="CommitChangelistDialog2/0.25.1440.875@0.25.1440.875" timestamp="1622756596036" />
-    <state width="1371" height="143" key="GridCell.Tab.0.bottom" timestamp="1623083457614">
+    <state x="311" y="64" key="CommitChangelistDialog2/0.25.1440.875@0.25.1440.875" timestamp="1623085331984" />
+    <state width="1371" height="143" key="GridCell.Tab.0.bottom" timestamp="1623100667614">
       <screen x="0" y="25" width="1440" height="875" />
     </state>
-    <state width="1371" height="143" key="GridCell.Tab.0.bottom/0.25.1440.875@0.25.1440.875" timestamp="1623083457614" />
-    <state width="1371" height="143" key="GridCell.Tab.0.center" timestamp="1623083457613">
+    <state width="1371" height="143" key="GridCell.Tab.0.bottom/0.25.1440.875@0.25.1440.875" timestamp="1623100667614" />
+    <state width="1371" height="143" key="GridCell.Tab.0.center" timestamp="1623100667613">
       <screen x="0" y="25" width="1440" height="875" />
     </state>
-    <state width="1371" height="143" key="GridCell.Tab.0.center/0.25.1440.875@0.25.1440.875" timestamp="1623083457613" />
-    <state width="1371" height="143" key="GridCell.Tab.0.left" timestamp="1623083457612">
+    <state width="1371" height="143" key="GridCell.Tab.0.center/0.25.1440.875@0.25.1440.875" timestamp="1623100667613" />
+    <state width="1371" height="143" key="GridCell.Tab.0.left" timestamp="1623100667612">
       <screen x="0" y="25" width="1440" height="875" />
     </state>
-    <state width="1371" height="143" key="GridCell.Tab.0.left/0.25.1440.875@0.25.1440.875" timestamp="1623083457612" />
-    <state width="1371" height="143" key="GridCell.Tab.0.right" timestamp="1623083457613">
+    <state width="1371" height="143" key="GridCell.Tab.0.left/0.25.1440.875@0.25.1440.875" timestamp="1623100667612" />
+    <state width="1371" height="143" key="GridCell.Tab.0.right" timestamp="1623100667614">
       <screen x="0" y="25" width="1440" height="875" />
     </state>
-    <state width="1371" height="143" key="GridCell.Tab.0.right/0.25.1440.875@0.25.1440.875" timestamp="1623083457613" />
+    <state width="1371" height="143" key="GridCell.Tab.0.right/0.25.1440.875@0.25.1440.875" timestamp="1623100667614" />
     <state x="200" y="98" key="SettingsEditor" timestamp="1621456829213">
       <screen x="0" y="25" width="1440" height="875" />
     </state>
     <state x="200" y="98" key="SettingsEditor/0.25.1440.875@0.25.1440.875" timestamp="1621456829213" />
-    <state x="291" y="188" key="Vcs.Push.Dialog.v2" timestamp="1623085303555">
+    <state x="291" y="188" key="Vcs.Push.Dialog.v2" timestamp="1623085335676">
       <screen x="0" y="25" width="1440" height="875" />
     </state>
-    <state x="291" y="188" key="Vcs.Push.Dialog.v2/0.25.1440.875@0.25.1440.875" timestamp="1623085303555" />
+    <state x="291" y="188" key="Vcs.Push.Dialog.v2/0.25.1440.875@0.25.1440.875" timestamp="1623085335676" />
     <state x="477" y="383" key="com.intellij.openapi.vcs.update.UpdateOrStatusOptionsDialogupdate-v2" timestamp="1621628104830">
       <screen x="0" y="25" width="1440" height="875" />
     </state>

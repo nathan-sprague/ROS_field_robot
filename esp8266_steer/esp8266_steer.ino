@@ -167,8 +167,8 @@ void targetToSpeed(){
   // on left, go to right -> 50 - (-50) = 100
   // on right, go to left -> -50 - 50 = -100
   // acceptable speeds:
-  // 170 - 190 (right)
-  // 120 - 140 (left)
+  // 180 - 200 (right)
+  // 110 - 130 (left)
   bool canPrint = false;
   if (lastPrint2+200<millis()){
     lastPrint2 = millis();
@@ -178,9 +178,9 @@ void targetToSpeed(){
     Serial.println(".dist to target: " + String(distToTarget));
   }
   if (distToTarget < 0) { // target to the left
-    pwmSpeed = distToTarget * (30.0 / 100.0) + 150;
+    pwmSpeed = distToTarget * (30.0 / 100.0) + 140;
   } else if (distToTarget > 0) { // target to the right
-    pwmSpeed = (distToTarget * (30.0 / 100.0)) + 160;
+    pwmSpeed = (distToTarget * (30.0 / 100.0)) + 170;
 
   } else {
     if (canPrint){

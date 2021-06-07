@@ -12,6 +12,30 @@ static const uint8_t D9   = 3;
 static const uint8_t D10  = 1;
  */
 
+/*
+Serial Message Prefixes:
+
+Informational:
+x: gps latitude
+y: gps longitude
+u: destination latitude
+v: destination longitude
+w: wheel speed
+d: distance
+a: steering angle
+h: heading
+
+Command:
+p: steering angle
+f: motor speed
+l: destination latitude
+t: destination longitude
+
+Other:
+.: console log
+-: error
+*/
+
 
 #include <ESP8266WiFi.h>
 #include <ESPAsyncTCP.h>
@@ -26,10 +50,17 @@ const int motorPin = 4;  // motor (D2)
 const int hallPin = 5; // speed sensor pin (D1)
 const int otherHallPin = 0; // speed sensor pin (D3)
 
-
-// steering angle variables (since this ESP is serving the website for all points of connection)
+// General Robot information for website and control
+// steering variables 
 int targetAngle = 0;
 int realAngle = 0;
+
+// Navigation variables
+long latitude = 0;
+long longitude = 0;
+long targetX = 0;
+long targetY = 0;
+int heading = 0;
 
 
 unsigned long lastMsgTime = 0; // timer to prevent over-printing
@@ -90,39 +121,53 @@ void setupPages(){
     server.on("/", [](AsyncWebServerRequest * request) {
     Serial.println(".main requested");
     request->send(200, "text/html",
-"<!DOCTYPE html>\n<script>\n\nvar x=0;\nvar y=0;\n\nvar realX = 0;\nvar realY = 0;\n\n\nready = true;\nfunction sendInfo(){  \n if (ready){\n   // ready = false;\n     var xhttp = new XMLHttpRequest();\n     xhttp.onreadystatechange = function() {\n       if (this.readyState == 4 && this.status == 200) {\n\n           console.log(this.responseText);\n           var i = 0;\n            text = this.responseText;\n           var val = \"\";\n           while (i<text.length) {\n             if (text[i]=='x'){\n                realX = parseInt(val);\n                val = \"\";\n             } else if (text[i]=='y'){\n               realY = parseInt(val);\n                val = \"\";\n             } else {\n                val += text[i];\n             }\n\n             i+=1;\n           }\n\n           document.getElementById(\"speed\").innerHTML = realY;\n           document.getElementById(\"angle\").innerHTML = realX;\n\n           ready = true;\n\n       } else if (this.status == 0){\n         // ready = false;\n         // console.log(\"rs\", this.status);\n        }\n     };\n\n      //displaySpeed();\n\n     argList = \"?override=1\"  + \"&x=\" + x + \"&y=\" + y;\n      \n      console.log(argList);\n     xhttp.open('GET', '/_info' + argList, true);\n      xhttp.send();\n } else {\n    console.log(\"not ready\");\n }\n}\n\nvar requestInt = setInterval(sendInfo, 500);\n\n\nvar shouldChange = false;\n\nfunction changeSpeed(val){\n shouldChange = true;\n      if ((val == 87 || val == 38) && y<15) { // forward\n     y+=1;\n    } else if ((val == 83 || val == 40) && y>-15) {  // backward\n     y-=1;\n\n    } else if ((val == 65 || val == 37) && x>-40) { // left\n     x-=5;\n    } else if ((val == 68 || val == 39) && x<40) { //right\n     x+=5;\n    }\n    console.log(x,y);\n    \n    if ((val == 32)){ // stop\n      x=0;\n      y=0;\n      sendInfo();\n    }\n    displaySpeed();\n}\n\ndocument.onkeydown = function(evt) {\n    evt = evt || window.event;\n    console.log(evt.keyCode);\n\n    changeSpeed(evt.keyCode)\n    // sendInfo();\n    //w 87 38\n    //a 65 37\n    //s 83 40\n    //d 68 39\n    //space 32\n    \n};\n\nfunction displaySpeed(){\n\n     document.getElementById(\"desSpeed\").innerHTML = y;\n      document.getElementById(\"desAngle\").innerHTML = x;\n    }\n\n\n</script>\n\n<html>\n<title>Robot Controller</title>\n\n<!-- <input type=\"checkbox\" id=\"override\" checked = \"true\" onclick=\"displaySpeed();\"> Override -->\n\n\n\n<br>\nReal Speed: <span id=\"speed\">__</span> mph<br>\nDesired Speed: <span id=\"desSpeed\">__</span> mph<br>\n\n<br>\nReal steering angle: <span id=\"angle\">__</span> degrees<br>\nDesired angle: <span id=\"desAngle\">__</span> degrees<br>\n<button type=\"button\" id=\"stop\", onclick=\"changeSpeed(32);\" >STOP</button><br>\n<center>\n<button type=\"button\" id=\"forward\", onclick=\"changeSpeed(87);\" >forward</button><br>\n<button type=\"button\" id=\"left\", onclick=\"changeSpeed(65);\" >left</button>\n<button type=\"button\" id=\"right\", onclick=\"changeSpeed(68);\" >right</button><br>\n<button type=\"button\" id=\"back\", onclick=\"changeSpeed(83);\" >back</button>\n</center>\n\n<script>\ndisplaySpeed();\n</script>\n<!-- <body onload=\"setup();\"> -->\n\n\n\n</html>"
-                 );   
+"<!DOCTYPE html>\n<script>\n\nvar x=0;\nvar y=0;\n\nvar realX = 0;\nvar realY = 0;\n\nvar stop = 0;\n\nvar targPosApplied = false;\n\nready = true;\nfunction sendInfo(){  \n if (ready){\n   // ready = false;\n     var xhttp = new XMLHttpRequest();\n     xhttp.onreadystatechange = function() {\n       if (this.readyState == 4 && this.status == 200) {\n           desLong = 0;\n           desLat = 0;\n           console.log(this.responseText);\n           var i = 0;\n            text = this.responseText;\n           var val = \"\";\n           while (i<text.length) {\n             if (text[i]=='x'){\n                realX = parseInt(val);\n                val = \"\";\n             } else if (text[i]=='y'){\n               realY = parseInt(val);\n                val = \"\";\n             } else if (text[i]=='h'){\n               heading = parseInt(val);\n                val = \"\";\n             } else if (text[i]=='l'){\n               desLong = parseInt(val);\n                val = \"\";\n             } else if (text[i]=='t'){\n               desLat = parseInt(val);\n                val = \"\";\n             } else {\n                val += text[i];\n             }\n\n             i+=1;\n           }\n\n           document.getElementById(\"speed\").innerHTML = realY;\n           document.getElementById(\"angle\").innerHTML = realX;\n           document.getElementById(\"desLong\").innerHTML = desLong/10000000.0;\n           document.getElementById(\"desLat\").innerHTML = desLat/10000000.0;\n\n           ready = true;\n\n       } else if (this.status == 0){\n         // ready = false;\n         // console.log(\"rs\", this.status);\n        }\n     };\n\n      //displaySpeed();\n\n\n     shouldOverride = 1;\n     if (document.getElementById(\"observe\").checked){\n        shouldOverride = 0;\n        argList = \"?override=0\";\n     } else {\n      argList = \"?override=1\";\n       if (!stop){\n      \n        argList += \"&p=\" + x + \"&f=\" + y;\n      }\n     }\n     if (stop){\n        argList += \"&s=1\"\n     }\n     if (targPosApplied & document.getElementById(\"desLatInput\").value !== \"\" & document.getElementById(\"desLongInput\").value !== \"\"){\n        argList += \"&l=\" + document.getElementById(\"desLatInput\").value;\n        argList += \"&t=\" + document.getElementById(\"desLongInput\").value;\n        targPosApplied = false;\n      }\n      \n\n    console.log(argList);\n     xhttp.open('GET', '/_info' + argList, true);\n     xhttp.send();\n } else {\n    console.log(\"not ready\");\n }\n}\n\nvar requestInt = setInterval(sendInfo, 500);\n\n\n\nfunction changeSpeed(val){\n    if ((val == 87 || val == 38) && y<15) { // forward\n     y+=1;\n    } else if ((val == 83 || val == 40) && y>-15) {  // backward\n     y-=1;\n\n    } else if ((val == 65 || val == 37) && x>-40) { // left\n     x-=5;\n    } else if ((val == 68 || val == 39) && x<40) { //right\n     x+=5;\n    }\n    console.log(x,y);\n    \n    if ((val == 32)){ // stop\n      x=0;\n      y=0;\n      sendInfo();\n    }\n    displaySpeed();\n}\n\ndocument.onkeydown = function(evt) {\n    evt = evt || window.event;\n    // console.log(evt.keyCode);\n\n    changeSpeed(evt.keyCode)\n    // sendInfo();\n    //w 87 38\n    //a 65 37\n    //s 83 40\n    //d 68 39\n    //space 32\n    \n};\n\nfunction displaySpeed(){\n\n     document.getElementById(\"desSpeed\").innerHTML = y;\n      document.getElementById(\"desAngle\").innerHTML = x;\n    }\n\nfunction stopNow(){\n  if (document.getElementById(\"stop\").innerHTML == \"STOP\"){\n    stop = 1;\n    changeSpeed(32);\n    document.getElementById(\"stop\").innerHTML = \"GO\";\n  } else {\n    stop = 0;\n    document.getElementById(\"stop\").innerHTML = \"STOP\";\n  }\n}\n\nfunction setCoords(){\n\n\n}\n\nfunction toggleOverride(){\n  if (document.getElementById(\"observe\").checked){\n    // document.getElementById(\"targetPositionOverride\").style.display = \"none\";\n\n  } else {\n    // document.getElementById(\"targetPositionOverride\").style.display = \"inline-block\";\n  }\n\n}\n\n\n</script>\n\n<html>\n<title>Robot Controller</title>\n\n<!-- <input type=\"checkbox\" id=\"override\" checked = \"true\" onclick=\"displaySpeed();\"> Override -->\n\n<input type=\"radio\" id=\"observe\" name=\"action\" value=\"observe\" onclick=\"toggleOverride();\" checked>\n<label for=\"observe\">observe</label><br>\n<input type=\"radio\" id=\"override\" name=\"action\" value=\"override\" onclick=\"toggleOverride();\">\n<label for=\"override\">override</label><br>\n\n\n\n<br>\nReal Speed: <span id=\"speed\">__</span> mph<br>\nDesired Speed: <span id=\"desSpeed\">__</span> mph<br>\n\n<br>\nReal steering angle: <span id=\"angle\">__</span> degrees<br>\nDesired angle: <span id=\"desAngle\">__</span> degrees<br>\n<br>\n\n\nCurrent Position: <span id=\"lat\">__</span>, <span id=\"long\">__</span><br>\n\n\nTarget Position: \n<span id=\"desLat\">__</span>,  <span id=\"desLong\">__</span>  <br>\n\n<p id= \"targetPositionOverride\" style=\"\">\nOverride Target Position <input type=\"text\" id=\"desLatInput\">, <input type=\"text\" id=\"desLongInput\">\n\n<button type=\"button\" id=\"setTarget\", onclick=\"targPosApplied=true;\">apply</button>\n</p>\n\n\n<br>Heading: <span id=\"heading\">__</span> degrees North<br> \n\n<br>\n<button type=\"button\" id=\"stop\", onclick=\"stopNow();\" >STOP</button><br>\n<center>\n<button type=\"button\" id=\"forward\", onclick=\"changeSpeed(87);\" >forward</button><br>\n<button type=\"button\" id=\"left\", onclick=\"changeSpeed(65);\" >left</button>\n<button type=\"button\" id=\"right\", onclick=\"changeSpeed(68);\" >right</button><br>\n<button type=\"button\" id=\"back\", onclick=\"changeSpeed(83);\" >back</button>\n</center>\n\n<script>\ndisplaySpeed();\n</script>\n<!-- <body onload=\"setup();\"> -->\n\n\n\n</html>"
+
+);
   });
 
   server.on("/_info", [](AsyncWebServerRequest * request) {
-    if (request->hasParam("override") && request->hasParam("x") && request->hasParam("y")) {
-        wifiControl = true;
-        lastCommandTime = millis();
-        if (request->getParam("override")->value() == "0"){
-          Serial.println(".not requesting override");  
-          
-        } else if (request->getParam("override")->value() == "1"){
-          String x = request->getParam("x")->value();
-          String y = request->getParam("y")->value();
-
-          targetSpeed = y.toInt();
-          targetAngle = x.toInt();
-          stopNow = false;
-          Serial.println(".target set " + String(x) + ", " + String(y));
-          
-          
-        } else {
-          Serial.println(".emergency stop");
+    if (request->hasParam("s")) {
+      Serial.println(".emergency stop");
           stopNow = true;
           targetSpeed = 0;
+    } 
+    
+    if (request->hasParam("l") && request->hasParam("t")) {
+      Serial.println(".new destination");
+      Serial.println("l" + request->getParam("l")->value());
+      Serial.println("t" + request->getParam("t")->value());
+    }
+
+    
+    if (request->hasParam("override")) {
+      if (request->getParam("override")->value() == "0"){
+          Serial.println(".not requesting override");  
+          wifiControl = false;
+      } else if (request->getParam("override")->value() == "1"){
+        wifiControl = true;
+        lastCommandTime = millis();
+        if (request->hasParam("p")) {
+          String x = request->getParam("p")->value();
+          
+          targetAngle = x.toInt();
+          stopNow = false;
+        } 
+        if (request->hasParam("f")) {
+          String y = request->getParam("f")->value();
+          targetSpeed = y.toInt();
+          stopNow = false;
         }
+
+       
+      }
         
     } else {   
         wifiControl = false;   
         Serial.println(".not requesting override");   
     }
 
-    String response = String(realAngle) + "x" + String(smoothSpeed) + "y";
+    String response = String(realAngle) + "x" + String(smoothSpeed) + "y" + String(heading) + "h" + String(targetX) + "l" + String(targetY) + "t";
     
     request->send(200, "text/plain", response);
     
@@ -178,6 +223,21 @@ void processSerial() {
       analogWrite(motorPin, commandVal);
       PWMSignal = commandVal;
 
+    } else if (commandType == 'h') {
+      heading = commandVal;
+      
+    } else if (commandType == 'x') {
+      latitude = float(commandVal);
+      
+    } else if (commandType == 'y') {
+      longitude = float(commandVal);
+
+    } else if (commandType == 'u') {
+      targetX = float(commandVal);
+      
+    } else if (commandType == 'v') {
+      targetY = float(commandVal);
+      
     } else if (commandType == 's') {
       if (DEBUGMODE) {
         Serial.println(".emergency stop");
@@ -382,7 +442,13 @@ void setMotorSpeed() {
     // add up the integrated error
     if (atTarget == 0){
       intError = (intError*5 + (targetSpeed - smoothSpeed))/6;
+      if (intError<0.1){
+        PWMSignal+=1;
+      } else if (intError>0.1){
+        PWMSignal-=1;
+      }
     }
+    
 
     if (DEBUGMODE) {
       Serial.print(", pwmdif: " + String(PWMdif));
@@ -429,8 +495,10 @@ void setup() {
 
 void loop() {
 //  return;
-  processSerial();
-
+  if (!wifiControl){
+    processSerial();
+  }
+  
   getWheelSpeed();
   
   if (stopNow) {

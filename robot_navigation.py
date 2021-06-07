@@ -3,7 +3,7 @@ import time
 import math
 from threading import Thread
 
-testLocations = [(1, 2), (2, 3), (3, 4)]
+testLocations = [[1, 2], [2, 3], [3, 4]]
 
 
 class Robot:
@@ -14,7 +14,7 @@ class Robot:
         self.wheelSpeed = 0
         self.steeringDirection = 0
 
-        self.targetCoords = (0, 0)
+        self.targetCoords = [0, 0]
         self.targetHeadingAngle = 0
         self.targetSpeed = 0
 
@@ -24,20 +24,17 @@ class Robot:
         self.SteerSerialThread = Thread(target=self.readSteerSerial)
         self.MoveSerialThread = Thread(target=self.readMoveSerial)
 
-        if (self.beginCompass()):
+        if self.beginCompass():
             self.compassThread.start()
         else:
             print("unable to begin compass")
 
-        try:
-            self.moveESP = serial.Serial(port='/dev/cu.SLAB_USBtoUART0', baudrate=115200, timeout=.1)
-            self.steerESP = serial.Serial(port='/dev/cu.SLAB_USBtoUART1', baudrate=115200, timeout=.1)
-            print("Set up serial port")
-            self.SteerSerialThread.start()
-            self.MoveSerialThread.start()
-        except:
-            print("Cannot set up serial port")
 
+        self.moveESP = serial.Serial(port='/dev/cu.SLAB_USBtoUART0', baudrate=115200, timeout=.1)
+        self.steerESP = serial.Serial(port='/dev/cu.SLAB_USBtoUART1', baudrate=115200, timeout=.1)
+        print("Set up serial port")
+        self.SteerSerialThread.start()
+        self.MoveSerialThread.start()
 
 
     def beginCompass(self):
@@ -51,7 +48,6 @@ class Robot:
         except:
             return False
 
-
     def readSteerSerial(self):
         line = self.moveESP.readline()
         self.processSerial(line)
@@ -63,7 +59,8 @@ class Robot:
         time.sleep(0.1)
 
     def processSerial(self, message):
-        if len(message)>0:
+
+        if len(message) > 0:
             msgType = message[0]
 
             if msgType == '.':
@@ -72,28 +69,34 @@ class Robot:
             try:
                 res = int(message[1::])
             except:
-                print ("invalid message: " + message)
+                print("invalid message: " + message)
                 return
 
-            if msgType == 'x': # compass latitude
+            if msgType == 'x':  # compass latitude
                 self.coords[0] = res
 
             elif msgType == 'y':  # compass longitude
                 self.coords[1] = res
 
-            elif msgType == 'w': # wheel speed
+            elif msgType == 'w':  # wheel speed
                 self.wheelSpeed = res
 
-            elif msgType == 'd': # distance
-                self.distanceTraveled  = res
+            elif msgType == 'd':  # distance
+                self.distanceTraveled = res
 
-            elif msgType == 'a': # steering angle
+            elif msgType == 'a':  # steering angle
                 self.steeringDirection = self.heading[1] + res
+
+            elif msgType == 'l':
+                self.targetCoords[0] = res
+
+            elif msgType == 't':
+                self.targetCoords[1] = res
 
 
     def getHeadings(self):
         (x, y, z) = self.hmc5883l.getAxes()
-        self.heading = (x,y,z)
+        self.heading = (x, y, z)
         time.sleep(1)
 
     def endSensors(self):
@@ -103,7 +106,6 @@ class Robot:
 
         self.moveESP.close()
         self.steerESP.close()
-
 
     def move(self, heading, speed):
         self.steerESP.write(bytes(str("p" + str(heading)), 'utf-8'))
@@ -148,11 +150,11 @@ class Robot:
     def findSpeed(self, coords1, coords2):
         dist = self.findDistBetween(coords1, coords2)
         if dist < 0:
-            return -40
+            return -4
         elif dist < 10:
-            return 40
+            return 4
         else:
-            return 90
+            return 9
 
     def navigate(self, destinations):
 

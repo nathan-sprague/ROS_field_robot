@@ -3,9 +3,8 @@
 #define USE_GPS false
 
 #include <Wire.h>
-#include <SparkFun_u-blox_GNSS_Arduino_Library.h> //http://librarymanager/All#SparkFun_u-blox_GNSS
-SFE_UBLOX_GNSS myGNSS;
-const int motorPin = 4;  // motor (D2)
+
+const int motorPin = 16;  // motor (D2)
 int pwmSpeed = 0;
 bool stopNow = false;
 int targetPosition = 0;

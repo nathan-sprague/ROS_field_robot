@@ -23,14 +23,6 @@ SFE_UBLOX_GNSS myGNSS;
 
 #include <Arduino.h>
 
-#include <ESP8266WiFi.h>
-#include <ESP8266WiFiMulti.h>
-
-#include <ESP8266HTTPClient.h>
-
-#include <WiFiClient.h>
-
-ESP8266WiFiMulti WiFiMulti;
 
 
 const int steerPin = 16;  // motor (D0)
@@ -43,6 +35,8 @@ bool stopNow = false;
 int targetPosition = 0;
 unsigned long lastPrint = 0;
 unsigned long lastPrint2 = 0;
+
+bool manualPWM = false;
 
 int passedTarget = 10;
 
@@ -61,15 +55,23 @@ void processSerial() {
     }
     int commandVal = serialMsg.toInt();
 
+    if (commandType=='_'){
+      return;
+    }
 
     if (commandType == 'z') {
       Serial.println(".manual");
+      
       pwmSpeed = commandVal;
       analogWrite(steerPin, commandVal);
+      Serial.println("-z" + String(commandVal));
+      manualPWM = true;
 
     } else if (commandType == 'p') {
+      manualPWM = false;
       if (commandVal!=targetPosition){
-        Serial.println(".move to angle: " + String(commandVal));
+        Serial.println("-p" + String(int(commandVal)));
+        Serial.println(".serial says move to angle: " + String(commandVal));
         Serial.println(".");
         targetPosition  = commandVal;
       
@@ -77,15 +79,25 @@ void processSerial() {
       }
 
     } else if (commandType == 's') {
+      manualPWM = false;
+      Serial.println("-s");
       Serial.println(".emergency stop");
       stopNow = true;
 
     } else if (commandType == 'g') {
-      Serial.println(".go");
+      manualPWM = false;
+      Serial.println("-g");
+//      Serial.println(".go");
       stopNow = false;
     } else if (commandType == 'r') {
+      manualPWM = false;
+      Serial.println("-r");
       Serial.println(".restarting");
       ESP.restart();
+    } else if (commandType == 'f') {
+      Serial.println("+f");
+    } else if (commandType == 'b') {
+      Serial.println("+b");
     }
   }
 }
@@ -105,88 +117,22 @@ void beginGPS() {
 
 void getPosition() {
 
-  float latitude = myGNSS.getLatitude();
-  Serial.println("x" + String(latitude));
+  float latitude = float(myGNSS.getLatitude())/10000000;
+  Serial.println("x" + String(latitude,7));
 
-  float longitude = myGNSS.getLongitude();
-  Serial.println("y" + String(longitude));
+  float longitude = float(myGNSS.getLongitude())/10000000;
+  Serial.println("y" + String(longitude,7));
+
+  int SIV = myGNSS.getSIV();
+   
+   Serial.println(".satellites in view: " + String(SIV));
 }
 
 
-void talkToESP() {
-  if ((WiFiMulti.run() == WL_CONNECTED)) {
 
-    WiFiClient client;
-
-    HTTPClient http;
-    if (WIRELESSDEBUG) {
-      Serial.print(".[HTTP] begin...\n");
-    }
-
-    if (http.begin(client, "http://192.168.4.1/_angle?a=" + String(averagePosition))) {  // HTTP
-
-
-      if (WIRELESSDEBUG) {
-        Serial.print(".[HTTP] GET...\n");
-      }
-      // start connection and send HTTP header
-      int httpCode = http.GET();
-
-      // httpCode will be negative on error
-      if (httpCode > 0) {
-        // HTTP header has been send and Server response header has been handled
-        if (WIRELESSDEBUG) {
-          Serial.printf(".[HTTP] GET... code: %d\n", httpCode);
-        }
-
-        // file found at server
-        if (httpCode == HTTP_CODE_OK || httpCode == HTTP_CODE_MOVED_PERMANENTLY) {
-          String payload = http.getString();
-          if (payload.length()
-          >0){
-            if (payload == "s") {
-              stopNow = true;
-              return;
-            } else {
-              stopNow = false;
-              targetPosition = payload.toInt();
-              passedTarget = 0;
-              //          Serial.println(payload);
-            }
-          }
-        }
-      } else {
-        if (WIRELESSDEBUG) {
-          Serial.printf(".[HTTP] GET... failed, error: %s\n", http.errorToString(httpCode).c_str());
-        }
-      }
-
-      http.end();
-    } else {
-      if (WIRELESSDEBUG) {
-        Serial.printf(".[HTTP} Unable to connect\n");
-      }
-    }
-  }
-}
-
-void connectToWIFI() {
-  for (uint8_t t = 4; t > 0; t--) {
-    if (WIRELESSDEBUG) {
-      Serial.printf(".[SETUP] WAIT %d...\n", t);
-    }
-    Serial.flush();
-    delay(1000);
-  }
-  WiFi.mode(WIFI_STA);
-  WiFiMulti.addAP("robot");
-}
 
 void setup() {
   Serial.begin(115200);
-
-  connectToWIFI();
-
 
   analogWriteFreq(100);
 
@@ -264,11 +210,31 @@ int lastPWMspeed = 0;
 
 int lastReading = 0;
 
+unsigned long lastAngleReading = 0;
+
+unsigned long gotSerialTime = 0;
+bool gotSerial = false;
+
 void loop() {
-  processSerial();
+
+  if (Serial.available() && !gotSerial) {
+    gotSerialTime = millis();
+    gotSerial = true;
+  }
+  if (gotSerial && gotSerialTime+15 < millis()){
+    processSerial();
+    gotSerial = false;
+  }
+  if (gotSerialTime+1500 < millis()){
+    analogWrite(steerPin, 0);
+    pwmSpeed = 0;
+    return;
+  } else {
+    pwmSpeed = lastPWMspeed;
+  }
 
   if (lastRequest + 300 < millis()) {
-    talkToESP();
+//    talkToESP();
     Serial.println("a" + String(averagePosition));
     lastRequest = millis();
 //    Serial.println(".moving " + String(pwmSpeed));
@@ -283,10 +249,15 @@ void loop() {
     return;
   }
 
+  if (millis()-10<lastAngleReading) {
+    return;
+  }
+  
+  lastAngleReading = millis();
+  
   int currentPosition = potToAngle(analogRead(A0));
-
   averagePosition = (averagePosition * 5 + currentPosition) / 6;
-
+ 
 
   if (targetPosition<-40){
     targetPosition = -40;
@@ -319,11 +290,10 @@ void loop() {
   lastReading = averagePosition;
 
 
-  if (limitOvershoot() && pwmSpeed != lastPWMspeed) {
+  if (limitOvershoot() && pwmSpeed != lastPWMspeed && !manualPWM) {
     analogWrite(steerPin, pwmSpeed);
     lastPWMspeed = pwmSpeed;
   }
 
-  delay(10);
 
 }

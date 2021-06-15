@@ -1,7 +1,7 @@
 
 
-f = open("index.html", "r")
-
+# f = open("index.html", "r")
+f = open("index_combined.html", "r")
 allOneWord=""
 for x in f:
   line = ""

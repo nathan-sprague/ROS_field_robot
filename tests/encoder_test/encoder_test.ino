@@ -9,12 +9,12 @@ unsigned long lastHitTime = 0;
 void setup() {
   // put your setup code here, to run once:
   Serial.begin(115200);
-  pinMode(0, INPUT);
+  pinMode(5, INPUT);
 }
 
 
 void loop() {
-  int  x = digitalRead(0);
+  int  x = digitalRead(5);
   // put your main code here, to run repeatedly:
 //  Serial.println(x);
   if (lastRead != x && x == 0){

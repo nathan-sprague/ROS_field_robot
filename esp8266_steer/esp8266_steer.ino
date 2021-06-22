@@ -15,7 +15,7 @@
 #define DEBUGMODE false
 #define WIRELESSDEBUG false
 
-#define USE_GPS true
+#define USE_GPS false
 
 #include <Wire.h>
 #include <SparkFun_u-blox_GNSS_Arduino_Library.h> //http://librarymanager/All#SparkFun_u-blox_GNSS
@@ -72,7 +72,7 @@ void processSerial() {
       if (commandVal!=targetPosition){
         Serial.println("-p" + String(int(commandVal)));
         Serial.println(".serial says move to angle: " + String(commandVal));
-        Serial.println(".");
+       // Serial.println(".");
         targetPosition  = commandVal;
       
         passedTarget = 0;
@@ -271,8 +271,9 @@ void loop() {
     }
 
   }
+  
 
-  if (USE_GPS && lastPosReadTime + 2000 < millis()) {
+  if (USE_GPS && lastPosReadTime + 600 < millis()) {
     getPosition();
     lastPosReadTime = millis();
   }

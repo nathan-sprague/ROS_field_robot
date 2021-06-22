@@ -65,8 +65,10 @@ scale:<br>
 <input type="number" id="scale" ></input>
 <button type="button" id="scaleApply", onclick="canvasScale = document.getElementById('scale').value; drawBoard();" >apply</button><br>
 
+<button type="button" id="stop2", onclick="stopNow();" >STOP</button><br>
 
-<canvas id="mainCanvas" width="600px" height="300px" onclick="clickEvent(event);" style="background:rgb(200,200,200);">
+Green = wheel location, Blue = target heading, Red = heading<br>
+<canvas id="mainCanvas" width="600px" height="600px" onclick="clickEvent(event);" style="background:rgb(200,200,200);">
 
 
 

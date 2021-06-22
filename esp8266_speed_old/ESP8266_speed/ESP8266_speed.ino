@@ -83,6 +83,9 @@ unsigned long lastTalkTime = 0;
 
 String stopReason = "Unknown";
 
+bool gradualAcceleration = true;
+int subtargetSpeed = 0;
+
 
 void processSerial() {
   if (Serial.available()) {
@@ -115,6 +118,14 @@ void processSerial() {
       if (DEBUGMODE){
         Serial.println(".target speed is set to " + serialMsg + ", was: " + String(targetSpeed));
       }
+      if (gradualAcceleration){
+        subtargetSpeed = int(smoothSpeed);
+        if (targetSpeed < smoothSpeed){
+          subtargetSpeed-=1;
+        } else if (targetSpeed > smoothSpeed){
+          subtargetSpeed+=1;
+        }
+      }
       
       manual = false;
 
@@ -138,6 +149,7 @@ void processSerial() {
         Serial.println(".emergency stop"); 
       }
       stopNow = true;
+      subtargetSpeed = 0;
       stopReason = "Serial stop";
 
     } else if (commandType == 'g') {
@@ -153,10 +165,6 @@ void processSerial() {
       ESP.restart();
     }
     
-
-
-
-
   }
 }
 
@@ -294,6 +302,20 @@ void setMotorSpeed() {
   // 120 -> -9.7
   // 110 -> -14.5
 
+
+  if (gradualAcceleration){
+      if (int(smoothSpeed) != subtargetSpeed){ 
+        if (targetSpeed < smoothSpeed){
+          subtargetSpeed-=1;
+        } else if (targetSpeed > smoothSpeed){
+          subtargetSpeed+=1;
+        }
+      }
+   }
+   Serial.println(".subtarget speed: " + String(subtargetSpeed));
+
+      
+
   if (lastTargetChange + 500 < millis()) {
     lastTargetChange = millis();
 
@@ -346,6 +368,16 @@ void setMotorSpeed() {
     // change the PWM signal according to the error
     PWMSignal = PWMSignal + PWMdif;
 
+
+    // prevents you from going backwards if you want to go forwards
+    if (targetSpeed > 0 && PWMSignal < 155) {
+      PWMSignal = 160;
+    } else if (targetSpeed < 0 && PWMSignal > 155) {
+      PWMSignal = 150;
+      
+    }
+    
+
     // you went from being too slow/fast to the other way around, begin collecting integrated differences
     if (atTarget == -1 && smoothSpeed > targetSpeed)
       atTarget = 0;
@@ -379,6 +411,7 @@ void setMotorSpeed() {
     } else if (PWMSignal < 110) {
       PWMSignal = 110;
     }
+    
 
     // when you are going forwards but want to go backwards, you need to stop first
     if (targetSpeed < 0 && smoothSpeed > 0 && goingForward) {

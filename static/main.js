@@ -1,7 +1,7 @@
 var desSteer=0;
 var desSpeed=0;
 
-var realSteer = 0;
+var realAngle = 0;
 var realSpeed = 0;
 
 var latitude = 0;//40.421779;
@@ -93,6 +93,7 @@ function sendInfo(){
         argList += "&angle=" + desSteer + "&speed=" + desSpeed;
       }
     } else {
+
       argList = "?override=0"
     }
     if (stop){
@@ -106,8 +107,7 @@ function sendInfo(){
 
     argList += "&coordListVersion=" + coordListVersion;
      
-     
-      
+
 
     console.log("arg list", argList);
      xhttp.open('GET', '/_info' + argList, true);
@@ -186,7 +186,7 @@ function stopNow(){
 function drawBoard(){
       var c = document.getElementById("mainCanvas");
       var ctx = c.getContext("2d");
-      ctx.clearRect(0, 0, 1000, 500);
+      ctx.clearRect(0, 0, 1000, 1000);
       if (canvasScale==0){
         setScale();
       }
@@ -201,7 +201,7 @@ function drawBoard(){
 }
 
 var canvasScale = 0;
-
+drawBoard();
 
 function setScale(){
   console.log("set scale");
@@ -257,7 +257,7 @@ function coordToCtx(lat, long){
   // longCorrection=1;
 
   var x = canvasScale*(long - longitude)*longCorrection + 300;
-  var y = 300-(canvasScale*(lat - latitude)+150);
+  var y = 600-(canvasScale*(lat - latitude)+300);
 
   return [x,y];
 }
@@ -267,7 +267,7 @@ function ctxToCoord(x, y){
 
   var long = (canvasScale*longitude*longCorrection+x-300)/(canvasScale*longCorrection);
 
-  var lat = (canvasScale*latitude-y+150)/canvasScale;
+  var lat = (canvasScale*latitude-y+300)/canvasScale;
 
   return [lat,long];
 }
@@ -317,14 +317,16 @@ function drawRobot(ctx){
     var coords = coordToCtx(latitude, longitude);
     var x = coords[0]
     var y = coords[1]
-    ctx.arc(x,y, 5, 0, 2 * Math.PI);
+    ctx.arc(x, y, 5, 0, 2 * Math.PI);
    // console.log(x,y);
 
     ctx.fill();
     ctx.stroke();
 
+    ctx.strokeStyle = "red";
     ctx.beginPath();
     ctx.moveTo(x,y);
+
 
     var otherX = x+Math.cos(heading*Math.PI/180-Math.PI/2)*30;
     var otherY = y+Math.sin(heading*Math.PI/180-Math.PI/2)*30
@@ -336,9 +338,10 @@ function drawRobot(ctx){
     ctx.beginPath();
     ctx.moveTo(x,y);
     ctx.strokeStyle = "green";
+    console.log(heading+realAngle)
 
-    otherX = x+Math.cos((heading+realSteer)*Math.PI/180-Math.PI/2)*30;
-    otherY = y+Math.sin((heading+realSteer)*Math.PI/180-Math.PI/2)*30
+    otherX = x+Math.cos((heading+realAngle)*Math.PI/180-Math.PI/2)*30;
+    otherY = y+Math.sin((heading+realAngle)*Math.PI/180-Math.PI/2)*30
     ctx.lineTo(otherX, otherY);
     // console.log(otherX, otherY);
     ctx.stroke();
@@ -425,7 +428,7 @@ function begin(){
   drawBoard();
   updateDestinations();
   // processInfo("-40.00a0.00w93h40.421669x-86.91911y[40.421779, -86.91931],[40.421806, -86.919074],[40.421824, -86.918487],[40.421653, -86.918739],[40.421674, -86.919232]c-65.05924190668195t")
-  var requestInt = setInterval(sendInfo, 1000);
+  var requestInt = setInterval(sendInfo, 200);
 
 }
 

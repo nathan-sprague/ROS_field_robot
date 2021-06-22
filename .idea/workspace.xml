@@ -2,19 +2,18 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="7c57f5bc-62f0-4916-a378-e221f12e6aa4" name="Default Changelist" comment="">
-      <change afterPath="$PROJECT_DIR$/esp8266_speed_old/ESP8266_speed/ESP8266_speed.ino" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/static/main.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/stop.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/templates/compiler.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/templates/index.html" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/misc.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/analyze.txt" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/data logs 1624291208.txt" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/data logs 1624291310.txt" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/robot_simulation.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/esp8266_speed/ESP8266_speed.ino" beforeDir="false" afterPath="$PROJECT_DIR$/esp8266_speed/ESP8266_speed.ino" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/esp8266_speed_old/ESP8266_speed/ESP8266_speed.ino" beforeDir="false" afterPath="$PROJECT_DIR$/esp8266_speed_old/ESP8266_speed/ESP8266_speed.ino" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/esp8266_steer/esp8266_steer.ino" beforeDir="false" afterPath="$PROJECT_DIR$/esp8266_steer/esp8266_steer.ino" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/html/compiler.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/html/index.html" beforeDir="false" />
       <change beforePath="$PROJECT_DIR$/robot_navigation.py" beforeDir="false" afterPath="$PROJECT_DIR$/robot_navigation.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/tests/encoder_test/encoder_test.ino" beforeDir="false" afterPath="$PROJECT_DIR$/tests/encoder_test/encoder_test.ino" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/static/main.js" beforeDir="false" afterPath="$PROJECT_DIR$/static/main.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/templates/index.html" beforeDir="false" afterPath="$PROJECT_DIR$/templates/index.html" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/sensors_test.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/sensors_test.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -51,7 +50,7 @@
       <recent name="$PROJECT_DIR$/esp32_robot" />
     </key>
   </component>
-  <component name="RunManager" selected="Python.robot_navigation">
+  <component name="RunManager" selected="Python.robot_simulation">
     <configuration default="true" type="PythonConfigurationType" factoryName="Python">
       <module name="ROS_field_robot2" />
       <option name="INTERPRETER_OPTIONS" value="" />
@@ -73,6 +72,27 @@
       <option name="INPUT_FILE" value="" />
       <method v="2" />
     </configuration>
+    <configuration name="playback_navigation" type="PythonConfigurationType" factoryName="Python" nameIsGenerated="true">
+      <module name="ROS_field_robot2" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs>
+        <env name="PYTHONUNBUFFERED" value="1" />
+      </envs>
+      <option name="SDK_HOME" value="$USER_HOME$/dev/visionenv/bin/python" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$" />
+      <option name="IS_MODULE_SDK" value="false" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/playback_navigation.py" />
+      <option name="PARAMETERS" value="" />
+      <option name="SHOW_COMMAND_LINE" value="false" />
+      <option name="EMULATE_TERMINAL" value="false" />
+      <option name="MODULE_MODE" value="false" />
+      <option name="REDIRECT_INPUT" value="false" />
+      <option name="INPUT_FILE" value="" />
+      <method v="2" />
+    </configuration>
     <configuration name="robot_navigation" type="PythonConfigurationType" factoryName="Python" nameIsGenerated="true">
       <module name="ROS_field_robot2" />
       <option name="INTERPRETER_OPTIONS" value="" />
@@ -86,6 +106,27 @@
       <option name="ADD_CONTENT_ROOTS" value="true" />
       <option name="ADD_SOURCE_ROOTS" value="true" />
       <option name="SCRIPT_NAME" value="$PROJECT_DIR$/robot_navigation.py" />
+      <option name="PARAMETERS" value="" />
+      <option name="SHOW_COMMAND_LINE" value="false" />
+      <option name="EMULATE_TERMINAL" value="false" />
+      <option name="MODULE_MODE" value="false" />
+      <option name="REDIRECT_INPUT" value="false" />
+      <option name="INPUT_FILE" value="" />
+      <method v="2" />
+    </configuration>
+    <configuration name="robot_simulation" type="PythonConfigurationType" factoryName="Python" nameIsGenerated="true">
+      <module name="ROS_field_robot2" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs>
+        <env name="PYTHONUNBUFFERED" value="1" />
+      </envs>
+      <option name="SDK_HOME" value="$USER_HOME$/dev/visionenv/bin/python" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$" />
+      <option name="IS_MODULE_SDK" value="false" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/robot_simulation.py" />
       <option name="PARAMETERS" value="" />
       <option name="SHOW_COMMAND_LINE" value="false" />
       <option name="EMULATE_TERMINAL" value="false" />
@@ -117,6 +158,8 @@
     </configuration>
     <list>
       <item itemvalue="Python.robot_navigation" />
+      <item itemvalue="Python.robot_simulation" />
+      <item itemvalue="Python.playback_navigation" />
       <item itemvalue="Python.sensors_test" />
     </list>
   </component>
@@ -215,7 +258,14 @@
       <option name="project" value="LOCAL" />
       <updated>1623265740833</updated>
     </task>
-    <option name="localTasksCounter" value="13" />
+    <task id="LOCAL-00013" summary="Changed hosting method to Flask">
+      <created>1623765438012</created>
+      <option name="number" value="00013" />
+      <option name="presentableId" value="LOCAL-00013" />
+      <option name="project" value="LOCAL" />
+      <updated>1623765438012</updated>
+    </task>
+    <option name="localTasksCounter" value="14" />
     <servers />
   </component>
   <component name="VcsManagerConfiguration">
@@ -229,57 +279,58 @@
     <MESSAGE value="Added PID logic and improved communication between controllers" />
     <MESSAGE value="Bug fixes" />
     <MESSAGE value="more bug fixes" />
-    <option name="LAST_COMMIT_MESSAGE" value="more bug fixes" />
+    <MESSAGE value="Changed hosting method to Flask" />
+    <option name="LAST_COMMIT_MESSAGE" value="Changed hosting method to Flask" />
   </component>
   <component name="WindowStateProjectService">
-    <state x="156" y="121" width="1071" height="702" key="#com.intellij.execution.impl.EditConfigurationsDialog" timestamp="1621614745136">
+    <state x="156" y="121" width="1071" height="702" key="#com.intellij.execution.impl.EditConfigurationsDialog" timestamp="1624291339096">
       <screen x="0" y="25" width="1440" height="875" />
     </state>
-    <state x="156" y="121" width="1071" height="702" key="#com.intellij.execution.impl.EditConfigurationsDialog/0.25.1440.875@0.25.1440.875" timestamp="1621614745136" />
-    <state x="311" y="64" key="CommitChangelistDialog2" timestamp="1623265740503">
+    <state x="156" y="121" width="1071" height="702" key="#com.intellij.execution.impl.EditConfigurationsDialog/0.25.1440.875@0.25.1440.875" timestamp="1624291339096" />
+    <state x="311" y="64" key="CommitChangelistDialog2" timestamp="1623765437720">
       <screen x="0" y="25" width="1440" height="875" />
     </state>
-    <state x="311" y="64" key="CommitChangelistDialog2/0.25.1440.875@0.25.1440.875" timestamp="1623265740502" />
-    <state width="1371" height="143" key="GridCell.Tab.0.bottom" timestamp="1623764658591">
+    <state x="311" y="64" key="CommitChangelistDialog2/0.25.1440.875@0.25.1440.875" timestamp="1623765437720" />
+    <state width="1371" height="143" key="GridCell.Tab.0.bottom" timestamp="1624319848463">
       <screen x="0" y="25" width="1440" height="875" />
     </state>
-    <state width="1371" height="143" key="GridCell.Tab.0.bottom/0.25.1440.875@0.25.1440.875" timestamp="1623764658591" />
-    <state width="1371" height="143" key="GridCell.Tab.0.center" timestamp="1623764658590">
+    <state width="1371" height="143" key="GridCell.Tab.0.bottom/0.25.1440.875@0.25.1440.875" timestamp="1624319848463" />
+    <state width="1371" height="143" key="GridCell.Tab.0.center" timestamp="1624319848462">
       <screen x="0" y="25" width="1440" height="875" />
     </state>
-    <state width="1371" height="143" key="GridCell.Tab.0.center/0.25.1440.875@0.25.1440.875" timestamp="1623764658590" />
-    <state width="1371" height="143" key="GridCell.Tab.0.left" timestamp="1623764658589">
+    <state width="1371" height="143" key="GridCell.Tab.0.center/0.25.1440.875@0.25.1440.875" timestamp="1624319848462" />
+    <state width="1371" height="143" key="GridCell.Tab.0.left" timestamp="1624319848462">
       <screen x="0" y="25" width="1440" height="875" />
     </state>
-    <state width="1371" height="143" key="GridCell.Tab.0.left/0.25.1440.875@0.25.1440.875" timestamp="1623764658589" />
-    <state width="1371" height="143" key="GridCell.Tab.0.right" timestamp="1623764658590">
+    <state width="1371" height="143" key="GridCell.Tab.0.left/0.25.1440.875@0.25.1440.875" timestamp="1624319848462" />
+    <state width="1371" height="143" key="GridCell.Tab.0.right" timestamp="1624319848462">
       <screen x="0" y="25" width="1440" height="875" />
     </state>
-    <state width="1371" height="143" key="GridCell.Tab.0.right/0.25.1440.875@0.25.1440.875" timestamp="1623764658590" />
-    <state width="1371" height="282" key="GridCell.Tab.1.bottom" timestamp="1623762703582">
+    <state width="1371" height="143" key="GridCell.Tab.0.right/0.25.1440.875@0.25.1440.875" timestamp="1624319848462" />
+    <state width="1371" height="282" key="GridCell.Tab.1.bottom" timestamp="1624299469813">
       <screen x="0" y="25" width="1440" height="875" />
     </state>
-    <state width="1371" height="282" key="GridCell.Tab.1.bottom/0.25.1440.875@0.25.1440.875" timestamp="1623762703582" />
-    <state width="1371" height="282" key="GridCell.Tab.1.center" timestamp="1623762703581">
+    <state width="1371" height="282" key="GridCell.Tab.1.bottom/0.25.1440.875@0.25.1440.875" timestamp="1624299469813" />
+    <state width="1371" height="282" key="GridCell.Tab.1.center" timestamp="1624299469813">
       <screen x="0" y="25" width="1440" height="875" />
     </state>
-    <state width="1371" height="282" key="GridCell.Tab.1.center/0.25.1440.875@0.25.1440.875" timestamp="1623762703581" />
-    <state width="1371" height="282" key="GridCell.Tab.1.left" timestamp="1623762703580">
+    <state width="1371" height="282" key="GridCell.Tab.1.center/0.25.1440.875@0.25.1440.875" timestamp="1624299469813" />
+    <state width="1371" height="282" key="GridCell.Tab.1.left" timestamp="1624299469813">
       <screen x="0" y="25" width="1440" height="875" />
     </state>
-    <state width="1371" height="282" key="GridCell.Tab.1.left/0.25.1440.875@0.25.1440.875" timestamp="1623762703580" />
-    <state width="1371" height="282" key="GridCell.Tab.1.right" timestamp="1623762703582">
+    <state width="1371" height="282" key="GridCell.Tab.1.left/0.25.1440.875@0.25.1440.875" timestamp="1624299469813" />
+    <state width="1371" height="282" key="GridCell.Tab.1.right" timestamp="1624299469813">
       <screen x="0" y="25" width="1440" height="875" />
     </state>
-    <state width="1371" height="282" key="GridCell.Tab.1.right/0.25.1440.875@0.25.1440.875" timestamp="1623762703582" />
+    <state width="1371" height="282" key="GridCell.Tab.1.right/0.25.1440.875@0.25.1440.875" timestamp="1624299469813" />
     <state x="200" y="98" key="SettingsEditor" timestamp="1621456829213">
       <screen x="0" y="25" width="1440" height="875" />
     </state>
     <state x="200" y="98" key="SettingsEditor/0.25.1440.875@0.25.1440.875" timestamp="1621456829213" />
-    <state x="291" y="188" key="Vcs.Push.Dialog.v2" timestamp="1623265744070">
+    <state x="291" y="188" key="Vcs.Push.Dialog.v2" timestamp="1623765447972">
       <screen x="0" y="25" width="1440" height="875" />
     </state>
-    <state x="291" y="188" key="Vcs.Push.Dialog.v2/0.25.1440.875@0.25.1440.875" timestamp="1623265744070" />
+    <state x="291" y="188" key="Vcs.Push.Dialog.v2/0.25.1440.875@0.25.1440.875" timestamp="1623765447972" />
     <state x="477" y="383" key="com.intellij.openapi.vcs.update.UpdateOrStatusOptionsDialogupdate-v2" timestamp="1621628104830">
       <screen x="0" y="25" width="1440" height="875" />
     </state>

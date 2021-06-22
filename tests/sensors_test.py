@@ -1,4 +1,5 @@
 import time
+import math
 
 testType = "Compass"
 
@@ -28,18 +29,14 @@ elif testType == "Compass":
     hmc5883l = i2c_hmc5883l.i2c_hmc5883l(1)
 
     hmc5883l.setContinuousMode()
-    hmc5883l.setDeclination(-4, 23)
+    # hmc5883l.setDeclination(-4, 23)
     time.sleep(1)
     # To scaled axes
     while True:
-       # (x, y, z) = hmc5883l.getAxes()
-        x, y = hmc5883l.getHeading()
-       #s print(x)
-        #if x[3] == "°":
-       #     x=x[0:3]
-        #elif x[2] == "°":
-       #     x=x[0:2]
-       # else:
-        #    x=x[0:1]
-        print((int(x)-50)%360)
+        (x, y, z) = hmc5883l.getAxes()
+
+        magCompassHeading = math.atan2(y, x);
+
+        headingDegrees = magCompassHeading * 180 / math.pi;
+        print(headingDegrees)
         time.sleep(0.5)

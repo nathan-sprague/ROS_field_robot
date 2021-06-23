@@ -22,6 +22,7 @@ var overriding = false;
 var coordListVersion = -1
 
 elements = [1,2,3,4];
+var subPoints = []
 
 
 
@@ -46,11 +47,15 @@ function sendInfo(){
           heading = info["heading"];
           targetHeading = info["targetHeading"];
 
-          if ("coordList" in info){
+          if ("coordList" in info) {
+            console.log("updating destinations");
             targetPositions = info["coordList"];
             coordListVersion = info["coordListVersion"];
+            console.log(coordListVersion);
             updateDestinations();
 
+          } if ("subPoints" in info){
+              subPoints = info["subPoints"];
           }
 
 
@@ -208,24 +213,29 @@ function setScale(){
     longitude0=0
   latitude0 =0
   var longCorrection = Math.cos(latitude*Math.PI/180);
-
+  
   if (targetPositions.length==0){
     canvasScale = 1;
     document.getElementById("scale").value = Math.floor(canvasScale);
     return;
   }
+
+  var tp =  [...targetPositions];
+  tp.push([latitude, longitude]);
   // longCorrection = 1;
  // console.log(longCorrection);
 
   var i = 0;
-  var minX = (targetPositions[0][1]-longitude)*longCorrection;
-  var maxX = (targetPositions[0][1]- longitude)*longCorrection;
-  var minY = targetPositions[0][0]-latitude;
-  var maxY = targetPositions[0][0]-latitude;
-  while (i<targetPositions.length){
-    var x = (targetPositions[i][1]-longitude)*longCorrection; // longitude
-    var y = targetPositions[i][0]-latitude; // latitude
-    console.log("dist to target:", Math.sqrt(x*x+y*y)*69/5280, "miles"); // 0.3387 miles
+  var minX = (tp[0][1]-longitude)*longCorrection;
+  var maxX = (tp[0][1]- longitude)*longCorrection;
+  var minY = tp[0][0]-latitude;
+  var maxY = tp[0][0]-latitude;
+
+  while (i<tp.length){
+   
+    var x = (tp[i][1]-longitude)*longCorrection; // longitude
+    var y = tp[i][0]-latitude; // latitude
+  // console.log("dist to target:", Math.sqrt(x*x+y*y)*69*5280, "feet"); // 0.3387 miles
 
     if (x>maxX){
       maxX = x;
@@ -239,18 +249,25 @@ function setScale(){
     }
     i+=1;
   }
-
+//  console.log("maxX", maxX, "minX", minX, "maxY", maxY,"minY",minY);
   i=0;
+
   var scale = maxY-minY;
   if (maxX-minX>scale){
     scale = maxX-minX;
   }
+  
+
   scale = 300/scale;
 
 
-  canvasScale = scale;
+  canvasScale = Math.floor(scale);
+  if (canvasScale > 1){
+    canvasScale -= 1;
+  }
+  //console.log("scale", canvasScale);
 
-  document.getElementById("scale").value = Math.floor(canvasScale);
+  document.getElementById("scale").value = canvasScale;
 }
 function coordToCtx(lat, long){
   var longCorrection = Math.cos(latitude*Math.PI/180);
@@ -307,6 +324,22 @@ function drawDestinations(ctx){
     ctx.stroke();
     i+=1;
   }
+  i=0;
+  while (i<subPoints.length){
+    ctx.fillStyle = "orange";
+    ctx.strokeStyle = "orange";
+    var coords = coordToCtx(subPoints[i][0], subPoints[i][1]);
+    var x = coords[0];
+    var y = coords[1];
+    ctx.beginPath();
+    ctx.arc(x, y, 2, 0, 2 * Math.PI);
+    ctx.fill();
+    ctx.stroke();
+
+    i+=1;
+  }
+  ctx.fillStyle = "black";
+  ctx.strokeStyle = "black";
 
 
 }

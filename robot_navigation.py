@@ -16,7 +16,8 @@ except:
     print("run on laptop")
 import os
 
-targetLocations = [[40.4216702,-86.9184231],[40.4215696,86.9185767], [40.4217325,-86.9187132],[40.4217325,-86.9187132],[40.4217325,-86.9187132]]
+targetLocations = [[40.4216702, -86.9184231], [40.4215696, -86.9185767], [40.4217325, -86.9187132],
+                   [40.4217325, -86.9187132], [40.4217325, -86.9187132]]
 
 # targetLocations = [[40.422266, -86.916176], [40.422334, -86.916240], [40.422240, -86.916287], [40.422194, -86.916221],
 #                    [40.422311, -86.916329]]
@@ -86,10 +87,10 @@ def shutdownServer():
 
 class Robot:
     def __init__(self):
+
         print("making robot")
 
-        self.webControl = False
-
+        self.turnRadius = 70  # inches
         self.stopNow = False
         self.coords = [-1.0, -1.0]
         self.headingAngle = 0
@@ -99,6 +100,7 @@ class Robot:
         self.wheelSpeed = 0
         self.steeringDirection = 0
         self.gyroHeading = 0
+        self.webControl = False
 
         self.steeringAngle = 0
 
@@ -109,10 +111,8 @@ class Robot:
         self.targetSpeed = 0
 
         self.distanceTraveled = 0
-
-        self.websiteInfo = "0h-1x-1y[0]c"
-
-        self.filename = "data logs " + str(int(time.time())) + ".txt"
+        self.targetMoveDist = 0
+        self.subPoints = []
 
         # self.compassThread = Thread(target=self.getHeadings)
 
@@ -149,14 +149,13 @@ class Robot:
 
                 self.espMessages += [
                     {"f": ["0", False], "z": ["0", True], "p": [0, False], "s": ["", True], "g": ["", False],
-                     "r": ["", True]}]
+                     "r": ["", True], "m": ["0", True]}]
 
                 idNum += 1
                 self.espRxThreads += [rxThread]
                 self.espTxThreads += [txThread]
                 rxThread.start()
                 txThread.start()
-
 
     # def beginCompass(self):
     #     try:
@@ -239,22 +238,6 @@ class Robot:
             elif msgType == "c":
                 self.compassHeading = res
 
-    # def getHeadings(self):
-    #     while True:
-    #         (x, y, z) = self.hmc5883l.getAxes()
-    #
-    #         magCompassHeading = math.atan2(y, x)
-    #
-    #         headingDegrees = magCompassHeading * 180 / math.pi
-    #         headingDegrees -= 78
-    #         if headingDegrees < 0:
-    #             headingDegrees += 360
-    #         self.heading = headingDegrees
-    #         # x, y = self.hmc5883l.getHeading()
-    #         # self.heading = ((int(x) - 50) % 360)
-    #         # print("heading:", self.heading)
-    #         time.sleep(0.5)
-
     def endSensors(self):
         # self.compassThread.join()
         self.recordThread.join()
@@ -270,7 +253,6 @@ class Robot:
             esp.close()
 
     def serialLoop(self, serialDevice, idNum):
-
 
         while True:
 
@@ -321,11 +303,11 @@ class Robot:
 
         return realAngle
 
-    def atDestination(self, coords1, coords2):
+    def atDestination(self, coords1, coords2, tolerance=5.0):
 
         x, y = self.findDistBetween(coords1, coords2)
         # print("distance away: ", x, y)
-        if x * x + y * y < 25:
+        if x * x + y * y < tolerance * tolerance:
             return True
         else:
             return False
@@ -355,8 +337,9 @@ class Robot:
         while True:
 
             time.sleep(0.5)
-        #    print(self.destinations)
-            importantVars = [int(time.time())-self.startTime, self.heading, int(self.targetHeadingAngle), self.steeringAngle, self.targetWheelAngle, self.wheelSpeed,
+            #    print(self.destinations)
+            importantVars = [int(time.time()) - self.startTime, self.heading, int(self.targetHeadingAngle),
+                             self.steeringAngle, self.targetWheelAngle, self.wheelSpeed,
                              self.destinations[0][0], self.destinations[0][1], self.coords[0], self.coords[1],
                              self.compassHeading, self.gyroHeading]
             msg = ""
@@ -366,34 +349,163 @@ class Robot:
                 fileHandle.write(str(msg) + "\n")
                 fileHandle.close()
 
-    def findSteerAngle(self, targetHeading, heading):
+    def findShortestAngle(self, targetHeading, heading):
         steerDif = targetHeading - heading
         if steerDif > 180:
             steerDif = steerDif - 360
         elif steerDif < -180:
             steerDif = steerDif + 360
+        return steerDif
+
+    def findSteerAngle(self, targetHeading, heading):
+        steerDif = self.findShortestAngle(targetHeading, heading)
         if steerDif > 45:
             steerDif = 45
         elif steerDif < -45:
             steerDif = -45
         return steerDif
 
+    def setEspMsg(self):
+        i = 0
+        while i < len(self.espMessages):
+            # print("id: ", i, self.espMessages[i])
+            if "f" in self.espMessages[i]:
+                if str(self.targetSpeed) != self.espMessages[i]["f"][0]:
+                    #    print("changed speed from", self.espMessages[i]["f"][0], "to", str(self.targetSpeed))
+                    self.espMessages[i]["f"][0] = str(self.targetSpeed)
+                    self.espMessages[i]["f"][1] = False
+
+            if "p" in self.espMessages[i]:
+                if str(self.targetWheelAngle) != self.espMessages[i]["p"][0]:
+                    self.espMessages[i]["p"][0] = str(self.targetWheelAngle)
+                    self.espMessages[i]["p"][1] = False
+
+            if "m" in self.espMessages[i]:
+                #      print("see m")
+                if str(self.targetMoveDist) != self.espMessages[i]["m"][0]:
+                    print("changing m")
+                    self.espMessages[i]["m"][0] = str(self.targetMoveDist)
+                    self.espMessages[i]["m"][1] = False
+
+            i += 1
+
+    def threePointTurn(self, destHeading, maxTravelDist):
+        sign = -1
+        while abs(self.findShortestAngle(destHeading, self.heading)) > 10:
+
+            self.targetWheelAngle = sign * self.findSteerAngle(destHeading, self.heading)
+            self.targetSpeed = 0
+            self.setEspMsg()
+            while abs(self.steeringAngle - self.targetWheelAngle) > 5:
+                time.sleep(0.1)
+            print("done steering")
+
+            self.targetMoveDist = sign * maxTravelDist
+            self.setEspMsg()
+            time.sleep(0.4)
+
+            while (self.wheelSpeed < -0.1 or self.wheelSpeed > 0.1) and abs(
+                    self.findShortestAngle(destHeading, self.heading)) > 10:
+                time.sleep(0.1)
+
+            print("done moving back")
+
+            sign *= -1
+        print("reached destination ---------------")
+        self.targetSpeed = 0.1
+        self.setEspMsg()
+        self.targetSpeed = 0
+        self.setEspMsg()
+
+    def makePath(self, currentCoords, destination, destHeading):
+
+        longCorrection = math.cos(currentCoords[0] * math.pi / 180)
+
+        offsetY = self.turnRadius / 12 / 364000 * math.sin((90 + destHeading) * math.pi / 180)
+        offsetX = self.turnRadius / 12 / 364000 * math.cos((90 + destHeading) * math.pi / 180) * longCorrection
+        approachCircleCenter1 = [destination[0] + offsetX, destination[1] + offsetY]
+
+        offsetY = self.turnRadius / 12 / 364000 * math.sin((-90 + destHeading) * math.pi / 180)
+        offsetX = self.turnRadius / 12 / 364000 * math.cos((-90 + destHeading) * math.pi / 180) * longCorrection
+        approachCircleCenter2 = [destination[0] + offsetX, destination[1] + offsetY]
+
+        x1, y1 = self.findDistBetween(currentCoords, approachCircleCenter1)
+        x2, y2 = self.findDistBetween(currentCoords, approachCircleCenter2)
+
+        dist1 = x1 * x1 + y1 * y1
+        dist2 = x2 * x2 + y2 * y2
+        print(dist1, dist2)
+
+        if dist1 < dist2:
+            print("clockwise approach")
+            clockwise = True
+            # self.destinations += [approachCircleCenter1]
+            closerApproach = approachCircleCenter1
+        else:
+            print("Counter clockwise approach")
+            clockwise = False
+            # self.destinations += [approachCircleCenter2]
+            closerApproach = approachCircleCenter2
+
+        print(currentCoords, closerApproach)
+
+        a = self.findAngleBetween(currentCoords, closerApproach) * 180 / math.pi
+        print("angle", a)
+
+        if clockwise:
+            offsetY = self.turnRadius / 12 / 364000 * math.sin((a - 90) * math.pi / 180)
+            offsetX = self.turnRadius / 12 / 364000 * math.cos((a - 90) * math.pi / 180) * longCorrection
+            approachPoint1 = [closerApproach[0] + offsetX, closerApproach[1] + offsetY]
+            # self.destinations += [approachPoint1]
+            b = self.findAngleBetween(currentCoords, approachPoint1) * 180 / math.pi
+            self.subPoints = [approachPoint1]
+        else:
+            offsetY = self.turnRadius / 12 / 364000 * math.sin((a + 90) * math.pi / 180)
+            offsetX = self.turnRadius / 12 / 364000 * math.cos((a + 90) * math.pi / 180) * longCorrection
+            approachPoint2 = [closerApproach[0] + offsetX, closerApproach[1] + offsetY]
+            # self.destinations += [approachPoint2]
+            self.subPoints = [approachPoint2]
+            c = self.findAngleBetween(currentCoords, approachPoint2) * 180 / math.pi
+
+        # bb = self.findShortestAngle(a, b)
+        # cc = self.findShortestAngle(a, c)
+        # print(bb, cc)
+
+        # self.currentCoords
+
     def navigate(self, destinations):
         self.destinations = destinations
         print("Started thread")
 
         while len(self.destinations) > 0:
+
+            self.coordListVersion += 1
+            hitDestination = False
             while True:
 
-                targetCoords = self.destinations[0]
+                if not hitDestination:
+                    self.makePath(self.coords, self.destinations[0], 0)
+                    targetCoords = self.subPoints[0]
+                else:
+                    targetCoords = self.destinations[0]
 
-                if self.atDestination(self.coords, targetCoords):
-                    print("reached destination")
-                    self.targetSpeed = 0
-                    self.targetWheelAngle = 0
+                if self.atDestination(self.coords, self.destinations[0],
+                                      tolerance=self.turnRadius / 12) and not hitDestination:
+                    hitDestination = True
+                    self.subPoints = []
+                    print("hit destination")
 
-                    self.destinations = self.destinations[1::]
+                if hitDestination and self.atDestination(self.coords, targetCoords, tolerance=2):
+                    if hitDestination:
+                        print("reached destination")
+                        self.threePointTurn(0, self.turnRadius)
+                        self.targetSpeed = 0
+                        self.targetWheelAngle = 0
+                        self.setEspMsg()
 
+                        self.destinations.remove(self.destinations[0])
+                        time.sleep(4)
+                        break
 
                 if not self.webControl and not self.atDestination(self.coords, targetCoords) and not self.stopNow:
                     self.targetHeadingAngle = math.degrees(self.findAngleBetween(self.coords, targetCoords))
@@ -405,40 +517,15 @@ class Robot:
                     self.targetSpeed = 0
                     self.targetWheelAngle = 0
 
-                    for device in self.espList:
-                        self.sendSerial(device, "f0")
-
-
-
-
                 print("heading:", self.heading, "current coords:", self.coords, "target coords:", targetCoords)
                 print("target heading:", self.targetHeadingAngle, "target speed", self.targetSpeed)
                 print("steer to:", self.targetWheelAngle)
 
-                i = 0
-                while i < len(self.espMessages):
-                    # print("id: ", i, self.espMessages[i])
-                    if "f" in self.espMessages[i]:
-                        if str(self.targetSpeed) != self.espMessages[i]["f"][0]:
-                            print("changed speed from", self.espMessages[i]["f"][0], "to", str(self.targetSpeed))
-                            self.espMessages[i]["f"][0] = str(self.targetSpeed)
-                            self.espMessages[i]["f"][1] = False
-                            msg = "f"
-                        #  print(bytes(msg + self.espMessages[i][msg][0]))
-                    if "p" in self.espMessages[i]:
-                        if str(self.targetWheelAngle) != self.espMessages[i]["p"][0]:
-                            self.espMessages[i]["p"][0] = str(self.targetWheelAngle)
-                            self.espMessages[i]["p"][1] = False
-                            msg = "p"
+                self.setEspMsg()
 
-                    i += 1
-                if self.atDestination(self.coords, targetCoords):
-                    print("reached destination")
-                    time.sleep(15)
-                    break
+                # self.threePointTurn(-180, 100)
 
                 time.sleep(0.3)
-
 
         print("finished getting locations")
 

@@ -7,9 +7,10 @@ var realSpeed = 0;
 var latitude = 0;//40.421779;
 var longitude = 0;//-86.919310;
 
-var targetPositions = [];
-// var targetPositions = [[40.421779, -86.919310], [40.421806, -86.919074], [40.421824, -86.918487], [40.421653, -86.918739], [40.421674, -86.919232]];
-
+var pointsList = {};
+var pointsListVersion = -1;
+// var pointsOnMap = {"black": [10, [40.421779, -86.919310], [40.421806, -86.919074], [40.421824, -86.918487], [40.421653, -86.918739], [40.421674, -86.919232]]};
+var allPoints = [];
 var stop = 0;
 
 var targPosApplied = false;
@@ -19,16 +20,17 @@ var targetHeading = 0;
 
 var overriding = false;
 
-var coordListVersion = -1
+
 
 elements = [1,2,3,4];
-var subPoints = []
+var subPoints = {}
 
+console.log("Starting");
 
 
 ready = true;
 function sendInfo(){  
-  console.log(targetPositions);
+
  if (ready){
    // ready = false;
      var xhttp = new XMLHttpRequest();
@@ -47,17 +49,34 @@ function sendInfo(){
           heading = info["heading"];
           targetHeading = info["targetHeading"];
 
-          if ("coordList" in info) {
-            console.log("updating destinations");
-            targetPositions = info["coordList"];
-            coordListVersion = info["coordListVersion"];
-            console.log(coordListVersion);
-            updateDestinations();
+          if ("pointsList" in info) {
+            
 
-          } if ("subPoints" in info){
-              subPoints = info["subPoints"];
+            pointsList = info["pointsList"];
+            // console.log("points list", pointsList);
+          //  pointsListVersion = info["pointsListVersion"];
+            // console.log(pointsListVersion);
+            k = Object.keys(pointsList);
+
+            j=0;
+            allPoints = [];
+            while (j<k.length){
+              n=0;
+              r=pointsList[k[j]][2];
+              // console.log(r);
+              while (n<r.length){
+
+                allPoints.push(r[n]);
+                n+=1;
+              }
+              j+=1;
+            }
+            // console.log("all points", allPoints);
+
+
+         //   updateDestinations();
+
           }
-
 
           document.getElementById("speed").innerHTML = wheelSpeed;
           document.getElementById("angle").innerHTML = realAngle;
@@ -105,12 +124,12 @@ function sendInfo(){
       argList += "&s=1"
     }
 
-    if (coordListVersion == -2){
-      argList += "&targetPositions=" + targetPositions.toString()
-    }
+    // if (coordListVersion == -2){
+    //   argList += "&targetPositions=" + targetPositions.toString()
+    // }
 
 
-    argList += "&coordListVersion=" + coordListVersion;
+    argList += "&pointsListVersion=" + pointsListVersion;
      
 
 
@@ -206,21 +225,22 @@ function drawBoard(){
 }
 
 var canvasScale = 0;
-drawBoard();
+// drawBoard();
 
 function setScale(){
   console.log("set scale");
+//  console.log(allPoints);
     longitude0=0
   latitude0 =0
   var longCorrection = Math.cos(latitude*Math.PI/180);
   
-  if (targetPositions.length==0){
+  if (allPoints.length==0){
     canvasScale = 1;
     document.getElementById("scale").value = Math.floor(canvasScale);
     return;
   }
 
-  var tp =  [...targetPositions];
+  var tp =  [...allPoints];
   tp.push([latitude, longitude]);
   // longCorrection = 1;
  // console.log(longCorrection);
@@ -252,23 +272,73 @@ function setScale(){
 //  console.log("maxX", maxX, "minX", minX, "maxY", maxY,"minY",minY);
   i=0;
 
-  var scale = maxY-minY;
-  if (maxX-minX>scale){
-    scale = maxX-minX;
+  var scale = (maxY-minY)*1.5;
+  if ((maxX-minX)*1.5>scale){
+    scale = (maxX-minX)*1.5;
   }
   
 
-  scale = 300/scale;
+  scale = 300/scale*5;
 
 
-  canvasScale = Math.floor(scale);
-  if (canvasScale > 1){
-    canvasScale -= 1;
+  scale = Math.floor(scale);
+  
+  if (scale != canvasScale) {
+    canvasScale = scale;
+    if (canvasScale > 1){
+      canvasScale -= 1;
+    }
+    // if (canvasScale > 9000000){
+    //   canvasScale = 9000000;
+      //console.log("scale", canvasScale);
+      
+      
+    // }
   }
-  //console.log("scale", canvasScale);
-
   document.getElementById("scale").value = canvasScale;
+
+
+  //drawGrids()
 }
+
+function getOrderOfMagnitude(n) {
+    var order = Math.floor(Math.log(n) / Math.LN10
+                       + 0.000000001); // because float math sucks like that
+    return order;
+}
+
+function drawGrids(){
+  // step1 = ctxToCoord(0,0); // base point 
+  // step2 = ctxToCoord(50,50); // max scale size
+  // latDif = (step1[0]-step2[0])*69*5280;
+
+  // om = getOrderOfMagnitude(latDif);
+  // tickDist = Math.pow(10,om);
+  // if (latDif/tickDist > 5) {
+  //   tickDist*=5
+  // }
+
+  // var c = document.getElementById("mainCanvas");
+  // var ctx = c.getContext("2d");
+
+  // tickDist *= 69*5280;
+  // ctxTickStart = coordToCtx(step1[0]-(step1[0]%tickDist), 0)[0];
+  // ctxTickDist = coordToCtx(step1[0]-(step1[0]%tickDist)+tickDist, 0)[0] - ctxTickStart;
+  // var x = ctxTickStart;
+
+  // while (x<800){
+  //   ctx.beginPath();
+    
+  //   ctx.moveTo(0,y);
+  //   ctx.strokeStyle = "black";
+  //   ctx.lineWidth = 1;
+  //   ctx.lineTo(x, 1000);
+  //   ctx.stroke();
+  //   x+=ctxTickDist;
+  // }
+
+}
+
 function coordToCtx(lat, long){
   var longCorrection = Math.cos(latitude*Math.PI/180);
   // longCorrection=1;
@@ -305,39 +375,46 @@ function drawDestinations(ctx){
   var i = 0;
     // console.log(targetPositions);
 
+    k = Object.keys(pointsList);
 
-  while (i<targetPositions.length){
+    j=0;
 
-    var coords = coordToCtx(targetPositions[i][0], targetPositions[i][1]);
-    var x = coords[0];
-    var y = coords[1];
-    // console.log(coords);
-    // console.log(targetPositions[i], coords);
-    // console.log(targetPositions[i][1]+1);
+    while (j<k.length){
 
-    ctx.beginPath();
-    ctx.arc(x, y, 5, 0, 2 * Math.PI);
-    ctx.fill();
-    ctx.stroke();
-    ctx.font = '25px serif';
-    ctx.fillText(i+1, x-5, y-10);
-    ctx.stroke();
+      n=0;
+      r=pointsList[k[j]][2];
+      useNumbers = pointsList[k[j]][1];
+      ptSize = pointsList[k[j]][0];
+      while (n<r.length){
+        coords = coordToCtx(r[n][0],r[n][1]);
+        var x = coords[0];
+        var y = coords[1];
+        // console.log(coords);
+        // console.log(targetPositions[i], coords);
+        // console.log(targetPositions[i][1]+1);
+        ctx.fillStyle = k[j];
+        ctx.strokeStyle = k[j];
+
+        ctx.beginPath();
+        ctx.arc(x, y, ptSize, 0, 2 * Math.PI);
+        ctx.fill();
+        ctx.stroke();
+        if (useNumbers==1){
+          ctx.font = '25px serif';
+          ctx.fillText(n+1, x-5, y-10);
+          ctx.stroke();
+        }
+        n+=1;
+      }
+      j+=1;
+    }
+  while (i<allPoints.length){
+
+    var coords = coordToCtx(allPoints[i][0], allPoints[i][1]);
+
     i+=1;
   }
-  i=0;
-  while (i<subPoints.length){
-    ctx.fillStyle = "orange";
-    ctx.strokeStyle = "orange";
-    var coords = coordToCtx(subPoints[i][0], subPoints[i][1]);
-    var x = coords[0];
-    var y = coords[1];
-    ctx.beginPath();
-    ctx.arc(x, y, 2, 0, 2 * Math.PI);
-    ctx.fill();
-    ctx.stroke();
-
-    i+=1;
-  }
+ 
   ctx.fillStyle = "black";
   ctx.strokeStyle = "black";
 
@@ -402,64 +479,11 @@ function toggleOverride(){
   }
 }
 
-
-function updatePriority(amount){
-
-  var select = document.getElementById("targets");
-  var s = select.selectedIndex;
-  // console.log(s);
-  if (s+amount<0 || s+amount>targetPositions.length || s ==-1){
-    console.log("At end, index would be ", s+amount);
-    return;
-  }
-  value = targetPositions[s];
-
-
-  targetPositions.splice(s, 1);
-  if (amount!=0){
-    s+=amount;
-    targetPositions.splice(s, 0, value);
-  }
-  coordListVersion = -2;
-  updateDestinations();
-}
-
-function addDest(x,y){
-
-
-  targetPositions.splice(0, 0, [parseFloat(x),parseFloat(y)]);
-  coordListVersion = -2;
-  updateDestinations();
-
-}
-
-function updateDestinations(){
-  var select = document.getElementById("targets");
-
-  var length = select.options.length;
-  for (i = length-1; i >= 0; i--) {
-    select.options[i] = null;
-  }
-
-  var i = 0;
-  while (i<targetPositions.length){
-    var option = document.createElement("option");
-    option.text = targetPositions[i][0] + ", " + targetPositions[i][1];
-    
-    select.add(option);
-    i+=1;
-  }
-  select.size = i;
-  drawBoard();
-}
-
-
-
 function begin(){
 
   displaySpeed();
   drawBoard();
-  updateDestinations();
+ // updateDestinations();
   // processInfo("-40.00a0.00w93h40.421669x-86.91911y[40.421779, -86.91931],[40.421806, -86.919074],[40.421824, -86.918487],[40.421653, -86.918739],[40.421674, -86.919232]c-65.05924190668195t")
   var requestInt = setInterval(sendInfo, 200);
 

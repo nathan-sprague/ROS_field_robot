@@ -3,11 +3,12 @@
   <component name="ChangeListManager">
     <list default="true" id="7c57f5bc-62f0-4916-a378-e221f12e6aa4" name="Default Changelist" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/data logs 1624291208.txt" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/data logs 1624291310.txt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/esp8266_speed/ESP8266_speed.ino" beforeDir="false" afterPath="$PROJECT_DIR$/esp8266_speed/ESP8266_speed.ino" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/esp8266_steer/esp8266_steer.ino" beforeDir="false" afterPath="$PROJECT_DIR$/esp8266_steer/esp8266_steer.ino" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/robot_navigation.py" beforeDir="false" afterPath="$PROJECT_DIR$/robot_navigation.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/robot_simulation.py" beforeDir="false" afterPath="$PROJECT_DIR$/robot_simulation.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/static/main.js" beforeDir="false" afterPath="$PROJECT_DIR$/static/main.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/templates/index.html" beforeDir="false" afterPath="$PROJECT_DIR$/templates/index.html" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -31,7 +32,6 @@
   </component>
   <component name="ProjectViewState">
     <option name="hideEmptyMiddlePackages" value="true" />
-    <option name="showExcludedFiles" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
   <component name="PropertiesComponent">
@@ -44,7 +44,7 @@
       <recent name="$PROJECT_DIR$/esp32_robot" />
     </key>
   </component>
-  <component name="RunManager" selected="Python.robot_navigation">
+  <component name="RunManager" selected="Python.robot_simulation">
     <configuration default="true" type="PythonConfigurationType" factoryName="Python">
       <module name="ROS_field_robot2" />
       <option name="INTERPRETER_OPTIONS" value="" />
@@ -172,13 +172,14 @@
       <method v="2" />
     </configuration>
     <list>
+      <item itemvalue="Python.playback_navigation" />
+      <item itemvalue="Python.realsense" />
       <item itemvalue="Python.robot_navigation" />
       <item itemvalue="Python.robot_simulation" />
-      <item itemvalue="Python.realsense" />
-      <item itemvalue="Python.playback_navigation" />
       <item itemvalue="Python.sensors_test" />
     </list>
   </component>
+  <component name="SpellCheckerSettings" RuntimeDictionaries="0" Folders="0" CustomDictionaries="0" DefaultDictionary="application-level" UseSingleDictionary="true" transferred="true" />
   <component name="SvnConfiguration">
     <configuration />
   </component>
@@ -288,7 +289,14 @@
       <option name="project" value="LOCAL" />
       <updated>1624367210854</updated>
     </task>
-    <option name="localTasksCounter" value="15" />
+    <task id="LOCAL-00015" summary="Allowed the robot to reach destinations at a specified heading">
+      <created>1624482036941</created>
+      <option name="number" value="00015" />
+      <option name="presentableId" value="LOCAL-00015" />
+      <option name="project" value="LOCAL" />
+      <updated>1624482036941</updated>
+    </task>
+    <option name="localTasksCounter" value="16" />
     <servers />
   </component>
   <component name="VcsManagerConfiguration">
@@ -304,64 +312,7 @@
     <MESSAGE value="more bug fixes" />
     <MESSAGE value="Changed hosting method to Flask" />
     <MESSAGE value="made simulation and analysis tools along with extra heading functions" />
-    <option name="LAST_COMMIT_MESSAGE" value="made simulation and analysis tools along with extra heading functions" />
-  </component>
-  <component name="WindowStateProjectService">
-    <state x="156" y="121" width="1071" height="702" key="#com.intellij.execution.impl.EditConfigurationsDialog" timestamp="1624454352867">
-      <screen x="0" y="25" width="1440" height="875" />
-    </state>
-    <state x="156" y="121" width="1071" height="702" key="#com.intellij.execution.impl.EditConfigurationsDialog/0.25.1440.875@0.25.1440.875" timestamp="1624454352867" />
-    <state x="311" y="64" key="CommitChangelistDialog2" timestamp="1624479635239">
-      <screen x="0" y="25" width="1440" height="875" />
-    </state>
-    <state x="311" y="64" key="CommitChangelistDialog2/0.25.1440.875@0.25.1440.875" timestamp="1624479635239" />
-    <state width="1371" height="143" key="GridCell.Tab.0.bottom" timestamp="1624481934002">
-      <screen x="0" y="25" width="1440" height="875" />
-    </state>
-    <state width="1371" height="143" key="GridCell.Tab.0.bottom/0.25.1440.875@0.25.1440.875" timestamp="1624481934002" />
-    <state width="1371" height="143" key="GridCell.Tab.0.center" timestamp="1624481934001">
-      <screen x="0" y="25" width="1440" height="875" />
-    </state>
-    <state width="1371" height="143" key="GridCell.Tab.0.center/0.25.1440.875@0.25.1440.875" timestamp="1624481934001" />
-    <state width="1371" height="143" key="GridCell.Tab.0.left" timestamp="1624481934000">
-      <screen x="0" y="25" width="1440" height="875" />
-    </state>
-    <state width="1371" height="143" key="GridCell.Tab.0.left/0.25.1440.875@0.25.1440.875" timestamp="1624481934000" />
-    <state width="1371" height="143" key="GridCell.Tab.0.right" timestamp="1624481934001">
-      <screen x="0" y="25" width="1440" height="875" />
-    </state>
-    <state width="1371" height="143" key="GridCell.Tab.0.right/0.25.1440.875@0.25.1440.875" timestamp="1624481934001" />
-    <state width="1371" height="282" key="GridCell.Tab.1.bottom" timestamp="1624479267511">
-      <screen x="0" y="25" width="1440" height="875" />
-    </state>
-    <state width="1371" height="282" key="GridCell.Tab.1.bottom/0.25.1440.875@0.25.1440.875" timestamp="1624479267511" />
-    <state width="1371" height="282" key="GridCell.Tab.1.center" timestamp="1624479267511">
-      <screen x="0" y="25" width="1440" height="875" />
-    </state>
-    <state width="1371" height="282" key="GridCell.Tab.1.center/0.25.1440.875@0.25.1440.875" timestamp="1624479267511" />
-    <state width="1371" height="282" key="GridCell.Tab.1.left" timestamp="1624479267510">
-      <screen x="0" y="25" width="1440" height="875" />
-    </state>
-    <state width="1371" height="282" key="GridCell.Tab.1.left/0.25.1440.875@0.25.1440.875" timestamp="1624479267510" />
-    <state width="1371" height="282" key="GridCell.Tab.1.right" timestamp="1624479267511">
-      <screen x="0" y="25" width="1440" height="875" />
-    </state>
-    <state width="1371" height="282" key="GridCell.Tab.1.right/0.25.1440.875@0.25.1440.875" timestamp="1624479267511" />
-    <state x="200" y="98" key="SettingsEditor" timestamp="1621456829213">
-      <screen x="0" y="25" width="1440" height="875" />
-    </state>
-    <state x="200" y="98" key="SettingsEditor/0.25.1440.875@0.25.1440.875" timestamp="1621456829213" />
-    <state x="291" y="188" key="Vcs.Push.Dialog.v2" timestamp="1624479553266">
-      <screen x="0" y="25" width="1440" height="875" />
-    </state>
-    <state x="291" y="188" key="Vcs.Push.Dialog.v2/0.25.1440.875@0.25.1440.875" timestamp="1624479553266" />
-    <state x="477" y="383" key="com.intellij.openapi.vcs.update.UpdateOrStatusOptionsDialogupdate-v2" timestamp="1621628104830">
-      <screen x="0" y="25" width="1440" height="875" />
-    </state>
-    <state x="477" y="383" key="com.intellij.openapi.vcs.update.UpdateOrStatusOptionsDialogupdate-v2/0.25.1440.875@0.25.1440.875" timestamp="1621628104830" />
-    <state x="356" y="214" width="670" height="676" key="search.everywhere.popup" timestamp="1623687703045">
-      <screen x="0" y="25" width="1440" height="875" />
-    </state>
-    <state x="356" y="214" width="670" height="676" key="search.everywhere.popup/0.25.1440.875@0.25.1440.875" timestamp="1623687703045" />
+    <MESSAGE value="Allowed the robot to reach destinations at a specified heading" />
+    <option name="LAST_COMMIT_MESSAGE" value="Allowed the robot to reach destinations at a specified heading" />
   </component>
 </project>

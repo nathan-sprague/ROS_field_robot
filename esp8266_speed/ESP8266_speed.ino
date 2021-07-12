@@ -51,9 +51,9 @@
 
 #define DEBUGMODE false
 
-const int motorPin = 4;  // motor (D2)
-const int hallPin = 5; // speed sensor pin (D1)
-const int otherHallPin = 0; // speed sensor pin (D3)
+const int motorPin = 16;  // motor (D0)
+const int hallPin = 5; // speed sensor pin 1 (D1)
+const int otherHallPin = 4; // speed sensor pin 2 (D2)
 
 
 unsigned long lastMsgTime = 0; // timer to prevent over-printing
@@ -287,8 +287,70 @@ void getWheelSpeed() {
     }
     lastMsgTime = millis();
   }
+}
 
 
+
+
+unsigned long lastPotPrint = 0;
+float averagePotSpeed = 0;
+float lastPotVal = 0;
+unsigned long lastPotReading = 0;
+float lastDistFromCenter = 0;
+float lastDistFromFront = 0;
+
+void getFeelerHits() {
+  if (lastPotReading +  10 < millis()) {
+
+    // left 45 degrees 845
+    // right 45 degrees 525
+    // resting 675
+    // therefore 845-525 is roughly 300
+    
+    float potAngle = (analogRead(A0) - 675.0) * 90 / 300.0;
+    
+    
+
+    if ((abs(potAngle)>5 && lastPotPrint + 100 < millis())|| lastPotPrint + 500 < millis()){
+        Serial.println("o" + String(potAngle));
+        lastPotPrint = millis();
+    }
+    
+//    unsigned long potReadingTime = millis();
+//    float potSpeed = float(potAngle - lastPotVal) * 1000 / (potReadingTime - lastPotReading);
+//
+//    averagePotSpeed = (averagePotSpeed * 2 + potSpeed) / 3;
+//
+//    float distFromCenter = 1000;
+//    float distFromFront = -1000;
+//
+//
+//    if (averagePotSpeed * potAngle < 0) {
+//      // the signs are different, meaning the pot is returning to zero
+//      distFromCenter = 2000;
+//      distFromFront = -2000;
+//
+//    } else if (abs(averagePotSpeed) > 0.1 && abs(potAngle) > 0.1) {
+//      // d = v * sin(theta) / (dtheta/dt)
+//      distFromCenter = smoothSpeed * 5280 * 12 / 3600 / (averagePotSpeed * 3.14159 / 180);
+//      distFromFront = distFromCenter / tan(potAngle * 3.1415 / 180);
+//    }
+//    if (abs(lastDistFromCenter-distFromCenter)>0.1 && abs(lastDistFromFront-distFromFront)>0.1){
+//      if (abs(distFromCenter) < 30 && abs(distFromFront) < 30 && lastPotPrint + 100 < millis()) {
+//        Serial.println("k" + String(distFromCenter));
+//        Serial.println("l" + String(distFromFront));
+//        Serial.println("o" + String(potAngle));
+//        lastPotPrint = millis();
+//        lastDistFromCenter = distFromCenter;
+//        lastDistFromFront = distFromFront;
+//        //Serial.println("from center: " + String(distFromCenter) + ", from front: " + String(distFromFront));
+//      }
+      
+//    }
+//
+//    lastPotVal = potAngle;
+//    lastPotReading = potReadingTime;
+  }
 }
 
 
@@ -354,7 +416,7 @@ void setMotorSpeed() {
     }
 
     if (DEBUGMODE) {
-      Serial.print("old pwm: " + String(PWMSignal));
+      Serial.print(".old pwm: " + String(PWMSignal));
     }
 
 
@@ -433,20 +495,28 @@ void setup() {
 
 unsigned long gotSerialTime = 0;
 bool gotSerial = false;
+
 void loop() {
 
-
+  
   if (Serial.available() && !gotSerial) {
     gotSerialTime = millis();
     gotSerial = true;
   }
-  if (gotSerial && gotSerialTime+15 < millis()){
+  if (gotSerial && gotSerialTime+15 < millis()) {
     processSerial();
     gotSerial = false;
+  } 
+  if (gotSerialTime+1500 < millis()) {
+    analogWrite(motorPin, 0);
+    PWMSignal = 0;
+    targetSpeed = 0;
+    return;
   }
-
-
+  
   getWheelSpeed();
+
+  //getFeelerHits();
 
   if (stopNow) {
     targetSpeed = 0;

@@ -4,6 +4,8 @@ from threading import Thread
 from flask import Flask, render_template, request, jsonify, url_for, redirect, Response, send_from_directory
 import random
 import os
+from signal import signal, SIGINT
+from sys import exit
 
 targetLocations = [[40.421779, -86.919310], [40.421653, -86.918739], [40.421824, -86.918487]]
 
@@ -24,13 +26,15 @@ def update():
     responseDict = {"coords": myRobot.coords, "wheelSpeed": myRobot.wheelSpeed,
                     "targetSpeed": myRobot.targetSpeed, "realAngle": myRobot.steeringAngle,
                     "targetAngle": myRobot.targetWheelAngle, "heading": myRobot.heading,
-                    "targetHeading": myRobot.targetHeadingAngle, "subPoints": myRobot.subPoints}
-    if request.args.get('coordListVersion') is not None:
-        print("c list version", int(request.args.get('coordListVersion')))
-    if request.args.get('coordListVersion') is not None and int(request.args.get('coordListVersion')) < myRobot.coordListVersion:
-        print("new coord list version")
-        responseDict["coordList"] = myRobot.destinations
-        responseDict["coordListVersion"] = myRobot.coordListVersion
+                    "targetHeading": myRobot.targetHeadingAngle}
+    if request.args.get('pointsListVersion') is not None:
+        print("P list version", int(request.args.get('pointsListVersion')))
+    if request.args.get('pointsListVersion') is not None and int(
+            request.args.get('pointsListVersion')) < myRobot.coordListVersion:
+        print("new points list version")
+        responseDict["pointsList"] = {"black": [5, 1, myRobot.destinations], "orange": [2, 0, myRobot.subPoints],
+                                      "green": [3, 0, myRobot.fakeCornPoints], "red": [4, 0, myRobot.orangePoints]}
+        responseDict["pointsListVersion"] = myRobot.coordListVersion
 
     if request.args.get('s') == "1":
         myRobot.stopNow = True
@@ -55,12 +59,12 @@ class FakeESP:
         self.targetAngle = 0
         self.angle = 0
         self.targetSpeed = 0
-        self.coords = [40.422374, -86.919332]  # start above
-        #  self.coords = [40.421374, -86.919332] # start below
-        self.coords = [40.421779, -86.919902]  # start left
+        # self.coords = [40.422374, -86.919332]  # start above
+        # #  self.coords = [40.421374, -86.919332] # start below
+        # self.coords = [40.421779, -86.919902]  # start left
         self.coords = [40.421779, -86.919002]  # start right
         self.lastDistance = 0
-        self.heading = 0
+        self.heading = -20
         self.distance = 0
 
         self.controllerType = controllerType
@@ -69,10 +73,13 @@ class FakeESP:
         self.startDist = 0
         self.targetDist = 0
 
+        self.distFromCenter = 0
+        self.distFromFront = 0
+
         self.messageToSendIndex = 0
         if self.controllerType == "speed":
-            self.messagesToSend = [0, 0]
-            self.messagesToSendPrefix = ["w", "d"]
+            self.messagesToSend = [0, 0, 0, 0]
+            self.messagesToSendPrefix = ["w", "d", "k", "l"]
         if self.controllerType == "steer":
             self.messagesToSend = [0]
             self.messagesToSendPrefix = ["a"]
@@ -112,6 +119,43 @@ class FakeESP:
                 self.messagesToSend[0] = self.speed
                 self.messagesToSend[1] = self.distance
 
+                if len(self.robot.fakeCornPoints) > 0:
+                    closestStalk = self.robot.fakeCornPoints[0]
+                    closestDFF = -1000  # distance from center
+                    closestDFC = 1000  # distance from front
+                    totalDFP = 1000
+                    self.robot.orangePoints = []
+                    index = 0
+                    for i in self.robot.fakeCornPoints:
+                        index += 1
+                        yFactor = 364000 * 12
+                        xFactor = 364000 * 12 * math.cos(self.robot.coords[0] * math.pi / 180)
+                        angle = self.robot.heading * math.pi / 180
+                        dff = -((i[0] - self.robot.coords[0]) * math.cos(angle) * xFactor + (
+                                    i[1] - self.robot.coords[1]) * math.sin(angle) * yFactor)
+                        dfc = -(i[0] - self.robot.coords[0]) * math.sin(angle) * xFactor + (
+                                    i[1] - self.robot.coords[1]) * math.cos(angle) * yFactor
+                        #  print(dff, dfc)
+                        #   dfp = dfc * dfc + dff * dff
+                        #   if dfp < totalDFP:
+                        #       totalDFP = dfp
+                        #       closestDFC = dfc
+                        #       closestDFF = dff
+                        #       closestStalk = i
+
+                      #  if 0 < dff < 100 and abs(dfc) < 18:
+                        dfp = dfc * dfc + dff * dff
+                        if dfp < totalDFP:
+                            totalDFP = closestDFC * closestDFC + closestDFF * closestDFF
+                            closestDFC = dfc
+                            closestDFF = dff
+                            closestStalk = i
+                    self.messagesToSend[2] = closestDFC
+                    self.messagesToSend[3] = closestDFF
+                    print("closest: ", closestDFC, closestDFF, closestStalk)
+                    self.robot.orangePoints = [closestStalk]
+                    self.robot.coordListVersion += 1
+
             elif self.controllerType == "steer":
                 # self.angle = self.targetAngle
                 if self.angle < self.targetAngle - 2:
@@ -142,7 +186,7 @@ class FakeESP:
 
                 self.lastDistance = dist
 
-            time.sleep(sleepTime / playbackSpeed)
+            time.sleep(sleepTime * playbackSpeed)
 
     def sendData(self):
         if self.controllerType == "speed":
@@ -202,9 +246,17 @@ class Robot:
         self.targetMoveDist = 0
         self.subPoints = []
 
+        self.orangePoints = []
+
+        self.fakeCornPoints = self.makeFakeCornPoints()
+        self.foundCornPoints = []
+
         # self.compassThread = Thread(target=self.getHeadings)
 
         self.startTime = int(time.time())
+
+        self.stalkDistFromCenter = 0
+        self.stalkDistFromFront = -1000
 
         #
         # if self.beginCompass():
@@ -233,11 +285,27 @@ class Robot:
             rxThread.start()
             txThread.start()
 
+    def makeFakeCornPoints(self):
+        fakePoints = []
+        x = 40.421779
+        y = -86.919002
+
+        longCorrection = math.cos(x * math.pi / 180)
+        y_spacing = 30 / 12 / longCorrection / 364000
+        x_spacing = 7 / 12 / 364000
+        #  print("y spacing", y_spacing)
+        for i in range(32):
+            x += x_spacing
+            fakePoints += [[x, y - y_spacing / 2]]
+            fakePoints += [[x, y + y_spacing / 2]]
+
+        return fakePoints
+
     def readSerial(self, serialDevice, idNum):
         while True:
             msg = serialDevice.sendData()
             self.processSerial(msg, idNum)
-            time.sleep(0.1)
+            time.sleep(0.1 * playbackSpeed)
 
     def processSerial(self, message_bin, idNum):
         message = str(message_bin)
@@ -296,6 +364,12 @@ class Robot:
             elif msgType == "c":
                 self.compassHeading = res
 
+            elif msgType == "k":
+                self.stalkDistFromCenter = res
+
+            elif msgType == "l":
+                self.stalkDistFromFront = res
+
     def sendSerial(self, serialDevice, idNum):
         while True:
             if not self.espMessages[idNum]["f"][1]:
@@ -307,7 +381,7 @@ class Robot:
             if not self.espMessages[idNum]["m"][1]:
                 serialDevice.setData("m" + str(self.targetMoveDist))
                 self.espMessages[idNum]["m"][1] = True
-            time.sleep(0.1)
+            time.sleep(0.1 * playbackSpeed)
 
     def findAngleBetween(self, coords1, coords2):
         x, y = self.findDistBetween(coords1, coords2)
@@ -329,6 +403,9 @@ class Robot:
             realAngle = realAngle - 2 * math.pi
 
         return realAngle
+
+    def endSensors(self):
+        return True
 
     def atDestination(self, coords1, coords2, tolerance=5.0):
 
@@ -401,22 +478,23 @@ class Robot:
 
     def threePointTurn(self, destHeading, maxTravelDist):
         sign = -1
+
         while abs(self.findShortestAngle(destHeading, self.heading)) > 10:
 
             self.targetWheelAngle = sign * self.findSteerAngle(destHeading, self.heading)
             self.targetSpeed = 0
             self.setEspMsg()
             while abs(self.steeringAngle - self.targetWheelAngle) > 5:
-                time.sleep(0.1)
+                time.sleep(0.1 * playbackSpeed)
             print("done steering")
 
             self.targetMoveDist = sign * maxTravelDist
             self.setEspMsg()
-            time.sleep(0.4)
+            time.sleep(0.4 * playbackSpeed)
 
             while (self.wheelSpeed < -0.1 or self.wheelSpeed > 0.1) and abs(
                     self.findShortestAngle(destHeading, self.heading)) > 10:
-                time.sleep(0.1)
+                time.sleep(0.1 * playbackSpeed)
 
             print("done moving back")
 
@@ -427,18 +505,21 @@ class Robot:
         self.targetSpeed = 0
         self.setEspMsg()
 
-
     def makePath(self, currentCoords, destination, destHeading):
 
         longCorrection = math.cos(currentCoords[0] * math.pi / 180)
+        straightenOffsetX = -self.turnRadius / 12 / 364000 * math.cos(destHeading * math.pi / 180)
+        straightenOffsetY = -self.turnRadius / 12 / 364000 * math.sin(destHeading * math.pi / 180) * longCorrection
 
         offsetY = self.turnRadius / 12 / 364000 * math.sin((90 + destHeading) * math.pi / 180)
         offsetX = self.turnRadius / 12 / 364000 * math.cos((90 + destHeading) * math.pi / 180) * longCorrection
-        approachCircleCenter1 = [destination[0] + offsetX, destination[1] + offsetY]
+        approachCircleCenter1 = [destination[0] + offsetX + straightenOffsetX,
+                                 destination[1] + offsetY + straightenOffsetY]
 
         offsetY = self.turnRadius / 12 / 364000 * math.sin((-90 + destHeading) * math.pi / 180)
         offsetX = self.turnRadius / 12 / 364000 * math.cos((-90 + destHeading) * math.pi / 180) * longCorrection
-        approachCircleCenter2 = [destination[0] + offsetX, destination[1] + offsetY]
+        approachCircleCenter2 = [destination[0] + offsetX + straightenOffsetX,
+                                 destination[1] + offsetY + straightenOffsetY]
 
         x1, y1 = self.findDistBetween(currentCoords, approachCircleCenter1)
         x2, y2 = self.findDistBetween(currentCoords, approachCircleCenter2)
@@ -468,54 +549,55 @@ class Robot:
             offsetX = self.turnRadius / 12 / 364000 * math.cos((a - 90) * math.pi / 180) * longCorrection
             approachPoint1 = [closerApproach[0] + offsetX, closerApproach[1] + offsetY]
             # self.destinations += [approachPoint1]
-            b = self.findAngleBetween(currentCoords, approachPoint1) * 180 / math.pi
+            # b = self.findAngleBetween(currentCoords, approachPoint1) * 180 / math.pi
             self.subPoints = [approachPoint1]
+            self.coordListVersion += 1
         else:
             offsetY = self.turnRadius / 12 / 364000 * math.sin((a + 90) * math.pi / 180)
             offsetX = self.turnRadius / 12 / 364000 * math.cos((a + 90) * math.pi / 180) * longCorrection
             approachPoint2 = [closerApproach[0] + offsetX, closerApproach[1] + offsetY]
             # self.destinations += [approachPoint2]
             self.subPoints = [approachPoint2]
-            c = self.findAngleBetween(currentCoords, approachPoint2) * 180 / math.pi
+            self.coordListVersion += 1
+            # c = self.findAngleBetween(currentCoords, approachPoint2) * 180 / math.pi
+        return closerApproach, self.turnRadius
 
-        # bb = self.findShortestAngle(a, b)
-        # cc = self.findShortestAngle(a, c)
-        # print(bb, cc)
-
-        # self.currentCoords
-
-    def navigate(self, destinations):
+    def pointToPointNavigate(self, destinations):
         self.destinations = destinations
-        print("Started thread")
 
         while len(self.destinations) > 0:
 
             self.coordListVersion += 1
             hitDestination = False
+
             while True:
+                destHeading = 90
 
                 if not hitDestination:
-                    self.makePath(self.coords, self.destinations[0], 0)
+                    subdestinationCenterCoords, subdestinationTolerance = self.makePath(self.coords,
+                                                                                        self.destinations[0],
+                                                                                        destHeading)
                     targetCoords = self.subPoints[0]
+
+                    if self.atDestination(self.coords, subdestinationCenterCoords,
+                                          tolerance=subdestinationTolerance / 12):
+                        hitDestination = True
+                        self.subPoints = []
+                        print("hit destination")
+
                 else:
                     targetCoords = self.destinations[0]
 
-                if self.atDestination(self.coords, self.destinations[0],
-                                      tolerance=self.turnRadius / 12) and not hitDestination:
-                    hitDestination = True
-                    self.subPoints = []
-                    print("hit destination")
-
-                if hitDestination and self.atDestination(self.coords, targetCoords, tolerance = 2):
+                if hitDestination and self.atDestination(self.coords, targetCoords, tolerance=2):
                     if hitDestination:
                         print("reached destination")
-                        self.threePointTurn(0, self.turnRadius)
+                        self.threePointTurn(destHeading, self.turnRadius)
                         self.targetSpeed = 0
                         self.targetWheelAngle = 0
                         self.setEspMsg()
 
                         self.destinations.remove(self.destinations[0])
-                        time.sleep(4)
+                        time.sleep(4 * playbackSpeed)
                         break
 
                 if not self.webControl and not self.atDestination(self.coords, targetCoords) and not self.stopNow:
@@ -536,34 +618,40 @@ class Robot:
 
                 # self.threePointTurn(-180, 100)
 
-                time.sleep(0.3)
+                time.sleep(0.3 * playbackSpeed)
 
         print("finished getting locations")
 
+        return True
+
+    def interRowNavigate(self):
+        outOfRow = False
+
+        while not outOfRow:
+            self.targetSpeed = 0.5
+            self.setEspMsg()
+            # break
         return True
 
 
 notCtrlC = True
 
 
-# def signal_handler(sig, frame):
-#     print('You pressed Ctrl+C!')
-#     notCtrlC = False
-#     myRobot.endSensors()
-#     shutdownServer()
-#     robotThread.join()
-#     notCtrlC = False
+def handler(signal_received, frame):
+    print('You pressed Ctrl+C!')
+    myRobot.endSensors()
+    # shutdownServer()
+    robotThread.join()
 
 
-# signal.pause()
-
-# signal.signal(signal.SIGINT, signal_handler)
-# print('Press Ctrl+C')
+signal(SIGINT, handler)
 
 
 def beginRobot():
-    # pass
-    myRobot.navigate(targetLocations)
+    myRobot.interRowNavigate()
+
+
+# myRobot.pointToPointNavigate(targetLocations)
 
 
 if os.environ.get("WERKZEUG_RUN_MAIN") == "true":

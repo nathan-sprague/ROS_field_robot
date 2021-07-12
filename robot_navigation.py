@@ -101,10 +101,16 @@ class Robot:
         self.steeringDirection = 0
         self.gyroHeading = 0
         self.webControl = False
+        self.filename = "logs" + str(int(time.time())) + ".txt"
+
+        self.destinations = [[0, 0]]
+
+        self.distFromFront = -1000
+        self.distFromCenter = 0
 
         self.steeringAngle = 0
 
-        self.destinations = []
+        #  self.destinations = []
         self.coordListVersion = 0
 
         self.targetHeadingAngle = 0
@@ -126,6 +132,8 @@ class Robot:
         # else:
         #     print("unable to begin compass")
 
+        self.feelerAngle = 0
+
         self.espMessages = []
 
         self.espList = []
@@ -139,7 +147,7 @@ class Robot:
 
             self.espList += [serial.Serial(port='/dev/ttyUSB1', baudrate=115200, timeout=.1)]
 
-            self.espList += [serial.Serial(port='/dev/ttyUSB2', baudrate=115200, timeout=.1)]
+            #    self.espList += [serial.Serial(port='/dev/ttyUSB2', baudrate=115200, timeout=.1)]
             print("Set up serial port(s)")
 
             idNum = 0
@@ -237,6 +245,14 @@ class Robot:
 
             elif msgType == "c":
                 self.compassHeading = res
+
+            elif msgType == "l":
+                self.distFromFront = res
+
+            elif msgType == "k":
+                self.distFromCenter = res
+            elif msgType == "o":
+                self.feelerAngle = res
 
     def endSensors(self):
         # self.compassThread.join()
@@ -531,28 +547,38 @@ class Robot:
 
         return True
 
+    def interRowNavigate(self):
+
+        while True:
+
+
+            self.setEspMsg()
+            time.sleep(0.1)
+
 
 notCtrlC = True
 
 
-# def signal_handler(sig, frame):
-#     print('You pressed Ctrl+C!')
-#     notCtrlC = False
-#     myRobot.endSensors()
-#     shutdownServer()
-#     robotThread.join()
-#     notCtrlC = False
+def signal_handler(sig, frame):
+    print('You pressed Ctrl+C!')
+    global notCtrlC
+    notCtrlC = False
+    myRobot.endSensors()
+    shutdownServer()
+    robotThread.join()
 
 
 # signal.pause()
 
-# signal.signal(signal.SIGINT, signal_handler)
-# print('Press Ctrl+C')
+signal.signal(signal.SIGINT, signal_handler)
+print('Press Ctrl+C')
 
 
 def beginRobot():
+    print("begin")
     # pass
-    myRobot.navigate(targetLocations)
+    # myRobot.navigate(targetLocations)
+    myRobot.interRowNavigate()
 
 
 if os.environ.get("WERKZEUG_RUN_MAIN") == "true":

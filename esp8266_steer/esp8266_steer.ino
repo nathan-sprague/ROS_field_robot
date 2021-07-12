@@ -1,7 +1,7 @@
 /*
   static const uint8_t D0   = 16;
-  static const uint8_t D1   = 5;
-  static const uint8_t D2   = 4;
+  static const uint8_t D1   = 5; // (SCL)
+  static const uint8_t D2   = 4; // (SDA)
   static const uint8_t D3   = 0;
   static const uint8_t D4   = 2;
   static const uint8_t D5   = 14;
@@ -15,19 +15,7 @@
 #define DEBUGMODE false
 #define WIRELESSDEBUG false
 
-#define USE_GPS false
-
-#include <Wire.h>
-#include <SparkFun_u-blox_GNSS_Arduino_Library.h> //http://librarymanager/All#SparkFun_u-blox_GNSS
-SFE_UBLOX_GNSS myGNSS;
-
-#include <Arduino.h>
-
-
-
 const int steerPin = 16;  // motor (D0)
-const int sdaPin = 4;  // (D2)
-const int sclPin = 5;  // (D1)
 
 
 int pwmSpeed = 0;
@@ -102,31 +90,6 @@ void processSerial() {
   }
 }
 
-void beginGPS() {
-  Wire.begin();
-
-  if (myGNSS.begin() == false) { //Connect to the u-blox module using Wire port
-    Serial.println(".u-blox GNSS not detected");
-    while (1);
-  }
-
-  myGNSS.setI2COutput(COM_TYPE_UBX); //Set the I2C port to output UBX only (turn off NMEA noise)
-  myGNSS.saveConfigSelective(VAL_CFG_SUBSEC_IOPORT); //Save (only) the communications port settings to flash and BBR
-
-}
-
-void getPosition() {
-
-  float latitude = float(myGNSS.getLatitude())/10000000;
-  Serial.println("x" + String(latitude,7));
-
-  float longitude = float(myGNSS.getLongitude())/10000000;
-  Serial.println("y" + String(longitude,7));
-
-  int SIV = myGNSS.getSIV();
-   
-   Serial.println(".satellites in view: " + String(SIV));
-}
 
 
 
@@ -135,10 +98,7 @@ void setup() {
   Serial.begin(115200);
 
   analogWriteFreq(100);
-
-  if (USE_GPS) {
-    beginGPS();
-  }
+  
 }
 
 void targetToSpeed() {
@@ -202,8 +162,6 @@ bool limitOvershoot() {
     return false;
   }
 }
-
-unsigned long lastPosReadTime = 0;
 
 unsigned long lastRequest = 0;
 int lastPWMspeed = 0;
@@ -272,11 +230,6 @@ void loop() {
 
   }
   
-
-  if (USE_GPS && lastPosReadTime + 600 < millis()) {
-    getPosition();
-    lastPosReadTime = millis();
-  }
 
   if ((lastReading > targetPosition && averagePosition < targetPosition) || (lastReading < targetPosition && averagePosition > targetPosition)) {
     passedTarget++;

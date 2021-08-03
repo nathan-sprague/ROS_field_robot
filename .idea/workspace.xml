@@ -2,8 +2,8 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="7c57f5bc-62f0-4916-a378-e221f12e6aa4" name="Default Changelist" comment="">
-      <change afterPath="$PROJECT_DIR$/realtime_navigation.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/esp8266_speed_old/ESP8266_speed/ESP8266_speed.ino" beforeDir="false" />
       <change beforePath="$PROJECT_DIR$/robot_navigation.py" beforeDir="false" afterPath="$PROJECT_DIR$/robot_navigation.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -299,7 +299,14 @@
       <option name="project" value="LOCAL" />
       <updated>1626110798091</updated>
     </task>
-    <option name="localTasksCounter" value="17" />
+    <task id="LOCAL-00017" summary="Divided up code into other files">
+      <created>1628007281537</created>
+      <option name="number" value="00017" />
+      <option name="presentableId" value="LOCAL-00017" />
+      <option name="project" value="LOCAL" />
+      <updated>1628007281537</updated>
+    </task>
+    <option name="localTasksCounter" value="18" />
     <servers />
   </component>
   <component name="VcsManagerConfiguration">
@@ -317,6 +324,7 @@
     <MESSAGE value="made simulation and analysis tools along with extra heading functions" />
     <MESSAGE value="Allowed the robot to reach destinations at a specified heading" />
     <MESSAGE value="Improved simulation and navigation" />
-    <option name="LAST_COMMIT_MESSAGE" value="Improved simulation and navigation" />
+    <MESSAGE value="Divided up code into other files" />
+    <option name="LAST_COMMIT_MESSAGE" value="Divided up code into other files" />
   </component>
 </project>

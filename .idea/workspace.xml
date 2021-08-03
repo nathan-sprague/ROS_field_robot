@@ -2,13 +2,9 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="7c57f5bc-62f0-4916-a378-e221f12e6aa4" name="Default Changelist" comment="">
+      <change afterPath="$PROJECT_DIR$/realtime_navigation.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/esp8266_speed/ESP8266_speed.ino" beforeDir="false" afterPath="$PROJECT_DIR$/esp8266_speed/ESP8266_speed.ino" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/esp8266_steer/esp8266_steer.ino" beforeDir="false" afterPath="$PROJECT_DIR$/esp8266_steer/esp8266_steer.ino" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/robot_navigation.py" beforeDir="false" afterPath="$PROJECT_DIR$/robot_navigation.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/robot_simulation.py" beforeDir="false" afterPath="$PROJECT_DIR$/robot_simulation.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/static/main.js" beforeDir="false" afterPath="$PROJECT_DIR$/static/main.js" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/templates/index.html" beforeDir="false" afterPath="$PROJECT_DIR$/templates/index.html" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -296,7 +292,14 @@
       <option name="project" value="LOCAL" />
       <updated>1624482036941</updated>
     </task>
-    <option name="localTasksCounter" value="16" />
+    <task id="LOCAL-00016" summary="Improved simulation and navigation">
+      <created>1626110798091</created>
+      <option name="number" value="00016" />
+      <option name="presentableId" value="LOCAL-00016" />
+      <option name="project" value="LOCAL" />
+      <updated>1626110798091</updated>
+    </task>
+    <option name="localTasksCounter" value="17" />
     <servers />
   </component>
   <component name="VcsManagerConfiguration">
@@ -313,6 +316,7 @@
     <MESSAGE value="Changed hosting method to Flask" />
     <MESSAGE value="made simulation and analysis tools along with extra heading functions" />
     <MESSAGE value="Allowed the robot to reach destinations at a specified heading" />
-    <option name="LAST_COMMIT_MESSAGE" value="Allowed the robot to reach destinations at a specified heading" />
+    <MESSAGE value="Improved simulation and navigation" />
+    <option name="LAST_COMMIT_MESSAGE" value="Improved simulation and navigation" />
   </component>
 </project>

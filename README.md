@@ -1,23 +1,25 @@
 # ROS_field_robot
-Files to run the robot with a raspberry pi and ROS. The robot can autonomously travel through rows given various GPS destinations. It is capable of extra sensors to collect data in a field.
+Files to run the robot with a Jetson Nano (originally Raspberry Pi) and soon ROS. The robot can autonomously travel to a specific area and then travel through rows given GPS destinations. It is capable carrying extra sensors to collect data in a field.
 
-# Setup
+# Hardware
+## Frame
+The CAD files are still being finalized, but as long as it can hold the rest of the sensors, it should be fine.
 
-## Software
-We are using the 32-bit Raspberry Pi OS
+## Controllers
+### ESP8266
+You need at least 2 ESP8266 microcontrollers, one to control the steering and one to control the speed. You can also use another as an access point. The ESP8266s should be connected to the Jetson Nano.
 
-As of now, we are not using ROS. However, we plan to use ROS Noetic on a Raspberry Pi 4. Use this tutorial to install it<br />
-https://varhowto.com/install-ros-noetic-raspberry-pi-4/ <br />
+### Jetson Nano
+Any Jetson Nano or even a Raspberry Pi would do, but we are using the 4GB model of the Jetson Nano.
 
-## Components Necessary
-### Compass
-Follow this tutorial:<br />
-https://tutorials-raspberrypi.com/build-your-own-raspberry-pi-compass-hmc5883l/
-VCC -> 3.3V (Pin 1), GND -> GND (Pin 6), SCL -> GPIO3 (Pin 5), SDA -> GPIO2 (Pin 3) <br />
+## Sensors
+### Sparkfun RTK2 GPS Module
+  You can also use a second RTK2 and XBee radio to have better accuracy using RTK.
+  
+### Magnetic Encoder
+  Specifications and CAD file will be released soon.
 
-### GPS
-$ pip3 install gps
-$ pip3 install geographiclib
-
-### Serial
-(Already installed on the Raspberry Pi)
+# Software
+  Upload the 2 Sketches of steering and speed to the ESP8266s.
+  Run the file "robot_navigation.py" on the Jetson Nano.
+ 

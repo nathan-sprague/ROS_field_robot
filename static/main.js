@@ -53,25 +53,18 @@ function sendInfo(){
             
 
             pointsList = info["pointsList"];
-            // console.log("points list", pointsList);
+            console.log("points list", pointsList);
           //  pointsListVersion = info["pointsListVersion"];
             // console.log(pointsListVersion);
-            k = Object.keys(pointsList);
+        //    k = Object.keys(pointsList);
 
             j=0;
             allPoints = [];
-            while (j<k.length){
-              n=0;
-              r=pointsList[k[j]][2];
-              // console.log(r);
-              while (n<r.length){
-
-                allPoints.push(r[n]);
-                n+=1;
-              }
+            while (j<pointsList.length){
+              allPoints.push(pointsList[j]["coord"]);
               j+=1;
             }
-            // console.log("all points", allPoints);
+            console.log("all points", allPoints);
 
 
          //   updateDestinations();
@@ -168,19 +161,6 @@ function changeSpeed(val){
     }
 }
 
-document.onkeydown = function(evt) {
-    evt = evt || window.event;
-    // console.log(evt.keyCode);
-
-    changeSpeed(evt.keyCode)
-    // sendInfo();
-    //w 87 38
-    //a 65 37
-    //s 83 40
-    //d 68 39
-    //space 32
-    
-};
 
 function displaySpeed(){
 
@@ -233,7 +213,7 @@ function setScale(){
     longitude0=0
   latitude0 =0
   var longCorrection = Math.cos(latitude*Math.PI/180);
-  
+  console.log("all points", allPoints);
   if (allPoints.length==0){
     canvasScale = 1;
     document.getElementById("scale").value = Math.floor(canvasScale);
@@ -278,7 +258,7 @@ function setScale(){
   }
   
 
-  scale = 300/scale*5;
+  scale = 300/scale;
 
 
   scale = Math.floor(scale);
@@ -295,6 +275,7 @@ function setScale(){
       
     // }
   }
+
   document.getElementById("scale").value = canvasScale;
 
 
@@ -308,34 +289,7 @@ function getOrderOfMagnitude(n) {
 }
 
 function drawGrids(){
-  // step1 = ctxToCoord(0,0); // base point 
-  // step2 = ctxToCoord(50,50); // max scale size
-  // latDif = (step1[0]-step2[0])*69*5280;
 
-  // om = getOrderOfMagnitude(latDif);
-  // tickDist = Math.pow(10,om);
-  // if (latDif/tickDist > 5) {
-  //   tickDist*=5
-  // }
-
-  // var c = document.getElementById("mainCanvas");
-  // var ctx = c.getContext("2d");
-
-  // tickDist *= 69*5280;
-  // ctxTickStart = coordToCtx(step1[0]-(step1[0]%tickDist), 0)[0];
-  // ctxTickDist = coordToCtx(step1[0]-(step1[0]%tickDist)+tickDist, 0)[0] - ctxTickStart;
-  // var x = ctxTickStart;
-
-  // while (x<800){
-  //   ctx.beginPath();
-    
-  //   ctx.moveTo(0,y);
-  //   ctx.strokeStyle = "black";
-  //   ctx.lineWidth = 1;
-  //   ctx.lineTo(x, 1000);
-  //   ctx.stroke();
-  //   x+=ctxTickDist;
-  // }
 
 }
 
@@ -372,42 +326,60 @@ function clickEvent(event){
 
 
 function drawDestinations(ctx){
+  a = [40.4216702, -86.9184231]//coordToCtx(40,-80);
+  console.log("convert", coordToCtx(a[0],a[1]));
   var i = 0;
     // console.log(targetPositions);
 
-    k = Object.keys(pointsList);
 
-    j=0;
+    n = 0
+    while (n<pointsList.length){
+      c = pointsList[n]["coord"]
+      console.log(c)
+      coords = coordToCtx(c[0], c[1]);
+    
+      var x = coords[0];
+      var y = coords[1];
+     
+      
 
-    while (j<k.length){
+      color = "black";
+      ptSize = 2;
 
-      n=0;
-      r=pointsList[k[j]][2];
-      useNumbers = pointsList[k[j]][1];
-      ptSize = pointsList[k[j]][0];
-      while (n<r.length){
-        coords = coordToCtx(r[n][0],r[n][1]);
-        var x = coords[0];
-        var y = coords[1];
-        // console.log(coords);
-        // console.log(targetPositions[i], coords);
-        // console.log(targetPositions[i][1]+1);
-        ctx.fillStyle = k[j];
-        ctx.strokeStyle = k[j];
+      if (pointsList[n]["destType"]=="point"){
+        color = "black";
+        ptSize = 5;
 
-        ctx.beginPath();
-        ctx.arc(x, y, ptSize, 0, 2 * Math.PI);
-        ctx.fill();
-        ctx.stroke();
-        if (useNumbers==1){
-          ctx.font = '25px serif';
-          ctx.fillText(n+1, x-5, y-10);
-          ctx.stroke();
-        }
-        n+=1;
+      } else if (pointsList[n]["destType"]=="beginRow"){
+        color = "green";
+        ptSize = 6;
+
+      } else if (pointsList[n]["destType"]=="endRow"){
+        color = "blue";
+        ptSize = 6;
+
+      } else if (pointsList[n]["destType"]=="subPoint"){
+        color = "yellow";
+        ptSize = 2;
       }
-      j+=1;
+        
+      ctx.fillStyle = color;
+      ctx.strokeStyle = color;
+      console.log(color +" made size: " + ptSize);
+
+      ctx.beginPath();
+      ctx.arc(x, y, ptSize, 0, 2 * Math.PI);
+      ctx.fill();
+      ctx.stroke();
+      if (pointsList["destType"]=="point"){
+        ctx.font = '25px serif';
+        ctx.fillText(n+1, x-5, y-10);
+        ctx.stroke();
+      }
+      console.log("drew at", x,y)
+      n+=1;
     }
+
   while (i<allPoints.length){
 
     var coords = coordToCtx(allPoints[i][0], allPoints[i][1]);
@@ -485,7 +457,7 @@ function begin(){
   drawBoard();
  // updateDestinations();
   // processInfo("-40.00a0.00w93h40.421669x-86.91911y[40.421779, -86.91931],[40.421806, -86.919074],[40.421824, -86.918487],[40.421653, -86.918739],[40.421674, -86.919232]c-65.05924190668195t")
-  var requestInt = setInterval(sendInfo, 200);
+  var requestInt = setInterval(sendInfo, 500);
 
 }
 

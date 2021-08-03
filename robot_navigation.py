@@ -1,363 +1,137 @@
-import serial
 import time
 import math
 from threading import Thread
 import signal
-import sys
-from flask import Flask, render_template, request, jsonify, url_for, redirect, Response, send_from_directory
+import platform
+
+ 
+import robot_esp_control as esp_controller
+import robot_website
+import nav_functions
+
 
 piRunning = False
-try:
-    import i2clibraries
-
-    print("run on raspberry pi")
+if platform.system() == "Linux":
+    print("run on microprocessor")
     piRunning = True
-except:
+else:
     print("run on laptop")
-import os
 
-targetLocations = [[40.4216702, -86.9184231], [40.4215696, -86.9185767], [40.4217325, -86.9187132],
-                   [40.4217325, -86.9187132], [40.4217325, -86.9187132]]
+
+
+
+# locations at ACRE corn field
+targetLocations = [{"coord": [40.471649, -86.994065], "destType": "point"},
+                    {"coord": [40.471569, -86.994081], "destType": "point"},
+                    {"coord": [40.471433, -86.994069], "destType": "point"},
+                    {"coord": [40.471399, -86.994084], "destType": "point"},
+                    {"coord": [40.471597, -86.994088], "destType": "point"}]
+
+# locations at ACRE grass
+targetLocations = [{"coord": [40.469552, -86.994882], "destType": "point"},
+                    {"coord": [40.469521, -86.994578], "destType": "point"},
+                    {"coord": [40.469386, -86.994755], "destType": "point"},
+                    {"coord": [40.469506, -86.994384], "destType": "point"},
+                    {"coord": [40.469257, -86.994658], "destType": "point"}]
+
+
+# locations at ABE building
+# targetLocations = [{"coord": [-1, -1], "heading": 0, "destType": "beginRow"},
+#                     {"coord": [40.4216702, -86.9184231], "heading": 0, "destType": "point"},
+#                     {"coord": [40.4215696, -86.9185767], "heading": 0, "destType": "point"},
+#                     {"coord": [40.4215696, -86.9185767], "heading": 0, "destType": "beginRow"},
+#                     {"coord": [40.4215696, -86.9185767], "destType": "sample"},
+#                     {"coord": [40.4215696, -86.9185767], "destType": "endRow"},
+#                     {"coord": [40.4217325, -86.9187132], "heading": 0, "destType": "point"}]
+
+
 
 # targetLocations = [[40.422266, -86.916176], [40.422334, -86.916240], [40.422240, -86.916287], [40.422194, -86.916221],
 #                    [40.422311, -86.916329]]
-
-app = Flask(__name__)
-
-
-@app.route('/')
-def base():
-    return render_template('index.html')
-
-
-@app.route("/_info", methods=['GET'])
-def update():
-    override = request.args.get('override')
-
-    if override is not None:
-
-        myRobot.stopNow = False
-
-        if override == "0":
-            myRobot.webControl = False
-        else:
-            myRobot.webControl = True
-            myRobot.desiredAngle = request.args.get('angle')
-            myRobot.desiredSpeed = request.args.get('speed')
-
-    if request.args.get('s') == "1":
-        myRobot.stopNow = True
-        print("stop now")
-
-    responseDict = {"coords": myRobot.coords, "wheelSpeed": myRobot.wheelSpeed,
-                    "targetSpeed": myRobot.targetSpeed, "realAngle": myRobot.steeringAngle,
-                    "targetAngle": myRobot.targetWheelAngle, "heading": myRobot.heading,
-                    "targetHeading": myRobot.targetHeadingAngle}
-
-    if request.args.get('targetPositions') is not None:
-        destinations = list(map(float, request.args.get('targetPositions').split(',')))
-        formattedDestinations = []
-        i = 0
-        while i < len(destinations) - 1:
-            formattedDestinations += [[destinations[i], destinations[i + 1]]]
-            i += 2
-        myRobot.destinations = formattedDestinations
-        print(myRobot.destinations)
-        myRobot.coordListVersion += 1
-        responseDict["coordList"] = myRobot.destinations
-        responseDict["coordListVersion"] = myRobot.coordListVersion
-        print("updating coord list")
-
-    if request.args.get('coordListVersion') is not None and int(
-            request.args.get('coordListVersion')) < myRobot.coordListVersion:
-        responseDict["coordList"] = myRobot.destinations
-        responseDict["coordListVersion"] = myRobot.coordListVersion
-    print(responseDict)
-
-    return (str(responseDict)).replace("'", '"')
-
-
-def shutdownServer():
-    func = request.environ.get('werkzeug.server.shutdown')
-    if func is None:
-        raise RuntimeError('Not running with the Werkzeug Server')
-    func()
-    print("server shut down")
-
 
 class Robot:
     def __init__(self):
 
         print("making robot")
-
-        self.turnRadius = 70  # inches
-        self.stopNow = False
-        self.coords = [-1.0, -1.0]
-        self.headingAngle = 0
-        self.heading = 0
-        self.compassHeading = 0
-        self.targetWheelAngle = 0
-        self.wheelSpeed = 0
-        self.steeringDirection = 0
-        self.gyroHeading = 0
-        self.webControl = False
-        self.filename = "logs" + str(int(time.time())) + ".txt"
-
-        self.destinations = [[0, 0]]
-
-        self.distFromFront = -1000
-        self.distFromCenter = 0
-
-        self.steeringAngle = 0
-
-        #  self.destinations = []
-        self.coordListVersion = 0
-
-        self.targetHeadingAngle = 0
-        self.targetSpeed = 0
-
-        self.distanceTraveled = 0
-        self.targetMoveDist = 0
-        self.subPoints = []
-
-        # self.compassThread = Thread(target=self.getHeadings)
-
-        self.recordThread = Thread(target=self.logData)
-        self.recordThread.start()
+        
         self.startTime = int(time.time())
 
-        #
-        # if self.beginCompass():
-        #     self.compassThread.start()
-        # else:
-        #     print("unable to begin compass")
+        self.notCtrlC = True
 
-        self.feelerAngle = 0
+        self.turnRadius = 70  # inches
 
-        self.espMessages = []
+        self.stopNow = False
 
+        self.errorList = []
+
+        # Robot condition variables
+        self.coords = [-1, -1]
+        self.gpsAccuracy = 1000
+        self.heading = 0
+        self.steeringAngle = 0 # angle of wheels relative to heading, not absolute (-45 to 45)
+        self.wheelSpeed = 0
+        self.distanceTraveled = 0
+
+        # desired robot conditions
+        self.targetWheelAngle = 0
+        
+        self.targetHeadingAngle = 0
+        self.targetSpeed = 0
+        
+        # navigation variables
+        self.destinations = [{"coord": [0, 0]}]
+
+        # this changes whenever it reaches a new destination and the coord list updates. This is helpful for giving the most recent coord list in the website
+        self.coordListVersion = 0 
+        
+        self.targetMoveDist = 0
+        
+        self.subPoints = [] # destinations created to give a path to the real destination to result in desired end heading
+
+
+        # set up position logger. This is mostly for point-based navigation.
+        self.filename = "logs/log_" + str(self.startTime) + ".txt"
+        self.recordThread = Thread(target=self.logData)
+        self.recordThread.start()
+
+
+        # set up the ESP8266s
         self.espList = []
-        self.espRxThreads = []
-        self.espTxThreads = []
+        # /dev/ttyUSB0
+        i=0
+        while i<4:
+            
+            esp = esp_controller.Esp(self, i)
+            if esp.begin():
+                self.espList += [esp]
+                i+=1
+            else:
+                break
 
-        if piRunning:
+        print("set up", i, "ESPs")
 
-            # /dev/ttyUSB0
-            self.espList += [serial.Serial(port='/dev/ttyUSB0', baudrate=115200, timeout=.1)]
 
-            self.espList += [serial.Serial(port='/dev/ttyUSB1', baudrate=115200, timeout=.1)]
 
-            #    self.espList += [serial.Serial(port='/dev/ttyUSB2', baudrate=115200, timeout=.1)]
-            print("Set up serial port(s)")
-
-            idNum = 0
-            for esp in self.espList:
-                rxThread = Thread(target=self.readSerial, args=[esp, idNum])
-                txThread = Thread(target=self.serialLoop, args=[esp, idNum])
-
-                self.espMessages += [
-                    {"f": ["0", False], "z": ["0", True], "p": [0, False], "s": ["", True], "g": ["", False],
-                     "r": ["", True], "m": ["0", True]}]
-
-                idNum += 1
-                self.espRxThreads += [rxThread]
-                self.espTxThreads += [txThread]
-                rxThread.start()
-                txThread.start()
-
-    # def beginCompass(self):
-    #     try:
-    #         from i2clibraries import i2c_hmc5883l
-    #
-    #         self.hmc5883l = i2c_hmc5883l.i2c_hmc5883l(1)
-    #
-    #         self.hmc5883l.setContinuousMode()
-    #         self.hmc5883l.setDeclination(-4, 23)
-    #         return True
-    #     except:
-    #         return False
-
-    def readSerial(self, serialDevice, idNum):
-        while True:
-            line = serialDevice.readline()
-            self.processSerial(line, idNum)
-            time.sleep(0.1)
-
-    def processSerial(self, message_bin, idNum):
-        message = str(message_bin)
-        if len(message_bin) > 0:
-
-            try:
-                message = message[2:-5]
-                msgType = message[0]
-            except:
-                print("odd message format")
-                return
-
-            if msgType == ".":
-                print(message[1::])
-                return
-            elif msgType == "+":
-                print("popping", message[1], "from", self.espMessages[idNum])
-                if message[1] in self.espMessages[idNum]:
-                    self.espMessages[idNum].pop(message[1])
-                return
-
-            elif msgType == "-":
-                keyName = message[1]
-                print("looking  at message", keyName, "from", idNum)
-                if self.espMessages[idNum][keyName][0] == (message[2::]):
-                    print("got confirmation for " + keyName + ", same as requested")
-                    self.espMessages[idNum][keyName][1] = True
-                else:
-                    print("got confirmation for ", keyName, ", different from requested (got: ",
-                          message[2::], " sent:", self.espMessages[idNum][keyName][0]), ")"
-                    self.espMessages[idNum][keyName][1] = False
-                return
-
-            try:
-                res = float(message[1::])
-            except:
-                print("invalid message: " + message)
-                return
-
-            if msgType == "x":  # compass latitude
-                self.coords[0] = res
-
-            elif msgType == "y":  # compass longitude
-                self.coords[1] = res
-
-            elif msgType == "w":  # wheel speed
-                self.wheelSpeed = res
-
-            elif msgType == "d":  # distance
-                self.distanceTraveled = res
-
-            elif msgType == "a":  # steering angle
-                self.steeringAngle = res
-                self.steeringDirection = self.heading + res
-
-            elif msgType == "h":  # steering angle
-                self.heading = res - 90
-
-            elif msgType == "g":
-                self.gyroHeading = res
-
-            elif msgType == "c":
-                self.compassHeading = res
-
-            elif msgType == "l":
-                self.distFromFront = res
-
-            elif msgType == "k":
-                self.distFromCenter = res
-            elif msgType == "o":
-                self.feelerAngle = res
+    
 
     def endSensors(self):
-        # self.compassThread.join()
         self.recordThread.join()
 
-        for thread in self.espRxThreads:
-            thread.join()
-        for thread in self.espTxThreads:
-            thread.join()
-
         for esp in self.espList:
-            self.sendSerial(esp, "f0")
-            time.sleep(0.1)
-            esp.close()
+            esp.endEsp()
 
-    def serialLoop(self, serialDevice, idNum):
-
-        while True:
-
-            valsUpdated = 0
-            espMsgKeys = []
-            for i in self.espMessages[idNum].keys():
-                espMsgKeys += [i]
-            i = 0
-            while i < len(espMsgKeys):
-                msg = espMsgKeys[i]
-                i += 1
-                if msg in self.espMessages[idNum]:
-                    if not self.espMessages[idNum][msg][1]:
-                        print(msg, self.espMessages[idNum][msg][0])
-                        valsUpdated += 1
-                        self.sendSerial(serialDevice, msg + str(self.espMessages[idNum][msg][0]))
-
-                        print("sent", msg, "to", idNum)
-                        time.sleep(0.1)
-            if valsUpdated == 0:
-                self.sendSerial(serialDevice, "_")
-                time.sleep(0.1)
-                # serialDevice.write(bytes("_", 'utf-8'))
-
-            time.sleep(0.1)
-
-    def sendSerial(self, serialDevice, msg):
-        serialDevice.write(bytes(msg, 'utf-8'))
-
-    def findAngleBetween(self, coords1, coords2):
-        x, y = self.findDistBetween(coords1, coords2)
-        if x == 0:
-            if coords1[1] > coords2[1]:  # directly above
-                return math.pi
-            else:  # directly below
-                return 0
-        slope = y / x
-        angle = math.atan(slope)
-
-        if coords1[1] < coords2[1]:
-            realAngle = angle + math.pi * 1.5
-        else:  # to the left
-            realAngle = angle + math.pi * 0.5
-
-        realAngle = 2 * math.pi - realAngle
-        if realAngle > math.pi:
-            realAngle = realAngle - 2 * math.pi
-
-        return realAngle
-
-    def atDestination(self, coords1, coords2, tolerance=5.0):
-
-        x, y = self.findDistBetween(coords1, coords2)
-        # print("distance away: ", x, y)
-        if x * x + y * y < tolerance * tolerance:
-            return True
-        else:
-            return False
-
-    def findDistBetween(self, coords1, coords2):
-        # 1 deg lat = 364,000 feet
-        # 1 deg long = 288,200 feet
-        x = (coords1[1] - coords2[1]) * 364000
-
-        longCorrection = math.cos(coords1[0] * math.pi / 180)
-        y = (coords1[0] - coords2[0]) * longCorrection * 364000
-
-        return x, y
-
-    def findSpeed(self, coords1, coords2):
-        # x, y = self.findDistBetween(coords1, coords2)
-        # if dist < 0:
-        #     return -1
-        # elif dist < 10:
-        #     return 1
-        # else:
-        #     return 1
-        return 1
 
     def logData(self):
+        # log all relevant variables as a list every half second
 
-        while True:
+        while self.notCtrlC:
 
             time.sleep(0.5)
-            #    print(self.destinations)
+       
             importantVars = [int(time.time()) - self.startTime, self.heading, int(self.targetHeadingAngle),
                              self.steeringAngle, self.targetWheelAngle, self.wheelSpeed,
-                             self.destinations[0][0], self.destinations[0][1], self.coords[0], self.coords[1],
-                             self.compassHeading, self.gyroHeading]
+                             self.destinations[0]["coord"][0], self.destinations[0]["coord"][1], self.coords[0], self.coords[1],
+                             ]
             msg = ""
             for i in importantVars:
                 msg += str(i) + ","
@@ -365,131 +139,73 @@ class Robot:
                 fileHandle.write(str(msg) + "\n")
                 fileHandle.close()
 
-    def findShortestAngle(self, targetHeading, heading):
-        steerDif = targetHeading - heading
-        if steerDif > 180:
-            steerDif = steerDif - 360
-        elif steerDif < -180:
-            steerDif = steerDif + 360
-        return steerDif
-
-    def findSteerAngle(self, targetHeading, heading):
-        steerDif = self.findShortestAngle(targetHeading, heading)
-        if steerDif > 45:
-            steerDif = 45
-        elif steerDif < -45:
-            steerDif = -45
-        return steerDif
-
-    def setEspMsg(self):
-        i = 0
-        while i < len(self.espMessages):
-            # print("id: ", i, self.espMessages[i])
-            if "f" in self.espMessages[i]:
-                if str(self.targetSpeed) != self.espMessages[i]["f"][0]:
-                    #    print("changed speed from", self.espMessages[i]["f"][0], "to", str(self.targetSpeed))
-                    self.espMessages[i]["f"][0] = str(self.targetSpeed)
-                    self.espMessages[i]["f"][1] = False
-
-            if "p" in self.espMessages[i]:
-                if str(self.targetWheelAngle) != self.espMessages[i]["p"][0]:
-                    self.espMessages[i]["p"][0] = str(self.targetWheelAngle)
-                    self.espMessages[i]["p"][1] = False
-
-            if "m" in self.espMessages[i]:
-                #      print("see m")
-                if str(self.targetMoveDist) != self.espMessages[i]["m"][0]:
-                    print("changing m")
-                    self.espMessages[i]["m"][0] = str(self.targetMoveDist)
-                    self.espMessages[i]["m"][1] = False
-
-            i += 1
-
+ 
     def threePointTurn(self, destHeading, maxTravelDist):
-        sign = -1
-        while abs(self.findShortestAngle(destHeading, self.heading)) > 10:
+        
+        # 3+ point turn to desired heading
 
-            self.targetWheelAngle = sign * self.findSteerAngle(destHeading, self.heading)
+        sign = -1
+        while abs(nav_functions.findShortestAngle(destHeading, self.heading)) > 10:
+
+            self.targetWheelAngle = sign * nav_functions.findSteerAngle(destHeading, self.heading)
             self.targetSpeed = 0
-            self.setEspMsg()
+          
             while abs(self.steeringAngle - self.targetWheelAngle) > 5:
                 time.sleep(0.1)
             print("done steering")
 
             self.targetMoveDist = sign * maxTravelDist
-            self.setEspMsg()
+
             time.sleep(0.4)
 
             while (self.wheelSpeed < -0.1 or self.wheelSpeed > 0.1) and abs(
-                    self.findShortestAngle(destHeading, self.heading)) > 10:
+                    nav_functions.findShortestAngle(destHeading, self.heading)) > 10:
                 time.sleep(0.1)
 
             print("done moving back")
 
             sign *= -1
         print("reached destination ---------------")
-        self.targetSpeed = 0.1
-        self.setEspMsg()
         self.targetSpeed = 0
-        self.setEspMsg()
 
-    def makePath(self, currentCoords, destination, destHeading):
 
-        longCorrection = math.cos(currentCoords[0] * math.pi / 180)
 
-        offsetY = self.turnRadius / 12 / 364000 * math.sin((90 + destHeading) * math.pi / 180)
-        offsetX = self.turnRadius / 12 / 364000 * math.cos((90 + destHeading) * math.pi / 180) * longCorrection
-        approachCircleCenter1 = [destination[0] + offsetX, destination[1] + offsetY]
+    def closeRobot(self):
+        print("shutting down robot")
+        self.targetWheelAngle = 0
+        self.targetSpeed = 0
 
-        offsetY = self.turnRadius / 12 / 364000 * math.sin((-90 + destHeading) * math.pi / 180)
-        offsetX = self.turnRadius / 12 / 364000 * math.cos((-90 + destHeading) * math.pi / 180) * longCorrection
-        approachCircleCenter2 = [destination[0] + offsetX, destination[1] + offsetY]
+    
+    def manageErrors(self):
+        # run through any errors and correct them.
 
-        x1, y1 = self.findDistBetween(currentCoords, approachCircleCenter1)
-        x2, y2 = self.findDistBetween(currentCoords, approachCircleCenter2)
+        for i in self.errorList:
+            if i == 0: # Unreasonable wheel angle
+                pass
 
-        dist1 = x1 * x1 + y1 * y1
-        dist2 = x2 * x2 + y2 * y2
-        print(dist1, dist2)
+            if i == 1: # motor powered but not moving
+                for j in self.espList:
+                    if j.espType == "speed":
+                        j.messagesToSend["g"][1] = True
+                stuckPoint = self.distanceTraveled
+                self.targetSpeed = -0.5
+                self.targetHeadingAngle *= -1
+                while self.distanceTraveled + 10 > stuckPoint:
+                    time.sleep(0.1)
+                self.targetSpeed = 0
+                self.targetHeadingAngle *= -1
+                time.sleep(1)
 
-        if dist1 < dist2:
-            print("clockwise approach")
-            clockwise = True
-            # self.destinations += [approachCircleCenter1]
-            closerApproach = approachCircleCenter1
-        else:
-            print("Counter clockwise approach")
-            clockwise = False
-            # self.destinations += [approachCircleCenter2]
-            closerApproach = approachCircleCenter2
+            if i == 2:
+                pass
+            if i == 3:
+                pass
 
-        print(currentCoords, closerApproach)
+    
+        return
+        
 
-        a = self.findAngleBetween(currentCoords, closerApproach) * 180 / math.pi
-        print("angle", a)
-
-        if clockwise:
-            offsetY = self.turnRadius / 12 / 364000 * math.sin((a - 90) * math.pi / 180)
-            offsetX = self.turnRadius / 12 / 364000 * math.cos((a - 90) * math.pi / 180) * longCorrection
-            approachPoint1 = [closerApproach[0] + offsetX, closerApproach[1] + offsetY]
-            # self.destinations += [approachPoint1]
-            b = self.findAngleBetween(currentCoords, approachPoint1) * 180 / math.pi
-            self.subPoints = [approachPoint1]
-        else:
-            offsetY = self.turnRadius / 12 / 364000 * math.sin((a + 90) * math.pi / 180)
-            offsetX = self.turnRadius / 12 / 364000 * math.cos((a + 90) * math.pi / 180) * longCorrection
-            approachPoint2 = [closerApproach[0] + offsetX, closerApproach[1] + offsetY]
-            # self.destinations += [approachPoint2]
-            self.subPoints = [approachPoint2]
-            c = self.findAngleBetween(currentCoords, approachPoint2) * 180 / math.pi
-
-        # bb = self.findShortestAngle(a, b)
-        # cc = self.findShortestAngle(a, c)
-        # print(bb, cc)
-
-        # self.currentCoords
-
-    def navigate(self, destinations):
+    def pointNavigate(self, destinations):
         self.destinations = destinations
         print("Started thread")
 
@@ -497,36 +213,65 @@ class Robot:
 
             self.coordListVersion += 1
             hitDestination = False
-            while True:
+            
 
-                if not hitDestination:
-                    self.makePath(self.coords, self.destinations[0], 0)
+            while self.notCtrlC:
+                while abs(self.gpsAccuracy)>10 and self.notCtrlC:
+                    print("waiting for gps accuracy to improve")
+                    time.sleep(0.7)
+
+                if not self.notCtrlC:
+                    return
+
+                destPoint = self.destinations[0]["coord"]
+
+        
+
+                if "heading" in self.destinations[0] and not hitDestination:
+                    # go to the subpoint
+                    self.makePath(self.coords, destPoint, self.destinations[0]["heading"])
                     targetCoords = self.subPoints[0]
+
+                    if self.atDestination(self.coords, destPoint, tolerance=self.turnRadius / 12):
+                        hitDestination = True
+                        targetCoords = destPoint
+                        self.subPoints = []
+                        print("hit destination using sub points")
+
                 else:
-                    targetCoords = self.destinations[0]
+                    targetCoords = destPoint
+                
 
-                if self.atDestination(self.coords, self.destinations[0],
-                                      tolerance=self.turnRadius / 12) and not hitDestination:
-                    hitDestination = True
-                    self.subPoints = []
-                    print("hit destination")
+                if hitDestination and nav_functions.atDestination(self.coords, targetCoords, tolerance=self.gpsAccuracy / 3.28 * 3):
+        
+                    
+                    if "heading" in self.destinations[0]:
+                        print("reached destination, making corrections for heading")
+                        self.threePointTurn(self.destinations[0]["heading"], self.turnRadius)
 
-                if hitDestination and self.atDestination(self.coords, targetCoords, tolerance=2):
-                    if hitDestination:
-                        print("reached destination")
-                        self.threePointTurn(0, self.turnRadius)
-                        self.targetSpeed = 0
-                        self.targetWheelAngle = 0
-                        self.setEspMsg()
+                    print("actually reached destination")
+                    self.targetSpeed = 0
+                    self.targetWheelAngle = 0
 
-                        self.destinations.remove(self.destinations[0])
+                    destType = self.destinations[0]["destType"]
+                    
+        
+                    self.destinations.remove(self.destinations[0])
+                    if destType == "beginRow":
+                        while self.destinations[0]["destType"] == "sample" or self.destinations[0]["destType"] == "endRow":
+                            self.interRowNavigate(self.destinations[0]["coord"])
+                            self.destinations.remove(self.destinations[0])
+
+                    else:
                         time.sleep(4)
-                        break
+                    
+                    
+                    break
 
-                if not self.webControl and not self.atDestination(self.coords, targetCoords) and not self.stopNow:
-                    self.targetHeadingAngle = math.degrees(self.findAngleBetween(self.coords, targetCoords))
-                    self.targetSpeed = self.findSpeed(self.coords, targetCoords)
-                    self.targetWheelAngle = self.findSteerAngle(self.targetHeadingAngle, self.heading)
+                if not nav_functions.atDestination(self.coords, targetCoords) and not self.stopNow:
+                    self.targetHeadingAngle = math.degrees(nav_functions.findAngleBetween(self.coords, targetCoords))
+                    self.targetSpeed = 1
+                    self.targetWheelAngle = nav_functions.findSteerAngle(self.targetHeadingAngle, self.heading)
 
                 elif self.stopNow:
                     print("stop now")
@@ -537,55 +282,90 @@ class Robot:
                 print("target heading:", self.targetHeadingAngle, "target speed", self.targetSpeed)
                 print("steer to:", self.targetWheelAngle)
 
-                self.setEspMsg()
-
                 # self.threePointTurn(-180, 100)
 
                 time.sleep(0.3)
 
+       
         print("finished getting locations")
 
         return True
 
-    def interRowNavigate(self):
+    def interRowNavigate(self, destination = False):
+        import video_navigation
+
+        cam = video_navigation.RSCamera(useCamera=True, saveVideo=False, filename= "object_detections/rs_" + str(self.startTime) + ".bag")
+      #  cam = video_navigation.RSCamera(useCamera=False, saveVideo=False, filename="Desktop/fake_track/object_detection6.bag")
+
+        talkTimer = 0
+        
+        videoThread = Thread(target=cam.runNavigation, args=(False,))
+        videoThread.start()
+        print("set up row navigation")
 
         while True:
 
+            if cam.stop or not self.notCtrlC:
+                
+                cam.stopStream()
+                return False
 
-            self.setEspMsg()
-            time.sleep(0.1)
+          #  if destination != False and self.atDestination(self.coords, destination, tolerance=self.turnRadius / 12):
+              #  print("inter-row navigated to the destination")
+             #   cam.stopStream()
+              #  return True
+
+            if abs(cam.heading)<100:           
+                self.targetWheelAngle = -cam.heading*3-8
+        
+            else:
+                self.targetWheelAngle = 0
+
+            if abs(cam.heading) < 10: # facing right way
+                self.targetSpeed = 1.5
+              
+
+            elif cam.heading == 1000: # does not know where it is facing
+
+                self.targetSpeed = 0.1
+                
+            else: # facing wrong way but knows where it is facing
+                self.targetSpeed = 1.5
+#            self.targetSpeed = 1
+            
+           
+            talkTimer += 1
+            if talkTimer == 5:
+                talkTimer= 0
+                print("moving", cam.heading, self.targetWheelAngle)
+            time.sleep(0.2)
 
 
-notCtrlC = True
 
 
-def signal_handler(sig, frame):
-    print('You pressed Ctrl+C!')
-    global notCtrlC
-    notCtrlC = False
-    myRobot.endSensors()
-    shutdownServer()
-    robotThread.join()
-
-
-# signal.pause()
-
-signal.signal(signal.SIGINT, signal_handler)
-print('Press Ctrl+C')
 
 
 def beginRobot():
     print("begin")
-    # pass
-    # myRobot.navigate(targetLocations)
-    myRobot.interRowNavigate()
+    myRobot.pointNavigate(targetLocations)
+    # myRobot.interRowNavigate()
 
-
-if os.environ.get("WERKZEUG_RUN_MAIN") == "true":
-    shutdownServer()
 
 myRobot = Robot()
 robotThread = Thread(target=beginRobot)
 robotThread.start()
 
-app.run(debug=False, port=8000, host='0.0.0.0')
+def signal_handler(sig, frame):
+    
+ #   stopStream()
+    print('You pressed Ctrl+C!')
+   
+    myRobot.notCtrlC = False
+    myRobot.closeRobot()
+    time.sleep(0.5)
+    exit()
+
+
+signal.signal(signal.SIGINT, signal_handler)
+
+robot_website.app.run(debug=False, port=8000, host='0.0.0.0')

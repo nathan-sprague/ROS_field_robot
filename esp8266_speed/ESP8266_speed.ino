@@ -1,4 +1,5 @@
 /*
+  Pins labeled on ESP vs pins used by program
   static const uint8_t D0   = 16;
   static const uint8_t D1   = 5;
   static const uint8_t D2   = 4;
@@ -12,44 +13,14 @@
   static const uint8_t D10  = 1;
 */
 
-/*
-  Serial Message Prefixes:
-
-  Informational:
-  x: gps latitude
-  y: gps longitude
-  u: destination latitude
-  v: destination longitude
-  w: wheel speed
-  d: distance
-  a: steering angle
-  h: heading
-
-  Command:
-  p: steering angle
-  f: motor speed
-  l: destination latitude
-  t: destination longitude
-
-  Other:
-  .: console log
-  -: error
-*/
-
-
-//#include <ESP8266WiFi.h>
-//#include <ESP8266WiFiMulti.h>
-//#include <ESP8266WebServer.h>
-//#include <ESP8266mDNS.h>
-//#include <ESP8266HTTPClient.h>
-//
-//#include <WiFiClient.h>
-//
-//ESP8266WiFiMulti WiFiMulti;
-//
-//ESP8266WebServer server(80);
 
 #define DEBUGMODE false
+
+// at least one of these should be true for the robot to move
+#define USE_PROPORTIONAL true
+#define USE_INTEGRATED false
+#define USE_DERIVATIVE false
+
 
 const int motorPin = 16;  // motor (D0)
 const int hallPin = 5; // speed sensor pin 1 (D1)
@@ -64,11 +35,14 @@ const int numHoles = 16;
 float smoothSpeed = 0; // speed used for all calculations. Smooths and averages speeds to limit outliers
 float smoothDist = 0;
 
+// movement variables
 bool setMovement = false;
 long targetDist = 0;
 long startDist = 0;
-
 bool goingForward = true;
+
+const float tickTimeTomph = (wheelCircum / 12.0) / numHoles * 1000.0 * 3600 / 5280; // constant for calculating wheel speed
+
 
 // speed variables for the left wheel
 long distTraveled = 0;
@@ -85,23 +59,71 @@ unsigned long lastHitTimeY = 0;
 float wheelSpeedY = 0;
 unsigned int timeBetweenHolesY = 0;
 
+// variables related to serial commands
 unsigned long lastCommandTime = 0;
-
-
-bool stopNow = false;
-bool manual = false;
-int PWMSignal = 0;
-
+bool stopNow = false; // emergency stop
+String stopReason = "Unknown";
+bool manual = false; // set pwm manually, does not work right now
 float targetSpeed = 0;
+float startSpeed = 0;
+bool reachedTarget = false;
 
-unsigned long lastTargetChange = 0; // timer to reassess the speed every half second
+float PWMSignal = 0; // pwm signal applied to
+
+const int maxPWM = 200 - 0;
+const int minPWM = 110 + 0;
+
+unsigned long lastTargetChange = 0;
+int pwmChangeTime = 100; // time to reassess the given PWM speed (milliseconds)
+
+unsigned long stuckTime = 0;
+bool stuck = false;
 
 unsigned long lastTalkTime = 0;
 
-String stopReason = "Unknown";
+// variables used for setting pwm
+int atTarget = 0;
+int lastTarget = 0;
+float intError = 0;
+int lastPWM = 0;
+
+float acceleration = 0;
+unsigned  long lastAccelerationTime = 0;
+
 
 
 void processSerial() {
+  /*
+    Read the serial message and obey the given command.
+
+    The serial is given as a single letter ID and a value. Letter IDs are listed below:
+
+    Serial Message Prefixes:
+
+    Informational:
+    x: gps latitude
+    y: gps longitude
+    u: destination latitude
+    v: destination longitude
+    w: wheel speed
+    d: distance
+    a: steering angle
+    h: heading
+
+    Command:
+    p: steering angle
+    f: motor speed
+    l: destination latitude
+    t: destination longitude
+    l: request type of esp
+
+    Other:
+    .: console log, the Pi/Nano ignore these messages
+    -: acknowledge the message
+    +: say the message is irrelevant to this microcontroller
+
+
+  */
   if (Serial.available()) {
 
 
@@ -123,17 +145,20 @@ void processSerial() {
       Serial.println(serialMsg);
     }
 
-    if (commandType == 'f')  {
-      targetSpeed = serialMsg.toFloat(); // set speed
+    if (commandType == 'f') { //// set speed
+      targetSpeed = serialMsg.toFloat();
       Serial.println("-f" + String(int(targetSpeed)));
-      if (DEBUGMODE){
+      if (DEBUGMODE) {
         Serial.println(".target speed is set to " + serialMsg + ", was: " + String(targetSpeed));
       }
-      setMovement = false; 
+      //      if (targetSpeed>0){
+      //        targetSpeed = 1.5;
+      //      }
+      setMovement = false;
       manual = false;
 
 
-    } else if (commandType == 'z') {
+    } else if (commandType == 'z') { // manually give PWM
       if (DEBUGMODE) {
         Serial.println(".manual");
       }
@@ -141,13 +166,13 @@ void processSerial() {
       manual = true;
       analogWrite(motorPin, serialMsg.toInt());
       PWMSignal = serialMsg.toInt();
-      
+
       Serial.println("-z" + String(PWMSignal));
 
-    } if (commandType == 'p') {
-      Serial.println("+p");
-      
-    } else if (commandType == 's') {
+    } else if (commandType == 'l') { // requested esp type. Tell it this is speed
+      Serial.println("e2");
+
+    } else if (commandType == 's') { // emergency stop. Stops all PWM until explicitly told to continue
       if (DEBUGMODE) {
         Serial.println(".emergency stop");
         Serial.println("-s");
@@ -155,37 +180,40 @@ void processSerial() {
       stopNow = true;
       stopReason = "Serial stop";
 
-    } else if (commandType == 'g') {
+    } else if (commandType == 'g') { // go, used to continue after an emergency stop is performed
       if (DEBUGMODE) {
         Serial.println(".go");
-        Serial.println("-g");
+        stuck = false;
       }
+      Serial.println("-g");
       stopNow = false;
       stopReason = "Unknown";
-    } else if (commandType == 'r') {
+    } else if (commandType == 'r') { // restart
       Serial.println(".restarting");
       Serial.println("-r");
       ESP.restart();
-      
-    } else if (commandType == 'm') {
+
+    } else if (commandType == 'm') { // move for a given distance
       int moveFor = serialMsg.toInt();
       targetDist = smoothDist + moveFor;
       startDist = smoothDist;
       setMovement = true;
+
+    } else { // irrelevant or unrecognized message, ask pi/nano not to send it again
+      Serial.println("+" + commandType);
     }
-    
-
-
-
-
   }
 }
 
-
-
-const float tickTimeTomph = (wheelCircum / 12.0) / numHoles * 1000.0 * 3600 / 5280; // constant for calculating wheel speed
+unsigned long ltt = 0;
+float lastSpeed = 0;
 
 void getWheelSpeed() {
+  /*
+    This function calculates the vehicle speed
+    Execute this function as frequently as possible to detect if the hall sensor runs over a hole.
+
+  */
   bool speedChange =  false; // something happened, like a hole detected, so the moving average functions should be run
   int  x = digitalRead(hallPin);
 
@@ -249,19 +277,36 @@ void getWheelSpeed() {
     smoothSpeed = (wheelSpeed + wheelSpeedY) / 2;
   }
 
-  if (speedChange) { // Don't reasses the situation unless there is a change in speed
+  if (speedChange) { // no need to reasses everything unless there is a change in speed
+    //
+    //
+
+
+    // units are miles/(hour * second)
+
+    if (lastAccelerationTime + 50 < millis()) {
+      acceleration = (acceleration * 2 + (((wheelSpeed + wheelSpeedY) / 2) - lastSpeed) / ((millis() - lastAccelerationTime) / 1000.0) ) / 3;
+      lastSpeed = smoothSpeed;
+      lastAccelerationTime = millis();
+
+      //      Serial.println(".acceleration: "  + String(acceleration, 5));
+    }
 
     // get average speed between the wheels and past speeds. #s 3 and 5 were arbitrarily chosen
     smoothSpeed = (smoothSpeed * 3 + (wheelSpeed + wheelSpeedY)) / 5;
-    smoothDist = (distTraveled + distTraveledY)/2;
+    smoothDist = (distTraveled + distTraveledY) / 2;
+
+
+
+
 
     // Direction may change if the speed is zero
     if (smoothSpeed > -0.1 && smoothSpeed < 0.1) { // cant compare it directly to zero because a float
 
-      if ((PWMSignal >= 155 || PWMSignal == 0) && targetSpeed > 0) { // signal tells it to go forwards, go forwards
+      if ((PWMSignal >= 155 || int(PWMSignal) == 0) && targetSpeed > 0) { // signal tells it to go forwards, go forwards
         if (lastMsgTime + 500 < millis()) {
           if (DEBUGMODE) {
-            Serial.println("stopped and going forwards");
+            Serial.println(".stopped and going forwards");
           }
         }
         goingForward = true;
@@ -269,7 +314,7 @@ void getWheelSpeed() {
       } else { // it is going backwards
         if (lastMsgTime + 500 < millis()) {
           if (DEBUGMODE) {
-            Serial.println("stopped and going backwards");
+            Serial.println(".stopped and going backwards");
           }
         }
         goingForward = false;
@@ -290,99 +335,39 @@ void getWheelSpeed() {
 }
 
 
-
-
-unsigned long lastPotPrint = 0;
-float averagePotSpeed = 0;
-float lastPotVal = 0;
-unsigned long lastPotReading = 0;
-float lastDistFromCenter = 0;
-float lastDistFromFront = 0;
-
-void getFeelerHits() {
-  if (lastPotReading +  10 < millis()) {
-
-    // left 45 degrees 845
-    // right 45 degrees 525
-    // resting 675
-    // therefore 845-525 is roughly 300
-    
-    float potAngle = (analogRead(A0) - 675.0) * 90 / 300.0;
-    
-    
-
-    if ((abs(potAngle)>5 && lastPotPrint + 100 < millis())|| lastPotPrint + 500 < millis()){
-        Serial.println("o" + String(potAngle));
-        lastPotPrint = millis();
-    }
-    
-//    unsigned long potReadingTime = millis();
-//    float potSpeed = float(potAngle - lastPotVal) * 1000 / (potReadingTime - lastPotReading);
-//
-//    averagePotSpeed = (averagePotSpeed * 2 + potSpeed) / 3;
-//
-//    float distFromCenter = 1000;
-//    float distFromFront = -1000;
-//
-//
-//    if (averagePotSpeed * potAngle < 0) {
-//      // the signs are different, meaning the pot is returning to zero
-//      distFromCenter = 2000;
-//      distFromFront = -2000;
-//
-//    } else if (abs(averagePotSpeed) > 0.1 && abs(potAngle) > 0.1) {
-//      // d = v * sin(theta) / (dtheta/dt)
-//      distFromCenter = smoothSpeed * 5280 * 12 / 3600 / (averagePotSpeed * 3.14159 / 180);
-//      distFromFront = distFromCenter / tan(potAngle * 3.1415 / 180);
-//    }
-//    if (abs(lastDistFromCenter-distFromCenter)>0.1 && abs(lastDistFromFront-distFromFront)>0.1){
-//      if (abs(distFromCenter) < 30 && abs(distFromFront) < 30 && lastPotPrint + 100 < millis()) {
-//        Serial.println("k" + String(distFromCenter));
-//        Serial.println("l" + String(distFromFront));
-//        Serial.println("o" + String(potAngle));
-//        lastPotPrint = millis();
-//        lastDistFromCenter = distFromCenter;
-//        lastDistFromFront = distFromFront;
-//        //Serial.println("from center: " + String(distFromCenter) + ", from front: " + String(distFromFront));
-//      }
-      
-//    }
-//
-//    lastPotVal = potAngle;
-//    lastPotReading = potReadingTime;
-  }
-}
-
-
-unsigned long lastPrintTime2 = 0;
-
-int atTarget = 0;
-int lastTarget = 0;
-float intError = 0;
-int lastPWM = 0;
+int lastGoodPWM = 0;
 
 void setMotorSpeed() {
-  // 200 -> 14.5
-  // 190 -> 9.7
-  // 180 -> 7.3
-  // 170 -> 4.1
-  // 160 -> 1.1
-  // 155 -> 0
-  // 150 -> -0.4
-  // 140 -> -2.9
-  // 130 -> -5.8
-  // 120 -> -9.7
-  // 110 -> -14.5
+  /*
+    This function sets finds the best PWM value  to move the robot at the desired speed using PID logic.
 
-  if (lastTargetChange + 500 < millis()) {
+    With no wheel resistance, these PWM values correspond to the following speeds (mph)
+    200 -> 14.5
+    190 -> 9.7
+    180 -> 7.3
+    170 -> 4.1
+    160 -> 1.1
+    155 -> 0
+    150 -> -0.4
+    140 -> -2.9
+    130 -> -5.8
+    120 -> -9.7
+    110 -> -14.5
+  */
+
+  if (lastTargetChange + pwmChangeTime < millis()) { // don't set the speed too often or else it may surge
     lastTargetChange = millis();
 
-    if (lastTarget != int(targetSpeed)) { // commanded target changed
-      if (DEBUGMODE) {
-        Serial.println("target changed");
-      }
-      // you are not at the target speed
+    if (abs(lastTarget - targetSpeed) > 0.1) { // commanded target changed
+      lastGoodPWM = 155 + targetSpeed / 14.5 * (90.0 / 2);
+
       lastTarget = int(targetSpeed);
+      startSpeed = smoothSpeed;
+      reachedTarget = false;
+      if (DEBUGMODE) {
+        Serial.println(".target changed");
+      }
+      // this is to figure out the whether you passed the speed and calculate the integrated error and correct for it.
       intError = 0;
       if (smoothSpeed > targetSpeed)
         atTarget = 1;
@@ -394,7 +379,7 @@ void setMotorSpeed() {
     return;
   }
 
-  Serial.println(".wheel target speed: " + String(targetSpeed));
+  //  Serial.println(".wheel target speed: " + String(targetSpeed));
 
   if (targetSpeed == 0) {
     analogWrite(motorPin, 0);
@@ -403,61 +388,140 @@ void setMotorSpeed() {
 
   } else if (smoothSpeed != targetSpeed) {
 
-    // convert difference in speed to a difference in PWM
-    float PWMdif = ((targetSpeed - smoothSpeed) / 14.5) * (90.0 / 2); // map (-14.5)-(14.5) to (110)-(200)
 
-    // round the float to the nearest whole number (not int)
-    if (PWMdif - int(PWMdif) > 0.5) {
-      PWMdif = int(PWMdif) + 1;
+
+    float pwmChange = 0;
+
+
+
+    // proportional part of PID
+    if (USE_PROPORTIONAL) {
+
+
+      if (abs(smoothSpeed) - abs(targetSpeed) < 2) {  // your speed is not much more than the target
+
+        // convert difference in speed to a difference in PWM
+        float PWMdif = ((targetSpeed - smoothSpeed) / 14.5) * (90.0 / 2); // map (-14.5)-(14.5) to (110)-(200)
+
+        const int steps = 10; // change this number to modify how quickly and how much the PWM is updated
+
+        // change the PWM signal according to the error
+        pwmChange = PWMdif / 20; // steps;
+        pwmChangeTime = 500 / 10; // steps;
+        //    Serial.println(".pwm change: " + String(pwmChange));
+
+
+        if (abs(acceleration) < 0.5 && abs(smoothSpeed - targetSpeed) < 0.1) {
+          // going the right speed sustainably. Remember this so that you can quickly return to the right speed after being stuck
+          lastGoodPWM = (lastGoodPWM * 9 + PWMSignal) / 10;
+        }
+
+        if (abs(smoothSpeed) < 0.1 && abs(acceleration) < 0.1 && PWMSignal > 155 + 2 * (targetSpeed / 14.5 * (90.0 / 2) + 5)) { // you are likely stuck
+          pwmChangeTime = 50;
+          pwmChange = 0;
+          PWMSignal = 200;
+          if (!stuck) {
+            stuckTime = millis();
+          }
+          stuck = true;
+
+
+        } else if (stuck && abs(smoothSpeed) < targetSpeed && acceleration < 1) { // probably still stuck
+          pwmChange = 0;
+          PWMSignal = 200;
+          //          Serial.print(".still stuck but maybe moving ");
+
+
+        } else { // not stuck
+
+          pwmChangeTime = 200 / steps;
+
+          if (stuck) { // you were stuck but now are not
+            PWMSignal = lastGoodPWM;
+
+            pwmChange = 0;
+            stuck = false;
+          }
+        }
+
+      } else {
+        // you are going faster than target speed by a stable amount, just go to close to default speed
+
+        PWMSignal = lastGoodPWM; 
+        pwmChange = 0;
+        pwmChangeTime = 1;
+
+      }
+      if (stuck && millis() - stuckTime > 1000) {
+        // stuck even when at full throttle. Just give up until you are given different instructions
+        stopNow = true;
+        stuck = false;
+        stopReason = "stuck";
+
+
+      } else if (stuck) {
+        pwmChange = 45;
+        PWMSignal = 155;
+      }
     }
 
-    if (PWMdif - int(PWMdif) < -0.5) {
-      PWMdif = int(PWMdif) - 1;
+    // derivative part of PID
+    if (USE_DERIVATIVE) {
+      float desiredAcceleration = (targetSpeed - smoothSpeed); // mph/second
+
+      float accelerationDif = desiredAcceleration - acceleration;
+
+      pwmChange = (accelerationDif / 14.5) * (90.0 / 2); // map to pwm
+      pwmChangeTime = 60;
     }
 
-    if (DEBUGMODE) {
-      Serial.print(".old pwm: " + String(PWMSignal));
-    }
 
 
-    if (PWMSignal == 0) {
-      PWMSignal = 155;
-    }
-    // change the PWM signal according to the error
-    PWMSignal = PWMSignal + PWMdif;
+    // integral part of PID
+    if (USE_INTEGRATED) { // may not need the integrated error
+      // you went from being too slow/fast to the other way around, begin collecting integrated differences
+      if (atTarget == -1 && smoothSpeed > targetSpeed)
+        atTarget = 0;
+      else if (atTarget == 1 && smoothSpeed < targetSpeed) {
+        atTarget = 0;
+      }
 
-    // you went from being too slow/fast to the other way around, begin collecting integrated differences
-    if (atTarget == -1 && smoothSpeed > targetSpeed)
-      atTarget = 0;
-    else if (atTarget == 1 && smoothSpeed < targetSpeed) {
-      atTarget = 0;
-    }
-
-    // add up the integrated error
-    if (atTarget == 0) {
-      intError = (intError * 5 + (targetSpeed - smoothSpeed)) / 6;
-      if (intError < 0.1) {
-        PWMSignal += 1;
-      } else if (intError > 0.1) {
-        PWMSignal -= 1;
+      // add up the integrated error
+      if (atTarget == 0) {
+        intError = (intError * 5 + (targetSpeed - smoothSpeed)) / 6;
+        if (intError < 0.1) {
+          pwmChange += 1;
+        } else if (intError > 0.1) {
+          pwmChange -= 1;
+        }
       }
     }
 
 
-    if (DEBUGMODE) {
-      Serial.print(", pwmdif: " + String(PWMdif));
-
-      Serial.print(", new pwm: " + String(PWMSignal));
-
-      Serial.println(", Integrated error: " + String(intError));
+    // pwm values 155 and 0 both mean no movement. Use 155
+    if (int(PWMSignal) == 0) {
+      PWMSignal = 155;
     }
 
+    // add the change
+    PWMSignal = PWMSignal + pwmChange;
 
-    // prevent overshooting
-    if (PWMSignal > 200) {
-      PWMSignal = 200;
-    } else if (PWMSignal < 110) {
-      PWMSignal = 110;
+
+
+    // prevent PWM from going outside of recognized PWM range
+    if (PWMSignal > maxPWM) {
+      PWMSignal = maxPWM;
+    } else if (PWMSignal < minPWM) {
+      PWMSignal = minPWM;
+    }
+
+    // sanity check: You must be sending pwm signals in a certain range to go the direction you want
+    if (targetSpeed > 0 and PWMSignal < 155 and int(PWMSignal) != 0) {
+      //      Serial.println(".going wrong way probably. Your pwm is " + String(PWMSignal) + " but you want to go forward");
+      PWMSignal = 155;
+    } else if (targetSpeed < 0 and PWMSignal > 155) {
+      //      Serial.println(".going wrong way probably. Your pwm is " + String(PWMSignal) + " but you want to go backward");
+      PWMSignal = 155;
     }
 
     // when you are going forwards but want to go backwards, you need to stop first
@@ -470,15 +534,16 @@ void setMotorSpeed() {
       PWMSignal = 155;
     }
 
-    if (PWMSignal == 155) {
+    if (int(PWMSignal) == 155) {
       analogWrite(motorPin, 0);
+    } else if (lastPWM != int(PWMSignal)) { // &&  abs(smoothSpeed)<5){
+      //  Serial.println("pwm: " + String(int(PWMSignal)));
+      analogWrite(motorPin, int(PWMSignal));
     }
-    if (lastPWM != PWMSignal) { // &&  abs(smoothSpeed)<5){
-      analogWrite(motorPin, PWMSignal);
-    }
-    lastPWM = PWMSignal;
+    lastPWM = int(PWMSignal);
 
   }
+
 }
 
 
@@ -487,8 +552,7 @@ void setup() {
   pinMode(hallPin, INPUT);
   pinMode(otherHallPin, INPUT);
   analogWriteFreq(100);
-//  setupAP();
-//    connectToWIFI();
+  analogWriteRange(1023);
   delay(1000);
 
 }
@@ -498,25 +562,28 @@ bool gotSerial = false;
 
 void loop() {
 
-  
+
   if (Serial.available() && !gotSerial) {
+    // serial just showed up. Don't do anything, just wait for the rest of the message to come in
     gotSerialTime = millis();
     gotSerial = true;
   }
-  if (gotSerial && gotSerialTime+15 < millis()) {
+  if (gotSerial && gotSerialTime + 15 < millis()) {
+    // waited long enough for the message to come in. Process the serial
     processSerial();
     gotSerial = false;
-  } 
-  if (gotSerialTime+1500 < millis()) {
+  }
+  
+  if (gotSerialTime + 1500 < millis()) {
+    // it has been a while since serial was sent. Something is wrong so stop
     analogWrite(motorPin, 0);
     PWMSignal = 0;
     targetSpeed = 0;
     return;
   }
-  
+
   getWheelSpeed();
 
-  //getFeelerHits();
 
   if (stopNow) {
     targetSpeed = 0;
@@ -524,8 +591,10 @@ void loop() {
     analogWrite(motorPin, 0);
     if (lastTalkTime + 500 < millis()) {
       lastTalkTime = millis();
-      Serial.println(".wheel stopped");
-      Serial.println(".Stop reason: " + stopReason);
+      if (stopReason == "stuck") { // report this error
+        Serial.println("o1");
+      }
+      //      Serial.println(".wheel stopped. (" + stopReason + ")");
     }
     return;
   }
@@ -533,19 +602,21 @@ void loop() {
 
   if (lastTalkTime + 500 < millis()) {
     lastTalkTime = millis();
-    Serial.println(".PWM speed:" + String(PWMSignal));
+    //    Serial.println(".PWM speed: " + String(PWMSignal));
   }
 
-  if (setMovement){
+
+  // setMovement is for the robot to go a specified distance and stop. It is given this command through serial. It is not usually used.
+  if (setMovement) {
     int sign = (targetDist - startDist) / abs(targetDist - startDist);
-    if ((sign>0 && smoothDist >= targetDist) || (sign<0 && smoothDist <= targetDist)) { // reached destination
+    if ((sign > 0 && smoothDist >= targetDist) || (sign < 0 && smoothDist <= targetDist)) { // reached destination
       targetSpeed = 0;
       setMovement = false;
-      Serial.println(".overshot by " + String(targetDist - smoothDist));
+      //  Serial.println(".overshot by " + String(targetDist - smoothDist));
     } else {
-      targetSpeed = pow(1.1, 1/(0.04*(targetDist - startDist)));
+      targetSpeed = pow(1.1, 1 / (0.04 * (targetDist - startDist)));
     }
-    
+
   }
 
 

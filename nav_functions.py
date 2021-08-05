@@ -92,21 +92,21 @@ def makePath(currentCoords, destination, destHeading, turnRadius):
 
     dist1 = x1 * x1 + y1 * y1
     dist2 = x2 * x2 + y2 * y2
-    print(dist1, dist2)
+  #  print(dist1, dist2)
 
     if dist1 < dist2:
-        print("clockwise approach")
+    #    print("clockwise approach")
         clockwise = True
         closerApproach = approachCircleCenter1
     else:
-        print("Counter clockwise approach")
+   #     print("Counter clockwise approach")
         clockwise = False
         closerApproach = approachCircleCenter2
 
-    print(currentCoords, closerApproach)
+ #   print(currentCoords, closerApproach)
 
     a = findAngleBetween(currentCoords, closerApproach) * 180 / math.pi
-    print("angle", a)
+
 
     subPoints = []
     if clockwise:

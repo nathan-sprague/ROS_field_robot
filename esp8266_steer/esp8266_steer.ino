@@ -42,6 +42,16 @@ int passedTarget = 10;
 float averagePosition = 0;
 
 
+unsigned long lastRequest = 0;
+int lastPWMspeed = 0;
+
+float lastReading = 0;
+
+unsigned long lastAngleReading = 0;
+
+unsigned long gotSerialTime = 0;
+bool gotSerial = false;
+
 
 void processSerial() {
   if (Serial.available()) {
@@ -68,7 +78,7 @@ void processSerial() {
       analogWrite(steerPin, commandVal);
       Serial.println("-z" + String(commandVal));
       manualPWM = true;
-    
+
     } else if (commandType == 'l') { // requested esp type. Tell it this is speed
       Serial.println("e1");
 
@@ -92,12 +102,15 @@ void processSerial() {
       manualPWM = false;
       Serial.println("-g");
       stopNow = false;
-      
+
     } else if (commandType == 'r') {
       manualPWM = false;
       Serial.println("-r");
       Serial.println(".restarting");
       ESP.restart();
+
+    } else if (commandType == '.') { // empty message, ignore
+
     } else {
       Serial.println("+" + String(commandType));
     }
@@ -138,49 +151,58 @@ void getPosition() {
   float heading = float(myGNSS.getHeading()) / 100000;
   Serial.println("h" + String(heading));
 
-  // First, let's collect the position data
-  int32_t latitude = myGNSS.getHighResLatitude();
-  int8_t latitudeHp = myGNSS.getHighResLatitudeHp();
-  int32_t longitude = myGNSS.getHighResLongitude();
-  int8_t longitudeHp = myGNSS.getHighResLongitudeHp();
+  float latitude = float(myGNSS.getLatitude())/10000000;
+  Serial.println("x" + String(latitude,7));
+
+  float longitude = float(myGNSS.getLongitude())/10000000;
+  Serial.println("y" + String(longitude,7));
+
+
+  //
+  //  // First, let's collect the position data
+  //  int32_t latitude = myGNSS.getHighResLatitude();
+  //  int8_t latitudeHp = myGNSS.getHighResLatitudeHp();
+  //  int32_t longitude = myGNSS.getHighResLongitude();
+  //  int8_t longitudeHp = myGNSS.getHighResLongitudeHp();
+  
+  //
+  //  // Defines storage for the lat and lon units integer and fractional parts
+  //  int32_t lat_int; // Integer part of the latitude in degrees
+  //  int32_t lat_frac; // Fractional part of the latitude
+  //  int32_t lon_int; // Integer part of the longitude in degrees
+  //  int32_t lon_frac; // Fractional part of the longitude
+  //
+  //  // Calculate the latitude and longitude integer and fractional parts
+  //  lat_int = latitude / 10000000; // Convert latitude from degrees * 10^-7 to Degrees
+  //  lat_frac = latitude - (lat_int * 10000000); // Calculate the fractional part of the latitude
+  //  lat_frac = (lat_frac * 100) + latitudeHp; // Now add the high resolution component
+  //  if (lat_frac < 0) // If the fractional part is negative, remove the minus sign
+  //  {
+  //    lat_frac = 0 - lat_frac;
+  //  }
+  //  lon_int = longitude / 10000000; // Convert latitude from degrees * 10^-7 to Degrees
+  //  lon_frac = longitude - (lon_int * 10000000); // Calculate the fractional part of the longitude
+  //  lon_frac = (lon_frac * 100) + longitudeHp; // Now add the high resolution component
+  //  if (lon_frac < 0) // If the fractional part is negative, remove the minus sign
+  //  {
+  //    lon_frac = 0 - lon_frac;
+  //  }
+  //
+  //  // Print the lat and lon
+  //  Serial.print("x");
+  //  Serial.print(lat_int); // Print the integer part of the latitude
+  //  Serial.print(".");
+  //  printFractional(lat_frac, 9); // Print the fractional part of the latitude with leading zeros
+  //  Serial.println("");
+
+  //
+  //  Serial.print("y");
+  //  Serial.print(lon_int); // Print the integer part of the latitude
+  //  Serial.print(".");
+  //  printFractional(lon_frac, 9); // Print the fractional part of the latitude with leading zeros
+  //  Serial.println("");
+
   uint32_t accuracy = myGNSS.getHorizontalAccuracy();
-
-  // Defines storage for the lat and lon units integer and fractional parts
-  int32_t lat_int; // Integer part of the latitude in degrees
-  int32_t lat_frac; // Fractional part of the latitude
-  int32_t lon_int; // Integer part of the longitude in degrees
-  int32_t lon_frac; // Fractional part of the longitude
-
-  // Calculate the latitude and longitude integer and fractional parts
-  lat_int = latitude / 10000000; // Convert latitude from degrees * 10^-7 to Degrees
-  lat_frac = latitude - (lat_int * 10000000); // Calculate the fractional part of the latitude
-  lat_frac = (lat_frac * 100) + latitudeHp; // Now add the high resolution component
-  if (lat_frac < 0) // If the fractional part is negative, remove the minus sign
-  {
-    lat_frac = 0 - lat_frac;
-  }
-  lon_int = longitude / 10000000; // Convert latitude from degrees * 10^-7 to Degrees
-  lon_frac = longitude - (lon_int * 10000000); // Calculate the fractional part of the longitude
-  lon_frac = (lon_frac * 100) + longitudeHp; // Now add the high resolution component
-  if (lon_frac < 0) // If the fractional part is negative, remove the minus sign
-  {
-    lon_frac = 0 - lon_frac;
-  }
-
-  // Print the lat and lon
-  Serial.print("x");
-  Serial.print(lat_int); // Print the integer part of the latitude
-  Serial.print(".");
-  printFractional(lat_frac, 9); // Print the fractional part of the latitude with leading zeros
-  Serial.println("");
-
-
-  Serial.print("y");
-  Serial.print(lon_int); // Print the integer part of the latitude
-  Serial.print(".");
-  printFractional(lon_frac, 9); // Print the fractional part of the latitude with leading zeros
-  Serial.println("");
-
   // Now define float storage for the heights and accuracy
   float f_accuracy;
 
@@ -276,15 +298,6 @@ bool limitOvershoot() {
   }
 }
 
-unsigned long lastRequest = 0;
-int lastPWMspeed = 0;
-
-float lastReading = 0;
-
-unsigned long lastAngleReading = 0;
-
-unsigned long gotSerialTime = 0;
-bool gotSerial = false;
 
 void loop() {
 
@@ -299,9 +312,12 @@ void loop() {
   }
 
 
-  if (useGPS && lastPosReadTime + 1000 < millis()) {
+  if (useGPS && lastPosReadTime + 600 < millis()) {
     getPosition();
     lastPosReadTime = millis();
+  } else if (lastPosReadTime + 600 < millis()) {
+    Serial.println("o2");
+    lastPosReadTime = millis() + 600;
   }
 
 
@@ -321,6 +337,7 @@ void loop() {
 
   //  Serial.println("raw: " + String(analogRead(A0)));
   if (stopNow) {
+    Serial.println("s");
     analogWrite(steerPin, 0);
     pwmSpeed = 0;
     delay(10);

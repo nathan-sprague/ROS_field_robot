@@ -2,9 +2,14 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="7c57f5bc-62f0-4916-a378-e221f12e6aa4" name="Default Changelist" comment="">
+      <change afterPath="$PROJECT_DIR$/CAD/diff_steer_robot.zip" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/esp8266_speed_old/ESP8266_speed/ESP8266_speed.ino" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/README.md" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/esp8266_speed/ESP8266_speed.ino" beforeDir="false" afterPath="$PROJECT_DIR$/esp8266_speed/ESP8266_speed.ino" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/esp8266_steer/esp8266_steer.ino" beforeDir="false" afterPath="$PROJECT_DIR$/esp8266_steer/esp8266_steer.ino" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/robot_esp_control.py" beforeDir="false" afterPath="$PROJECT_DIR$/robot_esp_control.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/robot_navigation.py" beforeDir="false" afterPath="$PROJECT_DIR$/robot_navigation.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/robot_website.py" beforeDir="false" afterPath="$PROJECT_DIR$/robot_website.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -33,14 +38,18 @@
   <component name="PropertiesComponent">
     <property name="ASKED_ADD_EXTERNAL_FILES" value="true" />
     <property name="RunOnceActivity.ShowReadmeOnStart" value="true" />
+    <property name="last_opened_file_path" value="$PROJECT_DIR$" />
     <property name="settings.editor.selected.configurable" value="com.jetbrains.python.configuration.PyActiveSdkModuleConfigurable" />
   </component>
   <component name="RecentsManager">
+    <key name="CopyFile.RECENT_KEYS">
+      <recent name="$PROJECT_DIR$" />
+    </key>
     <key name="MoveFile.RECENT_KEYS">
       <recent name="$PROJECT_DIR$/esp32_robot" />
     </key>
   </component>
-  <component name="RunManager" selected="Python.robot_simulation">
+  <component name="RunManager" selected="Python.robot_navigation">
     <configuration default="true" type="PythonConfigurationType" factoryName="Python">
       <module name="ROS_field_robot2" />
       <option name="INTERPRETER_OPTIONS" value="" />
@@ -306,7 +315,14 @@
       <option name="project" value="LOCAL" />
       <updated>1628007281537</updated>
     </task>
-    <option name="localTasksCounter" value="18" />
+    <task id="LOCAL-00018" summary="Added comments to video navigation">
+      <created>1628014720809</created>
+      <option name="number" value="00018" />
+      <option name="presentableId" value="LOCAL-00018" />
+      <option name="project" value="LOCAL" />
+      <updated>1628014720809</updated>
+    </task>
+    <option name="localTasksCounter" value="19" />
     <servers />
   </component>
   <component name="VcsManagerConfiguration">
@@ -325,6 +341,7 @@
     <MESSAGE value="Allowed the robot to reach destinations at a specified heading" />
     <MESSAGE value="Improved simulation and navigation" />
     <MESSAGE value="Divided up code into other files" />
-    <option name="LAST_COMMIT_MESSAGE" value="Divided up code into other files" />
+    <MESSAGE value="Added comments to video navigation" />
+    <option name="LAST_COMMIT_MESSAGE" value="Added comments to video navigation" />
   </component>
 </project>

@@ -19,22 +19,27 @@ def base():
 
 @app.route("/_info", methods=['GET'])
 def update():
-    print("my coords", myRobot.coords)
-    print("target coords", myRobot.destinations)
+    # print("my coords", myRobot.coords)
+    # print("target coords", myRobot.destinations)
     responseDict = {"coords": myRobot.coords, "wheelSpeed": myRobot.wheelSpeed,
                     "targetSpeed": myRobot.targetSpeed, "realAngle": myRobot.steeringAngle,
                     "targetAngle": myRobot.targetWheelAngle, "heading": myRobot.heading,
                     "targetHeading": myRobot.targetHeadingAngle}
-    if request.args.get('coordListVersion') is not None:
-        responseDict["coordList"] = myRobot.destinations
-        responseDict["coordListVersion"] = myRobot.coordListVersion
+    if request.args.get('pointsListVersion') is not None:
+        print("P list version", int(request.args.get('pointsListVersion')))
+    if request.args.get('pointsListVersion') is not None and int(
+            request.args.get('pointsListVersion')) < myRobot.coordListVersion:
+        print("new points list version")
+        responseDict["pointsList"] = myRobot.destinations
+        print(myRobot.destinations)
+        responseDict["pointsListVersion"] = myRobot.coordListVersion
 
     if request.args.get('s') == "1":
         myRobot.stopNow = True
         print("stop now")
     else:
         myRobot.stopNow = False
-
+  #  print(responseDict)
     return (str(responseDict)).replace("'", '"')
 
 
@@ -49,7 +54,7 @@ def shutdownServer():
 class Robot:
     def __init__(self):
         print("making robot")
-        self.destinations = [[0, 0]]
+        self.destinations = []
         self.filename = "analyze.txt"
 
         self.webControl = False
@@ -66,7 +71,12 @@ class Robot:
 
         self.steeringAngle = 0
 
-        self.destinations = []
+        self.destinations = [{"coord": [40.422266, -86.916176], "heading": 0, "destType": "point"},
+                    {"coord": [40.422334, -86.916240], "heading": 0, "destType": "point"},
+                    {"coord": [40.422240, -86.916287], "heading": 0, "destType": "point"},
+                    {"coord": [40.422194, -86.916221], "heading": 0, "destType": "point"},
+                    {"coord": [40.422311, -86.916329], "heading": 0, "destType": "point"}]
+
         self.coordListVersion = 0
 
         self.targetHeadingAngle = 0
@@ -149,10 +159,13 @@ class Robot:
             x = fileHandle.read()
             i = 0
             while i < len(x):
-
-                strNum = 0
-
+                
+                strNum = -1
+                dx=0
+                dy=0
                 while x[i] != "\n" and i < len(x):
+                    
+                    
 
                     val = ""
                     while x[i] != ",":
@@ -160,7 +173,7 @@ class Robot:
                         i += 1
 
                     if len(val) > 0:
-                        print(val)
+                     #   print(val)
                         if strNum == 0:
                             #  print("heading", val)
                             self.heading = float(val)
@@ -176,35 +189,37 @@ class Robot:
                             #   print("wheel speed", val)
                             self.wheelSpeed = float(val)
                         elif strNum == 5:
-                            #   print("dest 1", val)
-                            self.destinations[0][0] = float(val)
+                    #        print("dest 1", val)
+                            #self.destinations[0][0] = float(val)
+                            dx=float(val)
                         elif strNum == 6:
-                            #   print("dest 2", val)
-                            self.destinations[0][1] = float(val)
+                    #        print("dest 2", val)
+                            dy = float(val)
+                       #     self.destinations[0][1] = float(val)
                         elif strNum == 7:
-                            #  print("coords 1", val)
+                            #print("coords 1", val)
                             self.coords[0] = float(val)
                         elif strNum == 8:
-                            #   print("coords 2", val)
+                         #   print("coords 2", val)
                             self.coords[1] = float(val)
                         elif strNum == 9:
                             #     print("compass", val)
                             self.compassHeading = float(val)
                             # self.heading = float(val)
-                        elif strNum == 10:
-                            #    print("gyro", val)
-                            self.gyroHeading = float(val)
+                    
                     i += 1
                     strNum += 1
+                self.destinations[0] = {"coord": [dx,dy], "destType": "point"}
+                # print("dest", [dy,dx], self.destinations)
+
                 while self.stopNow == True:
                     time.sleep(0.5)
-                    print("stopping")
-                print("newline")
-                if self.destinations[0] == self.destinations[1]:
-                    self.destinations = self.destinations[1::]
+                  #  print("stopping")
+                #print("newline")
+              
                 while self.arrived:
                     time.sleep(0.2)
-                time.sleep(0.2)
+                time.sleep(0.5)
                 i += 1
 
             print("done")
@@ -224,15 +239,16 @@ class Robot:
         return steerDif
 
     def navigate(self, destinations):
-        self.destinations = destinations
-        print("Started thread")
-        while True:
-            if self.atDestination(self.coords, self.destinations[0]):
-                self.arrived = True
-                print("arrived")
-                time.sleep(1)
-                self.arrived = False
-                time.sleep(3)
+        pass
+        #self.destinations = destinations
+        # print("Started thread")
+        # while True:
+        #     if self.atDestination(self.coords, self.destinations[0]):
+        #         self.arrived = True
+        #         print("arrived")
+        #         time.sleep(1)
+        #         self.arrived = False
+        #         time.sleep(3)
 
 
 notCtrlC = True

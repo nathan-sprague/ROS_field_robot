@@ -33,7 +33,7 @@ const float wheelCircum = 13 * 2 * 3.14159;
 const int numHoles = 16;
 
 float smoothSpeed = 0; // speed used for all calculations. Smooths and averages speeds to limit outliers
-float smoothDist = 0;
+float smoothDist = 0; // distance travelled since start in inches
 
 // movement variables
 bool setMovement = false;
@@ -183,9 +183,9 @@ void processSerial() {
     } else if (commandType == 'g') { // go, used to continue after an emergency stop is performed
       if (DEBUGMODE) {
         Serial.println(".go");
-        stuck = false;
       }
       Serial.println("-g");
+      stuck = false;
       stopNow = false;
       stopReason = "Unknown";
     } else if (commandType == 'r') { // restart
@@ -198,7 +198,9 @@ void processSerial() {
       targetDist = smoothDist + moveFor;
       startDist = smoothDist;
       setMovement = true;
-
+      
+    } else if (commandType == '.'){ // empty message, ignore
+      
     } else { // irrelevant or unrecognized message, ask pi/nano not to send it again
       Serial.println("+" + commandType);
     }
@@ -278,9 +280,6 @@ void getWheelSpeed() {
   }
 
   if (speedChange) { // no need to reasses everything unless there is a change in speed
-    //
-    //
-
 
     // units are miles/(hour * second)
 
@@ -359,7 +358,8 @@ void setMotorSpeed() {
     lastTargetChange = millis();
 
     if (abs(lastTarget - targetSpeed) > 0.1) { // commanded target changed
-      lastGoodPWM = 155 + targetSpeed / 14.5 * (90.0 / 2);
+      
+      lastGoodPWM = 155 + targetSpeed / 14.5 * (90.0 / 2); // estimation for correct pwm
 
       lastTarget = int(targetSpeed);
       startSpeed = smoothSpeed;
@@ -594,6 +594,7 @@ void loop() {
       if (stopReason == "stuck") { // report this error
         Serial.println("o1");
       }
+      Serial.println("s");
       //      Serial.println(".wheel stopped. (" + stopReason + ")");
     }
     return;

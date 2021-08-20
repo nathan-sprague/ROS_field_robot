@@ -55,7 +55,10 @@ class Esp():
             except: # strange message format
                 return
 
+           
+
             if msgType == ".": # suppressed print statement
+                
                 return
 
             elif msgType == "-":
@@ -76,14 +79,23 @@ class Esp():
                     
                 return
             if msgType == "s":
-               print(self.espType, "stopped")
+             #  print(self.espType, "stopped")
                self.stopped = True
                return
 
             try:
                 res = float(message[1::])
             except:
-                print("invalid message from " + self.espType + ": " + message)
+                if len(message)>3:
+                    firstChars = message[0:3]
+                else:
+                    firstChars = ""
+            #    print(firstChars)
+                restartChars = ["chk", "csu", "v00", "~ld", "loa", "tai"]
+                if firstChars == " et":
+                    print(self.espType + " restarting")
+                elif firstChars not in restartChars:
+                    print("invalid message from " + self.espType + ": " + message)
                 return
 
             if msgType == "x":  # compass latitude
@@ -155,7 +167,8 @@ class Esp():
                     if self.messagesToSend[i][1]:
                         msg = i + self.messagesToSend[i][0]
                         self.device.write(bytes(msg, 'utf-8'))
-                        # print("sent", msg)
+                     
+                        # print("sent", msg, "to", self.espType)
                         messagesSent+=1
                         time.sleep(0.2)
 

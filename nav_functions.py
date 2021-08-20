@@ -22,7 +22,7 @@ def findSteerAngle(targetHeading, heading):
 
 
 def findDistBetween(coords1, coords2):
-    # finds distance between two coordinates. Corrects for longitude
+    # finds distance between two coordinates in feet. Corrects for longitude
 
     # 1 deg lat = 364,000 feet
     # 1 deg long = 288,200 feet

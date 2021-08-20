@@ -8,7 +8,7 @@ import os
 import robot_esp_control as esp_controller
 import robot_website
 import nav_functions
-
+import video_navigation
 
 piRunning = False
 if platform.system() == "Linux":
@@ -149,27 +149,27 @@ class Robot:
     def threePointTurn(self, destHeading, maxTravelDist):
         
         # 3+ point turn to desired heading
-
+        print("3 point turn")
         sign = -1
         while abs(nav_functions.findShortestAngle(destHeading, self.heading)) > 10:
-
+            print("heading off")
             self.targetWheelAngle = sign * nav_functions.findSteerAngle(destHeading, self.heading)
             self.targetSpeed = 0
-          
-            while abs(self.steeringAngle - self.targetWheelAngle) > 5:
+            secondsPassed  = 0
+            print("going towards", self.targetWheelAngle, "at", self.steeringAngle) 	
+            while abs(self.steeringAngle - self.targetWheelAngle) > 5 and secondsPassed<50:
                 time.sleep(0.1)
-            print("done steering")
-
-            self.targetMoveDist = sign * maxTravelDist
-
-            time.sleep(0.4)
-
-            while (self.wheelSpeed < -0.1 or self.wheelSpeed > 0.1) and abs(
-                    nav_functions.findShortestAngle(destHeading, self.heading)) > 10:
-                time.sleep(0.1)
-
-            print("done moving back")
-
+                print(self.steeringAngle,"/", self.targetWheelAngle)
+                secondsPassed+=1
+            print("-----------------done steering")
+            
+            max_dist = 20
+            self.targetSpeed = sign*0.5
+            startPoint = self.distanceTraveled
+            while abs(startPoint-self.distanceTraveled)<max_dist and self.notCtrlC and abs(nav_functions.findShortestAngle(destHeading, self.heading)) > 10:
+                    print("moving", abs(startPoint-self.distanceTraveled),"/", max_dist)
+                    time.sleep(0.1)
+#            self.targetMoveDist = sign * maxTravelDist
             sign *= -1
         print("reached destination ---------------")
         self.targetSpeed = 0
@@ -213,13 +213,15 @@ class Robot:
                 self.targetSpeed = -0.5
                 self.targetHeadingAngle *= -1
                 while self.distanceTraveled + 10 > stuckPoint and self.notCtrlC:
-                    print("moving back", self.distanceTraveled)
+                    print("moving back", abs(self.distanceTraveled-stuckPoint), "/ 10")
                     time.sleep(0.1)
 
                 print("done moving back")
-                self.targetSpeed = 0
+                self.targetSpeed = 0.5
                 self.targetHeadingAngle *= -1
                 time.sleep(0.1)
+                self.errorList = []
+                return
 
             if i[0]==2: # ESP cannot connect to GPS
                 print("gps not connected")
@@ -237,6 +239,10 @@ class Robot:
     def pointNavigate(self, destinations):
         self.destinations = destinations
         print("Started thread")
+
+        cam = video_navigation.RSCamera(useCamera=True, saveVideo=False, filename= "object_detections/point_nav_rs_" + str(self.startTime) + ".bag")
+        videoThread = Thread(target=cam.videoNavigate, args=(["flag"], False))
+        videoThread.start()
 
         while len(self.destinations) > 0 and self.notCtrlC:
 
@@ -306,13 +312,18 @@ class Robot:
                     
                     
                     break
+                distToTarget = nav_functions.findDistBetween(self.coords, targetCoords)
+                distToTarget = math.sqrt(distToTarget[0]*distToTarget[0]+distToTarget[1]*distToTarget[1])
+                if cam.flagCenter != -1000 and distToTarget < 20:
+                    self.targetWheelAngle = cam.flagCenter
+                    self.targetSpeed = 1
 
-                if not nav_functions.atDestination(self.coords, targetCoords) and not self.stopNow:
+                elif not nav_functions.atDestination(self.coords, targetCoords):
                     self.targetHeadingAngle = math.degrees(nav_functions.findAngleBetween(self.coords, targetCoords))
                     self.targetSpeed = 1
                     self.targetWheelAngle = nav_functions.findSteerAngle(self.targetHeadingAngle, self.heading)
 
-                elif self.stopNow:
+                if self.stopNow:
                     print("stop now")
                     self.targetSpeed = 0
                     self.targetWheelAngle = 0
@@ -328,21 +339,23 @@ class Robot:
 
                 time.sleep(0.3)
             if not self.notCtrlC:
+                cam.stopStream()
                 return False
        
         print("finished getting locations")
-
+        cam.stopStream()
         return True
 
     def interRowNavigate(self, destination = False):
-        import video_navigation
+        
 
-        cam = video_navigation.RSCamera(useCamera=True, saveVideo=False, filename= "object_detections/rs_" + str(self.startTime) + ".bag")
+        cam = video_navigation.RSCamera(useCamera=True, saveVideo=True, 
+            rgbFilename="top_row/vid_" + str(self.startTime) + ".mp4", filename= "object_detections/rs_" + str(self.startTime) + ".bag")
       #  cam = video_navigation.RSCamera(useCamera=False, saveVideo=False, filename="Desktop/fake_track/object_detection6.bag")
 
         talkTimer = 0
         
-        videoThread = Thread(target=cam.runNavigation, args=(False,))
+        videoThread = Thread(target=cam.videoNavigate, args=(["flag", "row"], False))
         videoThread.start()
         print("set up row navigation")
 
@@ -352,35 +365,45 @@ class Robot:
                 
                 cam.stopStream()
                 return False
+             
+            #self.errorsList = [1]
+            #print("managing errors")
             self.manageErrors()
-
+               
           #  if destination != False and self.atDestination(self.coords, destination, tolerance=self.turnRadius / 12):
               #  print("inter-row navigated to the destination")
              #   cam.stopStream()
               #  return True
-
-            if abs(cam.heading)<100:           
-                self.targetWheelAngle = -cam.heading*3-8
-        
+           
+            if cam.flagCenter != -1000 and nav_functions.findShortestAngle(cam.flagCenter, self.targetHeadingAngle) < 30:
+                self.targetWheelAngle = cam.flagCenter
+                self.targetSpeed = 1
+                       
             else:
-                self.targetWheelAngle = 0
+                if abs(cam.heading)<100:           
+                    self.targetWheelAngle = -cam.heading*3-8
+            
+                else:
+                    self.targetWheelAngle = 0
 
-            if abs(cam.heading) < 10: # facing right way
-                self.targetSpeed = 1.5
-              
-
-            elif cam.heading == 1000: # does not know where it is facing
-
-                self.targetSpeed = 0.1
+                if abs(cam.heading) < 10: # facing right way
+                    self.targetSpeed = 1
                 
-            else: # facing wrong way but knows where it is facing
-                self.targetSpeed = 1.5
-#            self.targetSpeed = 1
+
+                elif cam.heading == 1000: # does not know where it is facing
+
+                    self.targetSpeed = 0.1
+                    
+                else: # facing wrong way but knows where it is facing
+                    self.targetSpeed = 1.5
+    #            self.targetSpeed = 1
 
            
             talkTimer += 1
             if talkTimer == 5:
                 talkTimer= 0
+                if cam.flagCenter != -1000:
+                    print("flag found")
                 print("moving", cam.heading, self.targetWheelAngle, self.targetSpeed)
             time.sleep(0.2)
 
@@ -391,8 +414,9 @@ class Robot:
 
 def beginRobot():
     print("begin")
-    #myRobot.pointNavigate(targetLocations)
+#    myRobot.pointNavigate(targetLocations)
     myRobot.interRowNavigate()
+#    myRobot.threePointTurn(destHeading=180, maxTravelDist=70)
 
 
 myRobot = Robot()

@@ -1,12 +1,42 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="ChangeListManager">
-    <list default="true" id="7c57f5bc-62f0-4916-a378-e221f12e6aa4" name="Default Changelist" comment="">
+    <list default="true" id="7c57f5bc-62f0-4916-a378-e221f12e6aa4" name="Default Changelist" comment="improved navigation and controls. Added rgb camera support">
+      <change afterPath="$PROJECT_DIR$/destinations.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/esp32_movement/MotorController.h" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/esp32_movement/esp32_movement.ino" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/esp32_movement/esp32_radio_control.ino" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/esp32_movement/esp_serial_control.ino" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/esp8266_ackerman_to_diff/esp8266_ackerman_to_diff.ino" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/esp_controller.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/robot_navigation_2.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/robot_v1/ESP32_sensors_ap/ESP32_sensors_ap.ino" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/robot_v1/README.md" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/robot_v1/deleteme.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/robot_v1/destinations.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/robot_v1/esp8266_speed/ESP8266_speed.ino" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/robot_v1/esp8266_steer/esp8266_steer.ino" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/robot_v1/nav_functions.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/robot_v1/robot_esp_control.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/robot_v1/robot_navigation.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/robot_v1/tests/encoder_test/encoder_test.ino" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/robot_v1/tests/sensors_test.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/robot_v1/tests/speed_tester/speed_tester.ino" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/robot_v1/tests/steer_tester/steer_tester.ino" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/robot_v1/video_navigation.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/esp8266_steer/esp8266_steer.ino" beforeDir="false" afterPath="$PROJECT_DIR$/esp8266_steer/esp8266_steer.ino" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/CAD/diff_steer_robot.zip" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/ESP32_sensors_ap/ESP32_sensors_ap.ino" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/README.md" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/esp8266_speed/ESP8266_speed.ino" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/esp8266_steer/esp8266_steer.ino" beforeDir="false" />
       <change beforePath="$PROJECT_DIR$/nav_functions.py" beforeDir="false" afterPath="$PROJECT_DIR$/nav_functions.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/robot_esp_control.py" beforeDir="false" afterPath="$PROJECT_DIR$/robot_esp_control.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/robot_navigation.py" beforeDir="false" afterPath="$PROJECT_DIR$/robot_navigation.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/robot_esp_control.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/robot_navigation.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/encoder_test/encoder_test.ino" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/sensors_test.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/speed_tester/speed_tester.ino" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/steer_tester/steer_tester.ino" beforeDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -34,6 +64,7 @@
   </component>
   <component name="PropertiesComponent">
     <property name="ASKED_ADD_EXTERNAL_FILES" value="true" />
+    <property name="RunOnceActivity.OpenProjectViewOnStart" value="true" />
     <property name="RunOnceActivity.ShowReadmeOnStart" value="true" />
     <property name="last_opened_file_path" value="$PROJECT_DIR$" />
     <property name="settings.editor.selected.configurable" value="com.jetbrains.python.configuration.PyActiveSdkModuleConfigurable" />
@@ -46,7 +77,7 @@
       <recent name="$PROJECT_DIR$/esp32_robot" />
     </key>
   </component>
-  <component name="RunManager" selected="Python.robot_navigation">
+  <component name="RunManager" selected="Python.video_navigation">
     <configuration default="true" type="PythonConfigurationType" factoryName="Python">
       <module name="ROS_field_robot2" />
       <option name="INTERPRETER_OPTIONS" value="" />
@@ -110,27 +141,6 @@
       <option name="INPUT_FILE" value="" />
       <method v="2" />
     </configuration>
-    <configuration name="robot_navigation" type="PythonConfigurationType" factoryName="Python" nameIsGenerated="true">
-      <module name="ROS_field_robot2" />
-      <option name="INTERPRETER_OPTIONS" value="" />
-      <option name="PARENT_ENVS" value="true" />
-      <envs>
-        <env name="PYTHONUNBUFFERED" value="1" />
-      </envs>
-      <option name="SDK_HOME" value="$USER_HOME$/dev/visionenv/bin/python" />
-      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$" />
-      <option name="IS_MODULE_SDK" value="false" />
-      <option name="ADD_CONTENT_ROOTS" value="true" />
-      <option name="ADD_SOURCE_ROOTS" value="true" />
-      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/robot_navigation.py" />
-      <option name="PARAMETERS" value="" />
-      <option name="SHOW_COMMAND_LINE" value="false" />
-      <option name="EMULATE_TERMINAL" value="false" />
-      <option name="MODULE_MODE" value="false" />
-      <option name="REDIRECT_INPUT" value="false" />
-      <option name="INPUT_FILE" value="" />
-      <method v="2" />
-    </configuration>
     <configuration name="robot_simulation" type="PythonConfigurationType" factoryName="Python" nameIsGenerated="true">
       <module name="ROS_field_robot2" />
       <option name="INTERPRETER_OPTIONS" value="" />
@@ -173,10 +183,31 @@
       <option name="INPUT_FILE" value="" />
       <method v="2" />
     </configuration>
+    <configuration name="video_navigation" type="PythonConfigurationType" factoryName="Python" nameIsGenerated="true">
+      <module name="ROS_field_robot2" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs>
+        <env name="PYTHONUNBUFFERED" value="1" />
+      </envs>
+      <option name="SDK_HOME" value="$USER_HOME$/dev/visionenv/bin/python" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$" />
+      <option name="IS_MODULE_SDK" value="false" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/video_navigation.py" />
+      <option name="PARAMETERS" value="" />
+      <option name="SHOW_COMMAND_LINE" value="false" />
+      <option name="EMULATE_TERMINAL" value="false" />
+      <option name="MODULE_MODE" value="false" />
+      <option name="REDIRECT_INPUT" value="false" />
+      <option name="INPUT_FILE" value="" />
+      <method v="2" />
+    </configuration>
     <list>
       <item itemvalue="Python.playback_navigation" />
       <item itemvalue="Python.realsense" />
-      <item itemvalue="Python.robot_navigation" />
+      <item itemvalue="Python.video_navigation" />
       <item itemvalue="Python.robot_simulation" />
       <item itemvalue="Python.sensors_test" />
     </list>
@@ -326,7 +357,14 @@
       <option name="project" value="LOCAL" />
       <updated>1628200821135</updated>
     </task>
-    <option name="localTasksCounter" value="20" />
+    <task id="LOCAL-00020" summary="improved navigation and controls. Added rgb camera support">
+      <created>1629465437161</created>
+      <option name="number" value="00020" />
+      <option name="presentableId" value="LOCAL-00020" />
+      <option name="project" value="LOCAL" />
+      <updated>1629465437161</updated>
+    </task>
+    <option name="localTasksCounter" value="21" />
     <servers />
   </component>
   <component name="VcsManagerConfiguration">
@@ -347,6 +385,7 @@
     <MESSAGE value="Divided up code into other files" />
     <MESSAGE value="Added comments to video navigation" />
     <MESSAGE value="GPS navigation works now" />
-    <option name="LAST_COMMIT_MESSAGE" value="GPS navigation works now" />
+    <MESSAGE value="improved navigation and controls. Added rgb camera support" />
+    <option name="LAST_COMMIT_MESSAGE" value="improved navigation and controls. Added rgb camera support" />
   </component>
 </project>

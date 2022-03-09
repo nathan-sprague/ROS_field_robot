@@ -72,59 +72,52 @@ def findAngleBetween(coords1, coords2):
 
 
 
-
-def makePath(currentCoords, destination, destHeading, turnRadius):
-    # This function finds the best sub-destination for the robot so it can reach the destination at the desired heading.
-    # The robot will go to the sub-destination and will go to the next calculated one until it reaches the real destination.
-
-    longCorrection = math.cos(currentCoords[0] * math.pi / 180)
-
-    offsetY = turnRadius / 12 / 364000 * math.sin((90 + destHeading) * math.pi / 180)
-    offsetX = turnRadius / 12 / 364000 * math.cos((90 + destHeading) * math.pi / 180) * longCorrection
-    approachCircleCenter1 = [destination[0] + offsetX, destination[1] + offsetY]
-
-    offsetY = turnRadius / 12 / 364000 * math.sin((-90 + destHeading) * math.pi / 180)
-    offsetX = turnRadius / 12 / 364000 * math.cos((-90 + destHeading) * math.pi / 180) * longCorrection
-    approachCircleCenter2 = [destination[0] + offsetX, destination[1] + offsetY]
-
-    x1, y1 = findDistBetween(currentCoords, approachCircleCenter1)
-    x2, y2 = findDistBetween(currentCoords, approachCircleCenter2)
-
-    dist1 = x1 * x1 + y1 * y1
-    dist2 = x2 * x2 + y2 * y2
-  #  print(dist1, dist2)
-
-    if dist1 < dist2:
-    #    print("clockwise approach")
-        clockwise = True
-        closerApproach = approachCircleCenter1
-    else:
-   #     print("Counter clockwise approach")
-        clockwise = False
-        closerApproach = approachCircleCenter2
-
- #   print(currentCoords, closerApproach)
-
-    a = findAngleBetween(currentCoords, closerApproach) * 180 / math.pi
+def findDiffWheelSpeeds(distToTarget, currentHeading, targetHeading, finalHeading = False, turnConstant = 10, destTolerance = 5):
+    ### NOTE: RIGHT NOW IT JUST MAKES IT DO A 0-POINT TURN. IT DOES NOT DO WHAT IT SAYS IN THE DESCRIPTION
 
 
-    subPoints = []
-    if clockwise:
-        offsetY = turnRadius / 12 / 364000 * math.sin((a - 90) * math.pi / 180)
-        offsetX = turnRadius / 12 / 364000 * math.cos((a - 90) * math.pi / 180) * longCorrection
-        approachPoint1 = [closerApproach[0] + offsetX, closerApproach[1] + offsetY]
+    """
+    Finds the optimal speed for each wheel to reach the destination, at the desired heading. 
+    This allows the robot to turn as it is moving toward its target, rather than doing a 0-point turn every time
+    The further the robot is from the target, the robot will make a larger radius turn.
+
+    parameters:
+    distToTarget: distance robot is from target (feet)
+    currentHeading: heading of robot (degrees)
+    targetHeading: direction of target (degrees)
+    finalHeading: angle the robot should end at (degrees)
+    turnConstant: number based on the slip expected from the differential wheel speed
+    destTolerance: point at which the robot will begin pointing toward its final heading
+
+    returns:
+    wheel speed (list)
+    """
+
+    # examples:
+    # heading difference: 0; distToTarget: 10; --> [100, 100] (just go straight with both wheels)
+    # heading difference: 180; distToTarget: 10; --> [100, -100] (turn around, zero point turn)
+    # heading difference: 90; distToTarget: 0; --> [100, -100] (turn but dont move, zero point turn)
+    # heading difference: -90; distToTarget: 0; --> [-100, 100] (same as above, but other direction)
+
+    headingDiff = findSteerAngle(targetHeading, currentHeading)
+
+    if headingDiff > 20:
+        return [100, -100]
+
+    elif headingDiff < 20:
+        return [100, -100]
+
+    if distToTarget < destTolerance and finalHeading != False:
+        headingDiff = findSteerAngle(finalHeading, currentHeading)
+        if headingDiff > 20:
+           return [100, -100]
+
+        elif headingDiff < 20:
+            return [100, -100]
     
-        b = findAngleBetween(currentCoords, approachPoint1) * 180 / math.pi
-        subPoints = [approachPoint1]
+    return [100,100]
 
-    else:
-        offsetY = turnRadius / 12 / 364000 * math.sin((a + 90) * math.pi / 180)
-        offsetX = turnRadius / 12 / 364000 * math.cos((a + 90) * math.pi / 180) * longCorrection
-        approachPoint2 = [closerApproach[0] + offsetX, closerApproach[1] + offsetY]
 
-        subPoints = [approachPoint2]
-        c = findAngleBetween(currentCoords, approachPoint2) * 180 / math.pi
 
-    return subPoints
 
 

@@ -12,6 +12,8 @@
   static const uint8_t D9   = 3;
   static const uint8_t D10  = 1;
 */
+#define ICACHE_RAM_ATTR
+void ICACHE_RAM_ATTR handleInterrupt();
 
 
 #define DEBUGMODE false
@@ -23,14 +25,15 @@
 
 
 const int motorPin = 16;  // motor (D0)
-const int hallPin = 5; // speed sensor pin 1 (D1)
+const int hallPin = 4; // speed sensor pin 1 (D1)
 const int otherHallPin = 4; // speed sensor pin 2 (D2)
 
-
+unsigned long lastPulseAmount = 0;
+unsigned long pulses = 0;
 unsigned long lastMsgTime = 0; // timer to prevent over-printing
 
 const float wheelCircum = 13 * 2 * 3.14159;
-const int numHoles = 16;
+const int numHoles = 500;
 
 float smoothSpeed = 0; // speed used for all calculations. Smooths and averages speeds to limit outliers
 float smoothDist = 0; // distance travelled since start in inches
@@ -49,7 +52,7 @@ long distTraveled = 0;
 int lastRead = 0;
 unsigned long lastHitTime = 0;
 float wheelSpeed = 0;
-unsigned int timeBetweenHoles = 0;
+float timeBetweenHoles = 0;
 
 
 // speed variables for the right wheel
@@ -164,7 +167,7 @@ void processSerial() {
       }
       setMovement = false;
       manual = true;
-      analogWrite(motorPin, serialMsg.toInt());
+      //      analogWrite(motorPin, serialMsg.toInt());
       PWMSignal = serialMsg.toInt();
 
       Serial.println("-z" + String(PWMSignal));
@@ -198,34 +201,52 @@ void processSerial() {
       targetDist = smoothDist + moveFor;
       startDist = smoothDist;
       setMovement = true;
-      
-    } else if (commandType == '.'){ // empty message, ignore
-      
+
+    } else if (commandType == '.') { // empty message, ignore
+
     } else { // irrelevant or unrecognized message, ask pi/nano not to send it again
       Serial.println("+" + commandType);
     }
   }
 }
 
+
+
+
+
 unsigned long ltt = 0;
 float lastSpeed = 0;
+unsigned long lastWheelMeasure = 0;
 
-void getWheelSpeed() {
+void updateWheelSpeed() {
   /*
     This function calculates the vehicle speed
     Execute this function as frequently as possible to detect if the hall sensor runs over a hole.
 
   */
+  if (lastWheelMeasure > millis() - 20){
+    return;
+  }
+  lastWheelMeasure = millis();
   bool speedChange =  false; // something happened, like a hole detected, so the moving average functions should be run
-  int  x = digitalRead(hallPin);
 
 
-  if (lastRead != x && x == 0 && millis() - lastHitTime > 0) { // There was a change in what it sensed and did sense something
-    timeBetweenHoles = millis() - lastHitTime;
+
+  if (pulses != lastPulseAmount) { // There was a change in what it sensed and did sense something
+    int numPulses = pulses - lastPulseAmount;
+    if (numPulses < 0) {
+      numPulses = 4294967295 - lastPulseAmount + pulses;
+    }
+
+    timeBetweenHoles = (millis() - lastHitTime)*20;
+
+//    Serial.println("time between holes " + String(timeBetweenHoles));
+//    Serial.println("num pulses " + String(numPulses));
 
     //    float rpm = 60.0 / numHoles / (timeBetweenHoles / 1000.0);
 
-    wheelSpeed = tickTimeTomph / timeBetweenHoles; // mph
+    wheelSpeed = tickTimeTomph / timeBetweenHoles * numPulses; // mph
+//    Serial.println("w speed " + String(wheelSpeed));
     if (goingForward) {
       distTraveled += wheelCircum / numHoles;
     } else {
@@ -234,38 +255,17 @@ void getWheelSpeed() {
     lastHitTime = millis();
     speedChange = true;
 
-  } else if (timeBetweenHoles < millis() - lastHitTime) { // if it is taking longer than before to reach a hole
+  } else { // if it is taking longer to reach a hole
+//    Serial.println("taking too long");
     wheelSpeed = tickTimeTomph / (millis() - lastHitTime); // use that value for speed
     wheelSpeed = int(wheelSpeed); // the value is likely not exact so get rid of floating point precision
     speedChange = true;
   }
 
-  lastRead = x; // use reading to detect change next time
+  lastPulseAmount = pulses;
 
 
   // repeat above for other wheels
-  int  y = digitalRead(otherHallPin);
-
-  if (lastReadY != y && y == 0 && millis() - lastHitTimeY > 0) {
-
-    timeBetweenHolesY = millis() - lastHitTimeY;
-    wheelSpeedY = tickTimeTomph / timeBetweenHolesY; // mph
-
-    if (goingForward) {
-      distTraveledY += wheelCircum / numHoles;
-    } else {
-      distTraveledY -= wheelCircum / numHoles;
-    }
-    lastHitTimeY = millis();
-    speedChange = true;
-
-  } else if (timeBetweenHolesY < millis() - lastHitTimeY) {
-
-    wheelSpeedY = tickTimeTomph / (millis() - lastHitTimeY);
-    wheelSpeedY = int(wheelSpeedY);
-    speedChange = true;
-  }
-  lastReadY = y;
 
   // if going backwards, negate the wheel speeds
   if (!goingForward) {
@@ -275,25 +275,15 @@ void getWheelSpeed() {
 
   // sanity check: if the smooth speed is way to high, bring it to the most recent value
   if (abs(smoothSpeed) > 100) {
-    Serial.println(".wheel speed way too high");
+    Serial.println(".wheel speed way too high" + String(smoothSpeed));
     smoothSpeed = (wheelSpeed + wheelSpeedY) / 2;
   }
 
   if (speedChange) { // no need to reasses everything unless there is a change in speed
 
-    // units are miles/(hour * second)
-
-    if (lastAccelerationTime + 50 < millis()) {
-      acceleration = (acceleration * 2 + (((wheelSpeed + wheelSpeedY) / 2) - lastSpeed) / ((millis() - lastAccelerationTime) / 1000.0) ) / 3;
-      lastSpeed = smoothSpeed;
-      lastAccelerationTime = millis();
-
-      //      Serial.println(".acceleration: "  + String(acceleration, 5));
-    }
-
     // get average speed between the wheels and past speeds. #s 3 and 5 were arbitrarily chosen
-    smoothSpeed = (smoothSpeed * 3 + (wheelSpeed + wheelSpeedY)) / 5;
-    smoothDist = (distTraveled + distTraveledY) / 2;
+    smoothSpeed = (smoothSpeed * 3 + (wheelSpeed)) / 4;
+    smoothDist = (distTraveled);
 
 
 
@@ -358,7 +348,7 @@ void setMotorSpeed() {
     lastTargetChange = millis();
 
     if (abs(lastTarget - targetSpeed) > 0.1) { // commanded target changed
-      
+
       lastGoodPWM = 155 + targetSpeed / 14.5 * (90.0 / 2); // estimation for correct pwm
 
       lastTarget = int(targetSpeed);
@@ -382,7 +372,7 @@ void setMotorSpeed() {
   //  Serial.println(".wheel target speed: " + String(targetSpeed));
 
   if (targetSpeed == 0) {
-    analogWrite(motorPin, 0);
+    //    analogWrite(motorPin, 0);
     PWMSignal = 0;
     return;
 
@@ -447,7 +437,7 @@ void setMotorSpeed() {
       } else {
         // you are going faster than target speed by a stable amount, just go to close to default speed
 
-        PWMSignal = lastGoodPWM; 
+        PWMSignal = lastGoodPWM;
         pwmChange = 0;
         pwmChangeTime = 1;
 
@@ -535,10 +525,10 @@ void setMotorSpeed() {
     }
 
     if (int(PWMSignal) == 155) {
-      analogWrite(motorPin, 0);
+      //      analogWrite(motorPin, 0);
     } else if (lastPWM != int(PWMSignal)) { // &&  abs(smoothSpeed)<5){
       //  Serial.println("pwm: " + String(int(PWMSignal)));
-      analogWrite(motorPin, int(PWMSignal));
+      //      analogWrite(motorPin, int(PWMSignal));
     }
     lastPWM = int(PWMSignal);
 
@@ -546,13 +536,17 @@ void setMotorSpeed() {
 
 }
 
+void updateEncoder() {
+  pulses++;
+}
 
 void setup() {
   Serial.begin(115200);
-  pinMode(hallPin, INPUT);
-  pinMode(otherHallPin, INPUT);
-  analogWriteFreq(100);
-  analogWriteRange(1023);
+  //  pinMode(hallPin, INPUT);
+  //  pinMode(otherHallPin, INPUT);
+  //  analogWriteFreq(100);
+  //  analogWriteRange(1023);
+  attachInterrupt(digitalPinToInterrupt(hallPin), updateEncoder, RISING);
   delay(1000);
 
 }
@@ -573,22 +567,22 @@ void loop() {
     processSerial();
     gotSerial = false;
   }
-  
+
   if (gotSerialTime + 1500 < millis()) {
     // it has been a while since serial was sent. Something is wrong so stop
-    analogWrite(motorPin, 0);
+    //    analogWrite(motorPin, 0);
     PWMSignal = 0;
     targetSpeed = 0;
-    return;
+   // return;
   }
 
-  getWheelSpeed();
+  updateWheelSpeed();
 
 
   if (stopNow) {
     targetSpeed = 0;
     PWMSignal = 0;
-    analogWrite(motorPin, 0);
+    //    analogWrite(motorPin, 0);
     if (lastTalkTime + 500 < millis()) {
       lastTalkTime = millis();
       if (stopReason == "stuck") { // report this error

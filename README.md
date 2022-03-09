@@ -1,5 +1,5 @@
 # ROS_field_robot
-Files to run the robot with a Jetson Nano (originally Raspberry Pi) and soon ROS. The robot can autonomously travel to specified areas and then travel through rows given GPS destinations. It is capable carrying extra sensors to collect data in a field.
+Files to run the robot with a Jetson Nano. The robot can autonomously travel to specified areas and then travel through rows given GPS destinations. It is capable carrying extra sensors to collect data in a field.
 
 
 # Control
@@ -58,7 +58,7 @@ Near the bottom of the file in the function called beginRobot(), uncomment/comme
 Run this program to just view the stream or camera feed. It just calculates the center of the row. You can modify the variables beginning with an underscore at the top of the file. Edit the list "stepsShown" to include the step numbers you want to see.
 
 ## robot_esp_control.py
-Controls the ESP8266. No need to look at this.
+Controls the ESP32. No need to look at this.
 
 ## robot_website.py
 Controls the website. No need to look at this.
@@ -71,8 +71,8 @@ Various functions that are used in other programs. No need to look at this.
 The CAD files are in the zipped folder
 
 ## Controllers
-### ESP8266
-You need at least 2 ESP8266 microcontrollers, one to control the steering and one to control the speed. You can also use another as an access point. The ESP8266s should be connected to the Jetson Nano.
+### ESP32
+You need at least 1 ESP32. Check the movement.ino file for specific pinouts. Most of the pins are used.
 
 ### Jetson Nano
 Any Jetson Nano or even a Raspberry Pi would do, but we are using the 4GB model of the Jetson Nano.
@@ -85,6 +85,6 @@ Any Jetson Nano or even a Raspberry Pi would do, but we are using the 4GB model 
   Specifications and CAD file will be released soon.
 
 # Software
-  Upload the 2 Sketches of steering and speed to the ESP8266s.
+  Upload the movement.ino Sketch to the ESP832.
   Run the file "robot_navigation.py" on the Jetson Nano.
  

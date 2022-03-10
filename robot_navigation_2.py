@@ -11,10 +11,18 @@ import signal # for graceful exits
 import platform
 import os
 
+
+testing = True
+
 # import python files in folder
-from esp_controller import Esp
+if testing:
+	from esp_tester import Esp
+else:
+	from esp_controller import Esp
 import nav_functions
 import destinations as exampleDests
+import robot_website
+
 
 
 # change to True to navigate through a row endlessly. Useful for testing
@@ -22,7 +30,6 @@ interRowNavigation = False
 
 navDestinations = exampleDests.abeNorth # destinations the robot will go to
 
-notCtrlC = True # tag used to have graceful shutdowns. When this is set to false, would-be inifnite loops stop
 
 
 microProcessor = False # tag for whether it is a microprocessor
@@ -66,6 +73,16 @@ class Robot:
 
 		self.startTime =  int(time.time()) # seconds
 
+		self.notCtrlC = True # tag used to have graceful shutdowns. When this is set to false, would-be inifnite loops stop
+
+		self.errorList = []
+
+
+		# vestigial variables used for the website. Remove eventually
+		self.coordListVersion = 0 
+		self.destinations = []
+		self.subPoints = []
+
 		###############################
 		# robot attributes
 		###############################
@@ -86,6 +103,7 @@ class Robot:
 		###############################
 		self.targetWheelSpeed = [0, 0] # mph
 		self.targetHeading = 0 # deg (north = 0)
+		self.targetDestination = [0, 0]
 
 		###############################################
 		# logging variables and set up recording thread
@@ -163,7 +181,7 @@ class Robot:
 
 		print("recording to:", filename)
 
-		while notCtrlC:
+		while self.notCtrlC:
 			time.sleep(0.5)
 		
 
@@ -189,10 +207,10 @@ class Robot:
 							self.wheelSpeed[1],
 							self.targetWheelSpeed[0],
 							self.targetWheelSpeed[1],
-							self.coords[-1][0],
-							self.coords[-1][1],
-							self.destinations[0]["coord"][0],
-							self.destinations[0]["coord"][1],
+							self.coords[0],
+							self.coords[1],
+							self.targetDestination[0],
+							self.targetDestination[1],
 							]
 
 			# converts the variables to a string and logs them
@@ -214,8 +232,12 @@ class Robot:
 		none
 		""" 
 
-		while notCtrlC:
+		# add destinations to a list for the website. Possibly remove later, idk
+		self.destinations = destinations
+
+		while self.notCtrlC:
 			dest = destinations[0]
+			self.targetDestination = dest["coord"]
 			navType = dest["destType"]
 
 			if navType == "point":
@@ -317,7 +339,7 @@ class Robot:
 
 
 			# reached the destination
-			if distToTarget < atDestinationTolerance:
+			if distToTarget[0]**2 + distToTarget[1]**2 < self.atDestinationTolerance:
 				print("reached destination")
 				return -1
 
@@ -332,14 +354,14 @@ class Robot:
 
 
 			# set ideal wheel speed given the heading and the distance from target
-			targetSpeedPercent = nav_functions.findDiffWheelSpeeds(distToTarget, self.heading, finalHeading, 10, atDestinationTolerance)
+			targetSpeedPercent = nav_functions.findDiffWheelSpeeds(distToTarget, self.heading, finalHeading, 10, self.atDestinationTolerance)
 
 			self.targetWheelSpeed = [targetSpeedPercent[0]*self.topSpeed/100, targetSpeedPercent[1]*self.topSpeed/100]
 
 
 
 			# Print status
-			print("heading:", self.heading, "target heading:", self.targetHeadingAngle)
+			print("heading:", self.heading, "target heading:", self.targetHeading)
 			print("current coords:", self.coords, "target coords:", targetCoords, "(accuracy:", self.gpsAccuracy,")")
 			print("target wheel speeds:", self.targetWheelSpeed)
 			print("real wheel speeds:", self.wheelSpeed) 
@@ -419,6 +441,15 @@ class Robot:
 
 
 
+def beginRobot():
+	# this function begins the navigation function. 
+	# For some reason you need to call a function outside of the Robot when threading for it to work properly.
+	myRobot.navigate(navDestinations)
+
+
+
+
+
 def signal_handler(sig, frame):
 
 	#   stopStream()
@@ -430,19 +461,33 @@ def signal_handler(sig, frame):
 	exit()
 
 
-signal.signal(signal.SIGINT, signal_handler)
-
-
-
 
 
 
 if __name__ == "__main__":
+	signal.signal(signal.SIGINT, signal_handler)
+
 	microProcessor = checkDeviceType()
 
 	myRobot = Robot()
-	robotThread = Thread(target=myRobot.navigate(navDestinations))
+
+
+	robotThread = Thread(target=beginRobot)
+
+	print("made robot")
+
 	robotThread.start()
+
+	print("starting website")
+	robot_website.myRobot = myRobot
+	robot_website.app.run(debug=False, port=8000, host='0.0.0.0')
+
+	print("done starting website")
+
+
+
+
+
 
 
 

@@ -5,10 +5,10 @@ import signal
 import platform
 import os
  
-import robot_esp_control as esp_controller
+# import robot_esp_control as esp_controller
 import robot_website
 import nav_functions
-import video_navigation
+# import video_navigation
 
 # change mode to 1 for point-to-point navigation and mode to 2 for video navigation
 mode = 1
@@ -87,7 +87,7 @@ class Robot:
         self.espList = []
         # /dev/ttyUSB0
         i=0
-        while i<4:
+        while i<0:
             
             esp = esp_controller.Esp(self, i)
             if esp.begin():
@@ -117,14 +117,14 @@ class Robot:
        
 
             # logs the important variables:
-                1. time run
-                2. heading
-                3. target heading
-                4. wheel angle
-                5. target wheel angle
-                6. wheel speed
-                7. current target destination
-                8. current coordinates
+                # 1. time run
+                # 2. heading
+                # 3. target heading
+                # 4. wheel angle
+                # 5. target wheel angle
+                # 6. wheel speed
+                # 7. current target destination
+                # 8. current coordinates
 
             importantVars = [int(time.time()) - self.startTime, self.heading, int(self.targetHeadingAngle),
                              self.steeringAngle, self.targetWheelAngle, self.wheelSpeed,

@@ -7,8 +7,8 @@ myRobot = []
 
 
 # Uncomment below to suppress the clutter in the python console whenever a request is made
-log = logging.getLogger('werkzeug')
-log.setLevel(logging.ERROR)
+# log = logging.getLogger('werkzeug')
+# log.setLevel(logging.ERROR)
 
 
 app = Flask(__name__)
@@ -23,6 +23,10 @@ def base():
 def update():
     # print("my coords", myRobot.coords)
     # print("target coords", myRobot.destinations)
+    myRobot.steeringAngle = 0
+    myRobot.targetSpeed = 0
+    myRobot.targetWheelAngle = 0
+    myRobot.targetHeadingAngle = 0
     responseDict = {"coords": myRobot.coords, "wheelSpeed": myRobot.wheelSpeed,
                     "targetSpeed": myRobot.targetSpeed, "realAngle": myRobot.steeringAngle,
                     "targetAngle": myRobot.targetWheelAngle, "heading": myRobot.heading,

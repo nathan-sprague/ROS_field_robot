@@ -95,13 +95,12 @@ class Robot:
 		self.coords = [-1, -1] # lat, long
 		self.gpsAccuracy = 10000 # feet
 		self.heading = 0 # degrees
-		self.wheelSpeed = [0, 0] # mph
-		self.distanceTraveled = 0 # feet
+		self.realSpeed = [0, 0] # mph
 
 		###############################
 		# position-target variables
 		###############################
-		self.targetWheelSpeed = [0, 0] # mph
+		self.targetSpeed = [0, 0] # mph
 		self.targetHeading = 0 # deg (north = 0)
 		self.targetDestination = [0, 0]
 
@@ -139,7 +138,7 @@ class Robot:
 		"""
 
 		print("shutting down robot")
-		self.targetWheelSpeed = [0, 0]
+		self.targetSpeed = [0, 0]
 
 		for esp in self.espList:
 			esp.endEsp()
@@ -190,10 +189,10 @@ class Robot:
 					1. time since start
 					2. heading
 					3. target heading
-					4. left wheel speed
-					5. right wheel speed
-					6. target left wheel speed
-					7. target right wheel speed
+					4. real left speed
+					5. real right speed
+					6. target left speed
+					7. target right speed
 					8. current coordinates[0]
 					9. current coordinates[1]
 					10. target coordinates[0]
@@ -203,10 +202,10 @@ class Robot:
 			importantVars = [int(time.time()) - self.startTime,
 							self.heading,
 							int(self.targetHeading),
-							self.wheelSpeed[0],
-							self.wheelSpeed[1],
-							self.targetWheelSpeed[0],
-							self.targetWheelSpeed[1],
+							self.realSpeed[0],
+							self.realSpeed[1],
+							self.targetSpeed[0],
+							self.targetSpeed[1],
 							self.coords[0],
 							self.coords[1],
 							self.targetDestination[0],
@@ -227,7 +226,7 @@ class Robot:
 
 		Parameters:
 		destinations: list of dictonaries, with the dictionary having destination attributes
-																	i.e location & navigation type
+															i.e location & navigation type
 		Returns:
 		none
 		""" 
@@ -268,6 +267,7 @@ class Robot:
 
 				if len(destinations) > 0:
 					destinations = destinations[1::] # remove the old destination from the destination list
+					self.destinations = destinations[:]
 					
 					# if the new destination type is through a row, start the video navigation thread
 					dest = destinations[0]
@@ -353,18 +353,19 @@ class Robot:
 				finalHeading = target["finalHeading"]
 
 
-			# set ideal wheel speed given the heading and the distance from target
-			targetSpeedPercent = nav_functions.findDiffWheelSpeeds(distToTarget, self.heading, finalHeading, 10, self.atDestinationTolerance)
+			# set ideal speed given the heading and the distance from target
 
-			self.targetWheelSpeed = [targetSpeedPercent[0]*self.topSpeed/100, targetSpeedPercent[1]*self.topSpeed/100]
+			targetSpeedPercent = nav_functions.findDiffSpeeds(distToTarget, self.heading, self.targetHeading, finalHeading = finalHeading, turnConstant = 2, destTolerance = self.atDestinationTolerance)
+
+			self.targetSpeed = [targetSpeedPercent[0]*self.topSpeed/100, targetSpeedPercent[1]*self.topSpeed/100]
 
 
 
 			# Print status
-			print("heading:", self.heading, "target heading:", self.targetHeading)
-			print("current coords:", self.coords, "target coords:", targetCoords, "(accuracy:", self.gpsAccuracy,")")
-			print("target wheel speeds:", self.targetWheelSpeed)
-			print("real wheel speeds:", self.wheelSpeed) 
+			print("\nheading:", self.heading, "target heading:", self.targetHeading)
+			print("current coords:", self.coords, "target coords:", targetCoords, "(accuracy:", self.gpsAccuracy, ")")
+			print("target speeds:", self.targetSpeed)
+			print("real speeds:", self.realSpeed) 
 			print("distance from target:", distToTarget)
 
 
@@ -428,10 +429,10 @@ class Robot:
 			exit()
 
 		if travelDirection > 0: # should turn right
-			self.wheelSpeed = [targetSpeed, slowerWheelSpeed]
+			self.targetSpeed = [targetSpeed, slowerWheelSpeed]
 
 		elif travelDirection < 0: # should turn left
-			self.wheelSpeed = [slowerWheelSpeed, targetSpeed]
+			self.targetSpeed = [slowerWheelSpeed, targetSpeed]
 
 
 		# return a 0.3 second delay time

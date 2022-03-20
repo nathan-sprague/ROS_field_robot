@@ -1,194 +1,271 @@
-/*
-  This program controls all 4 motors through both serial and radio.
-  What it does:
-    -Calculates and reports speed through serial
-    -Reads input PWM signal from the radio
-    -Drives each motor independently to make them go at their specified speed
 
+// set USE_WIFI to 0 for faster compiling. It won't let you make the website though
+#define USE_WIFI 0
+#define USE_AP 1
 
-  This program only works for the ESP32.
-  In order to control all 4 motors independently, it needs 10 input pins and 4 output pins.
-  Only the ESP32 has a sufficient amount of GPIO pins.
-*/
+#define USE_GPS 1
+
+void ICACHE_RAM_ATTR handleInterrupt();
 
 
 
-/*
-  TO-DOs:
-  general movement:
-    verify main loop
-  Serial control:
-    enable proper communication (single letter commands)
-   PID control:
-    verify control
-    enable "D" control
-    fix all of the situation controls, like stuck
-   radio control:
-    verify
+#if USE_WIFI
 
-*/
+#include <WiFi.h>
+#include <WiFiClient.h>
+#include <WiFiAP.h>
+#include <WebServer.h>
+#include <HTTPClient.h>
+#include <ESPmDNS.h>
 
-#include "MotorController.h"
+#include <AsyncTCP.h>
+#include <ESPAsyncWebServer.h>
 
+AsyncWebServer server(80);
 
-#define NUM_MOTORS 4
+#else
+#if USE_AP
+#include <ESPmDNS.h>
+#include <WiFi.h>
+#include <WiFiAP.h>
+#endif
 
-// define all the pins
-const byte forwardRadioPin = 12;
-const byte turnRadioPin = 13;
+#endif
 
+#if USE_GPS
+#include <Wire.h>
+#include <SparkFun_u-blox_GNSS_Arduino_Library.h> //http://librarymanager/All#SparkFun_u-blox_GNSS
 
-const byte rfEncoderPin1 = 2;
-const byte rfEncoderPin2 = 4;
-
-const byte rbEncoderPin1 = 5;
-const byte rbEncoderPin2 = 18;
-
-const byte lfEncoderPin1 = 19;
-const byte lfEncoderPin2 = 21;
-
-const byte lbEncoderPin1 = 22;
-const byte lbEncoderPin2 = 23;
-
-
-const byte rfWheelPin = 13;
-const byte rbWheelPin = 12;
-const byte lfWheelPin = 14;
-const byte lbWheelPin = 27;
-
-
-
-byte controlType = 1; //  movement is controlled by radio or serial. 0 = radio; 1 = serial
+#include <Adafruit_Sensor.h>
+#include <Adafruit_BNO055.h>
+SFE_UBLOX_GNSS myGNSS;
+Adafruit_BNO055 bno = Adafruit_BNO055(55, 0x28);
+#endif
 
 bool stopNow = false;
 
+unsigned long lastSerialTime = 0;
 
-// interrupt for encoders
-void ICACHE_RAM_ATTR handleInterrupt();
+const int radioPinL = 33;
+const int radioPinR = 32;
 
-// various timers
-unsigned long lastMoveTime = 0;
-unsigned long lastPrintTime = 0;
+const int motorPinL = 23;
+const int motorPinR = 22;
 
-// 4 motors: rf, rb, lf, lb
-MotorController motors[4];
+const int hallPin1 = 27;
+const int hallPin2 = 26;
+const int hallPin3 = 18;
+const int hallPin4 = 19;
 
-// speeds (mph)
-float targetSpeeds[] = {0, 0, 0, 0}; // rf, rb, lf, lb
+bool pwmControl = true;
+
+const int motorChannel = 1;
+const int outputFreq = 100;
+const int resolution = 10;
+
+int pwmLimitLow = 130;
+int pwmLimitHigh = 180;
+
+// unless otherwise specified, {left, right} for all variables
+volatile int pwmIn[] = {0, 0};
+volatile int prevTime[] = {0, 0};
+
+int leadEncoder[2] = {0, 0};
+unsigned long lastHitTime[] = {0, 0};
+long encoderTicks[] = {0, 0};
+
+
+int maximumSpeed = 4;
+
+float wheelSpeed[] = {0, 0};
+
+float proportionalError[] = {0, 0};
+float derivativeError[] = {0, 0};
+float integratedError[] = {0, 0};
+bool altEncoderActivated[] = {false, false};
+
+float targetSpeed[] = {0, 0};
+float pwmSpeed[] = {155, 155};
+
+float kp = 1;
+float ki = 0;
+float kd = 0;
+
+int goingForward[] = {1, 1};
 
 
 
-void interrupt1() {
-  motors[0].updateEncoder1();
-}
-
-void interrupt2() {
-  motors[0].updateEncoder2();
-}
-
-
-
-
+// function declarations
+void setMotorSpeed();
 
 
 
 
 void setup() {
   Serial.begin(115200);
+  attachInterrupt(digitalPinToInterrupt(hallPin1), updateEncoder1, CHANGE);
+  attachInterrupt(digitalPinToInterrupt(hallPin2), updateEncoder2, CHANGE);
 
-  Serial.println("setting up radio");
+  attachInterrupt(digitalPinToInterrupt(hallPin3), updateEncoder3, CHANGE);
+  attachInterrupt(digitalPinToInterrupt(hallPin4), updateEncoder4, CHANGE);
 
-  setupRadioPins();
+  pinMode(radioPinL, INPUT);
+  pinMode(radioPinR, INPUT);
 
-
-  Serial.println("adding interrupts");
-
-  // set interrupt to switch to radio control if there is a radio signal
-  //  attachInterrupt(digitalPinToInterrupt(forwardRadioPin), setRadioControl, CHANGE);
-  //    attachInterrupt(digitalPinToInterrupt(turnRadioPin), setRadioControl, CHANGE);
-
-
-  Serial.println("setting motor pins");
-  // set pins for rf motor
-  motors[0].encoderPin1 = rfEncoderPin1;
-  motors[0].encoderPin2 = rfEncoderPin2;
-  motors[0].pwmPin = rfWheelPin;
-  motors[0].motorChannel = 1;
-  motors[0].setupPins();
-  attachInterrupt(digitalPinToInterrupt(rfEncoderPin1), interrupt1, CHANGE);
-  attachInterrupt(digitalPinToInterrupt(rfEncoderPin2), interrupt2, CHANGE);
+  attachInterrupt(digitalPinToInterrupt(radioPinL), leftPwmIntRise, RISING);
+  attachInterrupt(digitalPinToInterrupt(radioPinR), rightPwmIntRise, RISING);
 
 
-  // set pins for rb motor
-  motors[1].encoderPin1 = rbEncoderPin1;
-  motors[1].encoderPin2 = rbEncoderPin2;
-  motors[1].pwmPin = rbWheelPin;
-  motors[1].motorChannel = 2;
-  motors[1].setupPins();
+  ledcSetup(1, outputFreq, resolution);
+  pinMode(motorPinR, OUTPUT);
+  ledcAttachPin(motorPinR, 1);
 
-  // set pins for lf motor
-  motors[2].encoderPin1 = lfEncoderPin1;
-  motors[2].encoderPin2 = lfEncoderPin2;
-  motors[2].pwmPin = lfWheelPin;
-  motors[2].motorChannel = 3;
-  motors[2].setupPins();
+  ledcSetup(2, outputFreq, resolution);
+  pinMode(motorPinL, OUTPUT);
+  ledcAttachPin(motorPinL, 2);
 
-  // set pins for lb motor
-  motors[3].encoderPin1 = lbEncoderPin1;
-  motors[3].encoderPin2 = lbEncoderPin2;
-  motors[3].pwmPin = lbWheelPin;
-  motors[3].motorChannel = 4;
-  motors[3].setupPins();
+
+#if USE_WIFI
+  setupAP();
+  setupPages();
+  server.begin();
+#else
+#if USE_AP
+  setupAP();
+#endif
+#endif
+
+#if USE_GPS
+  beginGPS();
+  bno.begin();
+#endif
 
 
 
-  Serial.println("done");
+}
 
-  delay(1000);
+void calculateSpeed() {
+
+  int wheelNum = 0;
+
+
+  while (wheelNum < 2) {
+
+    float timeBetweenHits = (millis() - lastHitTime[wheelNum]);
+    float ws = 0;
+
+    if (timeBetweenHits != 0) {
+      ws = encoderTicks[wheelNum] / timeBetweenHits / 10;
+    }
+    //
+    encoderTicks[wheelNum] = 0;
+
+    lastHitTime[wheelNum] = millis();
+
+
+    // this backwards calculation doesn't work (one encoder doesnt work right now for some reason)
+    if (leadEncoder[0] == 0 && leadEncoder[1] == 1) { // backwards
+      ws *= -1;
+    }
+
+    // this backwards calculation should
+    if (pwmSpeed[wheelNum] < 155 && pwmSpeed[wheelNum] > 90 && abs(ws) < 0.3) { // going backwards
+      goingForward[wheelNum] = -1;
+
+
+    } else if (pwmSpeed[wheelNum] > 155 && abs(ws) < 0.3) {  // going forwards
+      goingForward[wheelNum] = 1;
+    }
+
+
+    wheelSpeed[wheelNum]  = ws * goingForward[wheelNum];
+
+
+    derivativeError[wheelNum] += (proportionalError[wheelNum] - (targetSpeed[wheelNum] - wheelSpeed[wheelNum])) / (timeBetweenHits / 100.0);
+
+    integratedError[wheelNum] += (targetSpeed[wheelNum] - wheelSpeed[wheelNum]) / (timeBetweenHits / 100.0);
+
+    proportionalError[wheelNum] = (targetSpeed[wheelNum] - wheelSpeed[wheelNum]);
+
+
+    wheelNum++;
+  }
+
+}
+
+void updateEncoder1() {
+  if (digitalRead(hallPin1) == HIGH) { // pin is turning high
+
+    // directional control not working for some reason
+    if (altEncoderActivated[1]) {
+      //      goingForward[0] = false; // going backwards
+
+    } else {
+      //      goingForward[0] = true; // going forwards
+    }
+  }
+  encoderTicks[0]++; // add 1 to the number of ticks experienced
+}
+
+void updateEncoder2() {
+  if (hallPin1 == HIGH) {
+    altEncoderActivated[0] = true;
+  } else {
+    altEncoderActivated[0] = false;
+  }
+}
+
+void updateEncoder3() {
+  if (digitalRead(hallPin3) == HIGH) { // pin is turning high
+
+    // directional control not working for some reason
+    if (altEncoderActivated[1]) {
+      //      goingForward[1] = false; // going backwards
+
+    } else {
+      //      goingForward[1] = true; // going forwards
+    }
+  }
+  encoderTicks[1]++; // add 1 to the number of ticks experienced
+}
+
+void updateEncoder4() {
+  if (hallPin3 == HIGH) {
+    altEncoderActivated[1] = true;
+  } else {
+    altEncoderActivated[1] = false;
+  }
 }
 
 
 
 void loop() {
-  if (controlType == 0) { // radio control
 
-    radioControl();
+  readSerial();
 
+  calculateSpeed();
 
-    for (int i = 0; i < NUM_MOTORS; i++) {
-      motors[i].pwmOut = targetSpeeds[i];
-    }
-
-
-
-  } else { // serial control
-
-    processSerial(); // check if there are any serial commands
-
-
-    // find ideal pwm of each motor
-    //    for (int i = 0; i < NUM_MOTORS; i++) {
-    //      motors[i].pwmOut = motors[i].findIdealPWM(targetSpeeds[i]);
-    //    }
-
+  if (millis() - lastSerialTime > 1000 && false) { // haven't gotten a serial message for a second. Switch over to radio control
+    readRadioSpeed();
   }
 
+#if USE_GPS
+  readGPS();
+#endif
 
-  // estimate, print, and set speed of each motor
-  for (int i = 0; i < NUM_MOTORS; i++) {
-
-    //    motors[i].calculateSpeed();
-
-    //    motors[i].setMotorSpeed(stopNow);
-
+  if (stopNow) {
+    targetSpeed[0] = 0;
+    targetSpeed[1] = 0;
+    pwmSpeed[0] = 0;
+    pwmSpeed[1] = 0;
+    ledcWrite(1, 0);
+    ledcWrite(2, 0);
+  } else if (pwmControl) {
+    setMotorSpeed();
   }
 
-  if (millis() - 500 > lastPrintTime) {
-    lastPrintTime = millis();
-    Serial.println("current speeds: " + String(motors[0].currentSpeed, 2) + ", " + String(motors[2].currentSpeed, 2));
-    Serial.println("pwm speeds: " + String(motors[0].pwmOut) + ", " + String(motors[2].pwmOut));
-    Serial.println("target speeds: " + String(targetSpeeds[0]) + ", " + String(targetSpeeds[2]) + "\n");
-  }
+  sendSerial();
 
+  delay(5);
 
 }

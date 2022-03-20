@@ -2,9 +2,14 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="7c57f5bc-62f0-4916-a378-e221f12e6aa4" name="Default Changelist" comment="improved navigation and controls. Added rgb camera support">
+      <change afterPath="$PROJECT_DIR$/robot_v1/robot_website.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/video_nav_types/__init__.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/video_nav_types/find_string.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/video_nav_types/image_tools.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/video_nav_types/standard.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/video_nav_types/video_navigation.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/robot_navigation_2.py" beforeDir="false" afterPath="$PROJECT_DIR$/robot_navigation_2.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/robot_website.py" beforeDir="false" afterPath="$PROJECT_DIR$/robot_website.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -21,6 +26,9 @@
   <component name="Git.Settings">
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
     <option name="UPDATE_TYPE" value="MERGE" />
+  </component>
+  <component name="MarkdownSettingsMigration">
+    <option name="stateVersion" value="1" />
   </component>
   <component name="ProjectId" id="1slp0oCFt9kKdi9v2qP9mJ9buK9" />
   <component name="ProjectLevelVcsManager">

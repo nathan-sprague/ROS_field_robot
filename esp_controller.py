@@ -23,8 +23,8 @@ class Esp():
 
         # These are the messages to send (dictionary)
         # the format is:
-        #   "Character prefix": [value to send, whether it was refreshed (needs to be sent)]
-        # The prefix is tells the ESP32 what kind of message it is, and the boolean tag specifying whether it should be sent prevents too much serial traffic
+        #   {"Character prefix": [value to send, whether it was refreshed (needs to be sent)]}
+        # The prefix is tells the ESP32 what kind of message it is, and the boolean tag specifying xwhether it should be sent prevents too much serial traffic
         self.messagesToSend = {"l": ["", True], "g":["", False]}
 
         # this is the serial device that you use to read and write things. It is intialized in the begin function. For now it is just a boolean
@@ -159,32 +159,26 @@ class Esp():
                 self.robot.coords[1] = res
                 self.robot.lastUpdatedDist = self.robot.distanceTraveled
 
-            elif msgType == "w":  # wheel speed
-                self.robot.wheelSpeed = res
+            elif msgType == "l":  # left wheel speed
+                self.robot.wheelSpeed[0] = res
 
-            elif msgType == "d":  # distance
-                self.robot.distanceTraveled = res
-                self.robot.updateCoords()
+            elif msgType == "r":  # right wheel speed
+                self.robot.wheelSpeed[1] = res
 
             elif msgType == "h": # heading from GPS
                 self.robot.heading = res
 
-            elif msgType == "c": # heading from compass
-                pass
-#                self.robot.heading = res
-
-            elif msgType == "t": # accuracy of GPS
+            elif msgType == "a": # accuracy of GPS
                 self.robot.gpsAccuracy = res
             
             elif msgType == "s": # stopped
                 self.stopped = res
             
             elif msgType == "o": # An error occured represented by a number. Deal with it elsewhere
-                if [res, self] not in self.robot.errorList:
-                    self.robot.errorList += [[res, self]]
+                pass
 
             elif msgType == "e": # role of ESP
-                espTypes = ["unknown", "speed", "access point"]
+                espTypes = ["unknown", "movement", "access point"]
                 if res < len(espTypes):
                     if espTypes[int(res)] != self.espType:
                         self.setESPType(espTypes[int(res)])
@@ -197,10 +191,16 @@ class Esp():
         Sets up the messages associated to send the ESP32 depending on the type of ESP it is.
         """
         if espType == "speed":
-            self.messagesToSend = {"f": ["0", False], "m": ["0", False], "s": ["", False], "g": ["", False], "r": ["", False], "l": ["", False]}
+            # send:
+                # left target speed
+                # right target speed
+                # stop
+                # go
+            self.messagesToSend = {"l": ["0", False], "r": ["0", False], "s": ["", False], "g": ["", False], "r": ["", False], "l": ["", False]}
 
+            # nothing to send the ap esp32
         if espType == "access point":
-            self.messagesToSend = {"l": ["", False], "s": ["", False], "g": ["", False], "r": ["", False]}
+            self.messagesToSend = {}
         
         print("set up esp " + espType)
         self.espType = espType
@@ -236,8 +236,7 @@ class Esp():
                     # send an empty message to prevent the ESP from assuming an error in communication
                     self.device.write(bytes(".", 'utf-8'))
                     time.sleep(0.2)
-                    # print("sent empty")
-              #      print(self.messagesToSend)
+   
 
     def restart(self):
         """
@@ -256,7 +255,7 @@ class Esp():
         """
 
         # Set the various message names to what the robot is targeting, namely the wheel speed
-        fullMessages = {"f": str(self.robot.targetSpeed), "m": str(self.robot.targetMoveDist), "r": "", "s": "", "g": "", "l": ""}
+        fullMessages = {"l": str(self.robot.targetSpeed[0]), "r": str(self.robot.targetSpeed[0]), "r": "", "s": "", "g": "", "l": ""}
 
         # manually set he message if the robot is told to stop or go.
         if self.robot.stopNow:

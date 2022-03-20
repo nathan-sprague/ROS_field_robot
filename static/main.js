@@ -1,16 +1,14 @@
-var desSteer=0;
-var desSpeed=0;
 
-var realAngle = 0;
-var realSpeed = 0;
+var targetSpeed = [0,0];
 
-var latitude = 0;//40.421779;
-var longitude = 0;//-86.919310;
+var realSpeed = [0,0];
 
-var pointsList = {};
-var pointsListVersion = -1;
-// var pointsOnMap = {"black": [10, [40.421779, -86.919310], [40.421806, -86.919074], [40.421824, -86.918487], [40.421653, -86.918739], [40.421674, -86.919232]]};
-var allPoints = [];
+var latitude = 0;
+var longitude = 0;
+
+var destinations = [];
+var haveDestinations = 0;
+
 var stop = 0;
 
 var targPosApplied = false;
@@ -18,12 +16,6 @@ var targPosApplied = false;
 var heading = 0;
 var targetHeading = 0;
 
-var overriding = false;
-
-
-
-elements = [1,2,3,4];
-var subPoints = {}
 
 console.log("Starting");
 
@@ -33,96 +25,58 @@ function sendInfo(){
 
  if (ready){
    // ready = false;
-     var xhttp = new XMLHttpRequest();
-     xhttp.onreadystatechange = function() {
-       if (this.readyState == 4 && this.status == 200) {
-          info = JSON.parse(this.responseText);
-          console.log(info);
-          latitude = info["coords"][0];
-          longitude = info["coords"][1];
+  var xhttp = new XMLHttpRequest();
+  xhttp.onreadystatechange = function() {
+    if (this.readyState == 4 && this.status == 200) { 
+      console.log(this.responseText);
 
-          wheelSpeed = info["wheelSpeed"];
+      info = JSON.parse(this.responseText);
+      console.log(info);
+
+      latitude = info["coords"][0];
+
+      longitude = info["coords"][1];
+
+      realSpeed = info["realSpeed"];
+
+      targetSpeed = info["targetSpeed"]
+
+
+
+      heading = info["heading"];
+      targetHeading = info["targetHeading"];
+
+      if ("destinations" in info) { // sometimes doesnt send destinations since it is a big array of a lot of data
+        destinations = info["destinations"];
+        console.log("destinations:", destinations);
+        haveDestinations = 0;
+      }
+
+      setScale();
+      drawBoard();
+
+
+      document.getElementById("leftSpeed").innerHTML = realSpeed[0];
+      document.getElementById("rightSpeed").innerHTML = realSpeed[1];
+
+      document.getElementById("lat").innerHTML = latitude;
+      document.getElementById("long").innerHTML = longitude;
+
+      document.getElementById("targetHeading").innerHTML = targetHeading;
+      document.getElementById("heading").innerHTML = heading;
+
+      document.getElementById("desLeftSpeed").innerHTML = targetSpeed[0];
+      document.getElementById("desRightSpeed").innerHTML = targetSpeed[1];
+
           
-
-          realAngle = info["realAngle"];
-      
-          heading = info["heading"];
-          targetHeading = info["targetHeading"];
-
-          if ("pointsList" in info) {
-            
-
-            pointsList = info["pointsList"];
-            console.log("points list", pointsList);
-          //  pointsListVersion = info["pointsListVersion"];
-            // console.log(pointsListVersion);
-        //    k = Object.keys(pointsList);
-
-            j=0;
-            allPoints = [];
-            while (j<pointsList.length){
-              allPoints.push(pointsList[j]["coord"]);
-              j+=1;
-            }
-            console.log("all points", allPoints);
-
-
-         //   updateDestinations();
-
-          }
-
-          document.getElementById("speed").innerHTML = wheelSpeed;
-          document.getElementById("angle").innerHTML = realAngle;
-
-          document.getElementById("lat").innerHTML = latitude;
-          document.getElementById("long").innerHTML = longitude;
-
-          document.getElementById("targetHeading").innerHTML = targetHeading;
-          document.getElementById("heading").innerHTML = heading;
-
-          if (!overriding){
-              desSpeed = info["targetSpeed"];
-              desSteer = info["targetAngle"];
-
-              document.getElementById("desSpeed").innerHTML = desSpeed;
-              document.getElementById("desAngle").innerHTML = desSteer;
-          }
-          
-          
-          setScale();
-          drawBoard();
-
-
-
-       } else if (this.status == 0){
+       } else if (this.status == 0){ // did not get correct message
          // ready = false;
         }
      };
 
-      //displaySpeed();
-
-
     shouldOverride = 1;
-    if (overriding){
-      argList = "?override=1";
-     if (!stop){
-
-        argList += "&angle=" + desSteer + "&speed=" + desSpeed;
-      }
-    } else {
-
-      argList = "?override=0"
-    }
-    if (stop){
-      argList += "&s=1"
-    }
-
-    // if (coordListVersion == -2){
-    //   argList += "&targetPositions=" + targetPositions.toString()
-    // }
-
-
-    argList += "&pointsListVersion=" + pointsListVersion;
+    
+    argList = "?haveDestinations=" + haveDestinations;
      
 
 
@@ -136,57 +90,13 @@ function sendInfo(){
 
 
 
-//-40.00a0.00w93h0.0x0.0y[40.421779, -86.91931],[40.421806, -86.919074],[40.421824, -86.918487],[40.421653, -86.918739],[40.421674, -86.919232]c-65.05924190668195t
+/*
+From here down, I have no idea what happens exactly. 
+It takes the coordinates of the robot and the destinations, and draws it.
+There are some equations I used to automatically set the scale for the map and translate coordinates to an XY system.
+It works so don't touch it unless you plan to re-write everything.
+*/
 
-function changeSpeed(val){
-    if (overriding){
-      if ((val == 87 || val == 38) && desSpeed<15) { // forward
-       desSpeed+=1;
-      } else if ((val == 83 || val == 40) && desSpeed>-15) {  // backward
-       desSpeed-=1;
-
-      } else if ((val == 65 || val == 37) && desSteer>-40) { // left
-       desSteer-=1;
-      } else if ((val == 68 || val == 39) && desSteer<40) { //right
-       desSteer+=1;
-      }
-      console.log(desSteer,desSpeed);
-      
-      if ((val == 32)){ // stop
-        desSteer=0;
-        desSpeed=0;
-        sendInfo();
-      }
-      displaySpeed();
-    }
-}
-
-
-function displaySpeed(){
-
-     document.getElementById("desSpeed").innerHTML = desSpeed;
-      document.getElementById("desAngle").innerHTML = desSteer;
-    }
-
-function stopNow(){
-  if (document.getElementById("stop").innerHTML == "STOP"){
-    stop = 1;
-    changeSpeed(32);
-    document.getElementById("stop").innerHTML = "GO";
-  } else {
-    stop = 0;
-    document.getElementById("stop").innerHTML = "STOP";
-  }
-}
-
-
-
-
-
-
-// var targetPositions = [[47.607533, -122.217883], [26.024640, -81.102921], [45.782204, -66.304858]]; // washington, Florida, Maine
-
-// var targetPositions = [[40.424080, -86.925006], [40.423919, -86.913810], [40.418749, -86.913530], [40.419322, -86.924389]];
 function drawBoard(){
       var c = document.getElementById("mainCanvas");
       var ctx = c.getContext("2d");
@@ -196,12 +106,6 @@ function drawBoard(){
       }
       drawDestinations(ctx);
       drawRobot(ctx);
-
-
-      // ctx.beginPath();
-      // ctx.moveTo(x, y);
-      // ctx.lineTo(x, y);
-      // ctx.stroke();
 }
 
 var canvasScale = 0;
@@ -209,18 +113,18 @@ var canvasScale = 0;
 
 function setScale(){
   console.log("set scale");
-//  console.log(allPoints);
-    longitude0=0
+  longitude0=0
   latitude0 =0
   var longCorrection = Math.cos(latitude*Math.PI/180);
-  console.log("all points", allPoints);
-  if (allPoints.length==0){
+
+
+  if (destinations.length==0){
     canvasScale = 1;
     document.getElementById("scale").value = Math.floor(canvasScale);
     return;
   }
 
-  var tp =  [...allPoints];
+  var tp =  [...destinations];
   tp.push([latitude, longitude]);
   // longCorrection = 1;
  // console.log(longCorrection);
@@ -268,12 +172,7 @@ function setScale(){
     if (canvasScale > 1){
       canvasScale -= 1;
     }
-    // if (canvasScale > 9000000){
-    //   canvasScale = 9000000;
-      //console.log("scale", canvasScale);
-      
-      
-    // }
+
   }
 
   document.getElementById("scale").value = canvasScale;
@@ -288,10 +187,7 @@ function getOrderOfMagnitude(n) {
     return order;
 }
 
-function drawGrids(){
 
-
-}
 
 function coordToCtx(lat, long){
   var longCorrection = Math.cos(latitude*Math.PI/180);
@@ -317,11 +213,8 @@ function ctxToCoord(x, y){
 
 
 function clickEvent(event){
-    var clickedCoords = ctxToCoord(event.offsetX, event.offsetY);
+  var clickedCoords = ctxToCoord(event.offsetX, event.offsetY);
   console.log(clickedCoords);
-  document.getElementById("desLatInput").value = clickedCoords[0];
-  document.getElementById("desLongInput").value = clickedCoords[1];
-
 }
 
 
@@ -333,8 +226,8 @@ function drawDestinations(ctx){
 
 
     n = 0
-    while (n<pointsList.length){
-      c = pointsList[n]["coord"]
+    while (n<destinations.length){
+      c = destinations[n]
       console.log(c)
       coords = coordToCtx(c[0], c[1]);
     
@@ -344,24 +237,8 @@ function drawDestinations(ctx){
       
 
       color = "black";
-      ptSize = 2;
+      ptSize = 4;
 
-      if (pointsList[n]["destType"]=="point"){
-        color = "black";
-        ptSize = 5;
-
-      } else if (pointsList[n]["destType"]=="beginRow"){
-        color = "green";
-        ptSize = 6;
-
-      } else if (pointsList[n]["destType"]=="endRow"){
-        color = "blue";
-        ptSize = 6;
-
-      } else if (pointsList[n]["destType"]=="subPoint"){
-        color = "yellow";
-        ptSize = 2;
-      }
         
       ctx.fillStyle = color;
       ctx.strokeStyle = color;
@@ -371,18 +248,18 @@ function drawDestinations(ctx){
       ctx.arc(x, y, ptSize, 0, 2 * Math.PI);
       ctx.fill();
       ctx.stroke();
-      if (pointsList["destType"]=="point"){
-        ctx.font = '25px serif';
-        ctx.fillText(n+1, x-5, y-10);
-        ctx.stroke();
-      }
+      
+      ctx.font = '25px serif';
+      ctx.fillText(n+1, x-5, y-10);
+      ctx.stroke();
+      
       console.log("drew at", x,y)
       n+=1;
     }
 
-  while (i<allPoints.length){
+  while (i<destinations.length){
 
-    var coords = coordToCtx(allPoints[i][0], allPoints[i][1]);
+    var coords = coordToCtx(destinations[i][0], destinations[i][1]);
 
     i+=1;
   }
@@ -405,10 +282,11 @@ function drawRobot(ctx){
     ctx.fill();
     ctx.stroke();
 
+
+    // real heading
     ctx.strokeStyle = "red";
     ctx.beginPath();
     ctx.moveTo(x,y);
-
 
     var otherX = x+Math.cos(heading*Math.PI/180-Math.PI/2)*30;
     var otherY = y+Math.sin(heading*Math.PI/180-Math.PI/2)*30
@@ -417,17 +295,8 @@ function drawRobot(ctx){
     ctx.stroke();
 
 
-    ctx.beginPath();
-    ctx.moveTo(x,y);
-    ctx.strokeStyle = "green";
-    console.log(heading+realAngle)
 
-    otherX = x+Math.cos((heading+realAngle)*Math.PI/180-Math.PI/2)*30;
-    otherY = y+Math.sin((heading+realAngle)*Math.PI/180-Math.PI/2)*30
-    ctx.lineTo(otherX, otherY);
-    // console.log(otherX, otherY);
-    ctx.stroke();
-
+    // target heading
     ctx.beginPath();
     ctx.moveTo(x,y);
     ctx.strokeStyle = "blue";
@@ -453,11 +322,10 @@ function toggleOverride(){
 
 function begin(){
 
-  displaySpeed();
   drawBoard();
  // updateDestinations();
   // processInfo("-40.00a0.00w93h40.421669x-86.91911y[40.421779, -86.91931],[40.421806, -86.919074],[40.421824, -86.918487],[40.421653, -86.918739],[40.421674, -86.919232]c-65.05924190668195t")
-  var requestInt = setInterval(sendInfo, 500);
+  var requestInt = setInterval(sendInfo, 200);
 
 }
 

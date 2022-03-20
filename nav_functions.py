@@ -37,7 +37,7 @@ def atDestination(coords1, coords2, tolerance=5.0):
     # checks if the two points are on top of each other within specified tolerance
 
     x, y = findDistBetween(coords1, coords2)
-    # print("distance away: ", x, y)
+
     if x * x + y * y < tolerance * tolerance:
         return True
     else:
@@ -72,17 +72,15 @@ def findAngleBetween(coords1, coords2):
 
 
 
-def findDiffWheelSpeeds(distToTarget, currentHeading, targetHeading, finalHeading = False, turnConstant = 10, destTolerance = 5):
-    ### NOTE: RIGHT NOW IT JUST MAKES IT DO A 0-POINT TURN. IT DOES NOT DO WHAT IT SAYS IN THE DESCRIPTION
-
-
+def findDiffSpeeds(distToTarget, currentHeading, targetHeading, finalHeading = False, turnConstant = 1, destTolerance = 5):
+    ### NOTE: RIGHT NOW IT DOESNT USE ALL THE PARAMETERS. WILL EVENTUALLY MAKE IT "SMARTER"
     """
     Finds the optimal speed for each wheel to reach the destination, at the desired heading. 
     This allows the robot to turn as it is moving toward its target, rather than doing a 0-point turn every time
     The further the robot is from the target, the robot will make a larger radius turn.
 
     parameters:
-    distToTarget: distance robot is from target (feet)
+    distToTarget: distance robot is from target (tuple)
     currentHeading: heading of robot (degrees)
     targetHeading: direction of target (degrees)
     finalHeading: angle the robot should end at (degrees)
@@ -99,23 +97,28 @@ def findDiffWheelSpeeds(distToTarget, currentHeading, targetHeading, finalHeadin
     # heading difference: 90; distToTarget: 0; --> [100, -100] (turn but dont move, zero point turn)
     # heading difference: -90; distToTarget: 0; --> [-100, 100] (same as above, but other direction)
 
-    headingDiff = findSteerAngle(targetHeading, currentHeading)
 
-    if headingDiff > 20:
-        return [100, -100]
-
-    elif headingDiff < 20:
-        return [100, -100]
-
-    if distToTarget < destTolerance and finalHeading != False:
-        headingDiff = findSteerAngle(finalHeading, currentHeading)
-        if headingDiff > 20:
-           return [100, -100]
-
-        elif headingDiff < 20:
-            return [100, -100]
+    headingDiff = findShortestAngle(targetHeading, currentHeading)
+    dist1 = (distToTarget[0]*distToTarget[0] + distToTarget[1]*distToTarget[1])**0.5 # distance from target feet
     
-    return [100,100]
+
+    headingDiff *= turnConstant
+
+
+
+    if abs(headingDiff) > 180:
+        headingDiff = 180 * headingDiff/abs(headingDiff)
+
+    fasterSpeed = 100
+    slowerSpeed = fasterSpeed - 200 * abs(headingDiff/180)
+
+    if headingDiff > 5:
+        return [fasterSpeed, slowerSpeed]
+    elif headingDiff < 5:
+        return [slowerSpeed, fasterSpeed]
+
+    return [fasterSpeed, fasterSpeed]
+
 
 
 

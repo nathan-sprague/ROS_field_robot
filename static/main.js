@@ -28,10 +28,10 @@ function sendInfo(){
   var xhttp = new XMLHttpRequest();
   xhttp.onreadystatechange = function() {
     if (this.readyState == 4 && this.status == 200) { 
-      console.log(this.responseText);
+      // console.log(this.responseText);
 
       info = JSON.parse(this.responseText);
-      console.log(info);
+      // console.log(info);
 
       latitude = info["coords"][0];
 
@@ -80,11 +80,11 @@ function sendInfo(){
      
 
 
-    console.log("arg list", argList);
+    // console.log("arg list", argList);
      xhttp.open('GET', '/_info' + argList, true);
      xhttp.send();
  } else {
-    console.log("not ready");
+    // console.log("not ready");
  }
 }
 
@@ -112,7 +112,7 @@ var canvasScale = 0;
 // drawBoard();
 
 function setScale(){
-  console.log("set scale");
+  // console.log("set scale");
   longitude0=0
   latitude0 =0
   var longCorrection = Math.cos(latitude*Math.PI/180);
@@ -220,7 +220,7 @@ function clickEvent(event){
 
 function drawDestinations(ctx){
   a = [40.4216702, -86.9184231]//coordToCtx(40,-80);
-  console.log("convert", coordToCtx(a[0],a[1]));
+  // console.log("convert", coordToCtx(a[0],a[1]));
   var i = 0;
     // console.log(targetPositions);
 
@@ -228,7 +228,7 @@ function drawDestinations(ctx){
     n = 0
     while (n<destinations.length){
       c = destinations[n]
-      console.log(c)
+      // console.log(c)
       coords = coordToCtx(c[0], c[1]);
     
       var x = coords[0];
@@ -242,7 +242,7 @@ function drawDestinations(ctx){
         
       ctx.fillStyle = color;
       ctx.strokeStyle = color;
-      console.log(color +" made size: " + ptSize);
+      // console.log(color +" made size: " + ptSize);
 
       ctx.beginPath();
       ctx.arc(x, y, ptSize, 0, 2 * Math.PI);
@@ -253,7 +253,7 @@ function drawDestinations(ctx){
       ctx.fillText(n+1, x-5, y-10);
       ctx.stroke();
       
-      console.log("drew at", x,y)
+      // console.log("drew at", x,y)
       n+=1;
     }
 

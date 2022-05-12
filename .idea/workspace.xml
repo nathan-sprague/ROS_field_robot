@@ -2,14 +2,45 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="7c57f5bc-62f0-4916-a378-e221f12e6aa4" name="Default Changelist" comment="improved navigation and controls. Added rgb camera support">
-      <change afterPath="$PROJECT_DIR$/robot_v1/robot_website.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/video_nav_types/__init__.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/video_nav_types/find_string.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/video_nav_types/image_tools.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/video_nav_types/standard.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/video_nav_types/video_navigation.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/log_1649688970.txt" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/log_1649689073.txt" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/log_1649689097.txt" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/log_1649689103.txt" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/log_1649689121.txt" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/log_1649689143.txt" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/logs/cmake-3.13.0.tar.gz" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/logs/log_1649087967.txt" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/logs/log_1649088024.txt" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/logs/log_1649088873.txt" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/logs/log_1649088975.txt" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/logs/log_1649089032.txt" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/logs/log_1649089041.txt" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/logs/log_1649089061.txt" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/logs/log_1649089107.txt" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/logs/log_1649089116.txt" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/logs/log_1649089134.txt" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/logs/log_1649089172.txt" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/logs/log_1649089183.txt" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/logs/log_1649089185.txt" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/logs/log_1649089196.txt" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/logs/log_1649089208.txt" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/logs/log_1649089214.txt" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/logs/log_1649089240.txt" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/logs/log_1649089269.txt" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/logs/log_1649089454.txt" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/logs/log_1649089611.txt" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/logs/log_1649089698.txt" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/logs/log_1649089836.txt" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/logs/log_1649089926.txt" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/logs/log_1649089978.txt" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/logs/log_1649090030.txt" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/esp32_movement/esp32_movement.ino" beforeDir="false" afterPath="$PROJECT_DIR$/esp32_movement/esp32_movement.ino" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/esp_controller.py" beforeDir="false" afterPath="$PROJECT_DIR$/esp_controller.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/esp_tester.py" beforeDir="false" afterPath="$PROJECT_DIR$/esp_tester.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/robot_navigation_2.py" beforeDir="false" afterPath="$PROJECT_DIR$/robot_navigation_2.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/robot_v1/ESP32_sensors_ap/ESP32_sensors_ap.ino" beforeDir="false" afterPath="$PROJECT_DIR$/robot_v1/ESP32_sensors_ap/ESP32_sensors_ap.ino" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/robot_v1/deleteme.py" beforeDir="false" afterPath="$PROJECT_DIR$/robot_v1/deleteme.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -53,7 +84,7 @@
       <recent name="$PROJECT_DIR$/esp32_robot" />
     </key>
   </component>
-  <component name="RunManager" selected="Python.video_navigation">
+  <component name="RunManager" selected="Python.can_tester">
     <configuration default="true" type="PythonConfigurationType" factoryName="Python">
       <module name="ROS_field_robot2" />
       <option name="INTERPRETER_OPTIONS" value="" />
@@ -67,6 +98,27 @@
       <option name="ADD_CONTENT_ROOTS" value="true" />
       <option name="ADD_SOURCE_ROOTS" value="true" />
       <option name="SCRIPT_NAME" value="$PROJECT_DIR$" />
+      <option name="PARAMETERS" value="" />
+      <option name="SHOW_COMMAND_LINE" value="false" />
+      <option name="EMULATE_TERMINAL" value="false" />
+      <option name="MODULE_MODE" value="false" />
+      <option name="REDIRECT_INPUT" value="false" />
+      <option name="INPUT_FILE" value="" />
+      <method v="2" />
+    </configuration>
+    <configuration name="can_tester" type="PythonConfigurationType" factoryName="Python" nameIsGenerated="true">
+      <module name="ROS_field_robot2" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs>
+        <env name="PYTHONUNBUFFERED" value="1" />
+      </envs>
+      <option name="SDK_HOME" value="$USER_HOME$/dev/visionenv/bin/python" />
+      <option name="WORKING_DIRECTORY" value="$USER_HOME$/Desktop/CAN_Logger" />
+      <option name="IS_MODULE_SDK" value="false" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <option name="SCRIPT_NAME" value="$USER_HOME$/Desktop/CAN_Logger/can_tester.py" />
       <option name="PARAMETERS" value="" />
       <option name="SHOW_COMMAND_LINE" value="false" />
       <option name="EMULATE_TERMINAL" value="false" />
@@ -183,6 +235,7 @@
     <list>
       <item itemvalue="Python.playback_navigation" />
       <item itemvalue="Python.realsense" />
+      <item itemvalue="Python.can_tester" />
       <item itemvalue="Python.robot_simulation" />
       <item itemvalue="Python.sensors_test" />
       <item itemvalue="Python.video_navigation" />

@@ -49,8 +49,9 @@ class Esp():
 
 
     def update(self):
+        self.robot.coords = [40.422313, -86.916339]
         while self.robot.notCtrlC:
-            self.robot.coords = [40.422313, -86.916339]
+            
             updateSpeed = 0.1
             time.sleep(updateSpeed)
             self.robot.gpsAccuracy = 0.1

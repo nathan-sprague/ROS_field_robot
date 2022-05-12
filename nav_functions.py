@@ -110,7 +110,7 @@ def findDiffSpeeds(distToTarget, currentHeading, targetHeading, finalHeading = F
         headingDiff = 180 * headingDiff/abs(headingDiff)
 
     fasterSpeed = 100
-    slowerSpeed = fasterSpeed - 200 * abs(headingDiff/180)
+    slowerSpeed = fasterSpeed - (200 * abs(headingDiff/180)) * 0.5 # i added the *0.5 to reduce turn amount. May or may not be right.
 
     if headingDiff > 5:
         return [fasterSpeed, slowerSpeed]

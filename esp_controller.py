@@ -190,13 +190,13 @@ class Esp():
         """
         Sets up the messages associated to send the ESP32 depending on the type of ESP it is.
         """
-        if espType == "speed":
+        # if espType == "speed":
             # send:
                 # left target speed
                 # right target speed
                 # stop
                 # go
-            self.messagesToSend = {"l": ["0", False], "r": ["0", False], "s": ["", False], "g": ["", False], "r": ["", False], "l": ["", False]}
+        self.messagesToSend = {"l": ["0", False], "r": ["0", False], "s": ["", False], "g": ["", False], "r": ["", False], "l": ["", False]}
 
             # nothing to send the ap esp32
         if espType == "access point":

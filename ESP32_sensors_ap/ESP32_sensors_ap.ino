@@ -19,7 +19,8 @@ float bnoHeading = 0;
 float heading = 0;
 bool gpsUpdated = false;
 
-
+float lastHeadingLong = 0;
+float lastHeadingLat = 0;
 
 /*
   The connections are:
@@ -94,8 +95,7 @@ bool beginGPS() {
 void getPosition() {
   //  Serial.println(".getting position");
 
-  float heading = float(myGNSS.getHeading()) / 100000;
-  bnoCorrection = heading - bnoHeading;
+
 
 
   float latitude = float(myGNSS.getLatitude()) / 10000000;
@@ -115,13 +115,31 @@ void getPosition() {
   f_accuracy = f_accuracy / 10000.0; // Convert from mm * 10^-1 to m
 
 
+  float longDif = longitude - lastHeadingLong;
+  float latDif = latitude - lastHeadingLat;
+
+  Serial.println(".compare: change=" + String((longDif*longDif + latDif*latDif)*100000) + ", accuracy=" + String(accuracy));
+  
+  if ((longDif*longDif + latDif*latDif)*100000 > accuracy){// only count heading change if robot moved much
+    float heading = float(myGNSS.getHeading()) / 100000;
+    bnoCorrection = heading - bnoHeading;
+    lastHeadingLong = longitude;
+    lastHeadingLat = latitude;
+    Serial.println(".change good enough for heading calculations");
+
+    
+  } else {
+    Serial.println(".change not good enough for heading calculations");
+  }
+  
+
   Serial.print("a");
   Serial.println(f_accuracy, 4); // Print the accuracy with 4 decimal places
 
 }
 
 void updateHeading() {
-  sensors_event_t orientationData , linearAccelData;
+  sensors_event_t orientationData, linearAccelData;
   bno.getEvent(&orientationData, Adafruit_BNO055::VECTOR_EULER);
   bnoHeading = orientationData.orientation.x;
 }
@@ -152,15 +170,13 @@ void loop() {
     gotSerialTime = millis();
     gotSerial = true;
   }
-  if (gotSerial && gotSerialTime + 15 < millis()) {
+  if (gotSerial && gotSerialTime + 15 < millis()) { // wait 15 milliseconds for the whole serial message to come through
     processSerial();
     gotSerial = false;
   }
 
 
-
-
-  if (useGPS && lastPosReadTime + 600 < millis()) {
+  if (useGPS && lastPosReadTime + 600 < millis()) { // time to read position
     getPosition();
     lastPosReadTime = millis();
 
@@ -171,7 +187,7 @@ void loop() {
 
 
 
-  if (useBNO && lastBNOReadTime + 300 < millis()) {
+  if (useBNO && lastBNOReadTime + 300 < millis()) { // time to read BNO position
     updateHeading();
     heading = bnoCorrection + bnoHeading;
     lastBNOReadTime = millis();

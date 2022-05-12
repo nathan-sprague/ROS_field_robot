@@ -86,7 +86,7 @@ class Robot:
 		###############################
 		# robot attributes
 		###############################
-		self.atDestinationTolerance = 3 # at destination when x feet from target
+		self.atDestinationTolerance = 10#3 # at destination when x feet from target
 		self.topSpeed = 4 # mph
 
 		#################################
@@ -216,7 +216,7 @@ class Robot:
 		msg = ""
 		for i in importantVars:
 				msg += str(i) + ","
-				with open(self.filename, 'a+') as fileHandle:
+				with open(filename, 'a+') as fileHandle:
 					fileHandle.write(str(msg) + "\n")
 					fileHandle.close()
 
@@ -355,7 +355,7 @@ class Robot:
 
 			# set ideal speed given the heading and the distance from target
 
-			targetSpeedPercent = nav_functions.findDiffSpeeds(distToTarget, self.heading, self.targetHeading, finalHeading = finalHeading, turnConstant = 2, destTolerance = self.atDestinationTolerance)
+			targetSpeedPercent = nav_functions.findDiffSpeeds(distToTarget, self.heading, self.targetHeading, finalHeading = finalHeading, turnConstant = 1, destTolerance = self.atDestinationTolerance)
 
 			self.targetSpeed = [targetSpeedPercent[0]*self.topSpeed/100, targetSpeedPercent[1]*self.topSpeed/100]
 
@@ -481,7 +481,7 @@ if __name__ == "__main__":
 
 	print("starting website")
 	robot_website.myRobot = myRobot
-	robot_website.app.run(debug=False, port=8000, host='0.0.0.0')
+	robot_website.app.run(debug=False, port=8003, host='0.0.0.0')
 
 	print("done starting website")
 

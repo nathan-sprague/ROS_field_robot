@@ -1,9 +1,9 @@
 
 // set USE_WIFI to 0 for faster compiling. It won't let you make the website though
 #define USE_WIFI 0
-#define USE_AP 1
+#define USE_AP 0
 
-#define USE_GPS 1
+#define USE_GPS 0
 
 void ICACHE_RAM_ATTR handleInterrupt();
 

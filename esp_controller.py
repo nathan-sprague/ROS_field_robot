@@ -25,7 +25,7 @@ class Esp():
         # the format is:
         #   {"Character prefix": [value to send, whether it was refreshed (needs to be sent)]}
         # The prefix is tells the ESP32 what kind of message it is, and the boolean tag specifying xwhether it should be sent prevents too much serial traffic
-        self.messagesToSend = {"l": ["", True], "g":["", False]}
+        self.messagesToSend = {"l": ["", True], "r": ["", True], "g":["", True]}
 
         # this is the serial device that you use to read and write things. It is intialized in the begin function. For now it is just a boolean
         self.device = False
@@ -41,6 +41,7 @@ class Esp():
         returns
             boolean - whether it successfully set up
         """
+        print("setting up esp")
         try:
             self.device = serial.Serial(port='/dev/ttyUSB' + str(self.espNum), baudrate=115200, timeout=.1)
         except:
@@ -102,7 +103,7 @@ class Esp():
             except: # strange message format
                 return
 
-           
+            # print("got message:", message)
 
             if msgType == ".": # suppressed print statement
                 
@@ -152,29 +153,35 @@ class Esp():
             # analyze the message based on the prefix
 
             if msgType == "x":  # compass latitude
-                self.robot.coords[0] = res
-                self.robot.lastUpdatedDist = self.robot.distanceTraveled
+                
+                self.robot.coords2[0] = res
+                # self.robot.lastUpdatedDist = self.robot.distanceTraveled
 
             elif msgType == "y":  # compass longitude
-                self.robot.coords[1] = res
-                self.robot.lastUpdatedDist = self.robot.distanceTraveled
+            
+                self.robot.coords2[1] = res
+                # self.robot.lastUpdatedDist = self.robot.distanceTraveled
 
             elif msgType == "l":  # left wheel speed
-                self.robot.wheelSpeed[0] = res
+                self.robot.realSpeed[0] = res
 
             elif msgType == "r":  # right wheel speed
-                self.robot.wheelSpeed[1] = res
+                self.robot.realSpeed[1] = res
+#                print("real speeed: ", self.robot.realSpeed[1])
 
-            elif msgType == "h": # heading from GPS
-                self.robot.heading = res
+            elif msgType == "h": # heading from BNO
+                self.robot.gyroHeading = res
+                
 
             elif msgType == "a": # accuracy of GPS
-                self.robot.gpsAccuracy = res
+                pass
+                # self.robot.gpsAccuracy = res
+                # headingCorrection = res
             
             elif msgType == "s": # stopped
                 self.stopped = res
             
-            elif msgType == "o": # An error occured represented by a number. Deal with it elsewhere
+            elif msgType == "o": # An error occured represented by a number. Deal with it elsewhere (eventually)
                 pass
 
             elif msgType == "e": # role of ESP
@@ -190,7 +197,7 @@ class Esp():
         """
         Sets up the messages associated to send the ESP32 depending on the type of ESP it is.
         """
-        # if espType == "speed":
+#        if espType == "speed":
             # send:
                 # left target speed
                 # right target speed
@@ -212,8 +219,9 @@ class Esp():
         This is effectively an infinite loop like the readSerial function, so put this in a thread.
     
         """
-
+        # return
         while self.robot.notCtrlC:
+
 
             if self.device != False: # check if the device is real
 
@@ -229,10 +237,12 @@ class Esp():
                          # send the prefix and value to the ESP32
                         msg = prefix + self.messagesToSend[prefix][0]
                         self.device.write(bytes(msg, 'utf-8'))
+                 #       print("sending message:", msg)
                         messagesSent+=1
                         time.sleep(0.2)
 
                 if messagesSent == 0:
+                
                     # send an empty message to prevent the ESP from assuming an error in communication
                     self.device.write(bytes(".", 'utf-8'))
                     time.sleep(0.2)
@@ -255,15 +265,16 @@ class Esp():
         """
 
         # Set the various message names to what the robot is targeting, namely the wheel speed
-        fullMessages = {"l": str(self.robot.targetSpeed[0]), "r": str(self.robot.targetSpeed[0]), "r": "", "s": "", "g": "", "l": ""}
+        fullMessages = {"l": str(int(self.robot.targetSpeed[0]*100)/100), "r": str(int(self.robot.targetSpeed[1]*100)/100), "s": "", "g": ""}
+        # fullMessages = {"l": 1, "r": 1}
 
         # manually set he message if the robot is told to stop or go.
-        if self.robot.stopNow:
-            self.messagesToSend["s"][1] = True
+        # if self.robot.stopNow:
+        #     self.messagesToSend["s"][1] = True
             
-        elif self.stopped:
-            self.stopped = False 
-            self.messagesToSend["g"][1] = True
+        # elif self.stopped:
+        #     self.stopped = False 
+        #     self.messagesToSend["g"][1] = True
 
 
         # check to see if the messages the ESP is sending is different from what was sent earlier. 
@@ -272,5 +283,22 @@ class Esp():
                 self.messagesToSend[i][0] = str(fullMessages[i])
                 self.messagesToSend[i][1] = True
 
+class blah:
+    def __init__(self):
+        pass
 
 
+if __name__ == "__main__":
+    b = blah()
+    espList = [] # list of objects
+    i=0
+    while i<4:
+
+        esp = Esp(b, i)
+        if esp.begin():
+            espList += [esp]
+            i+=1
+        else:
+            break 
+
+    print("set up", i, "ESPs")

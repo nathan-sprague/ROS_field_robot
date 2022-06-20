@@ -7,6 +7,8 @@
 
 	var realSpeed = [0,0];
 
+	var lastPoints = [];
+
 	var latitude = 0;
 	var longitude = 0;
 
@@ -36,11 +38,21 @@
 
 	      info = JSON.parse(this.responseText);
 	      // console.log(info);
+		  alerts = info["alerts"];
 
 	      latitude = info["coords"][0];
 
 	      longitude = info["coords"][1];
 
+		  if (latitude > 40 && latitude < 50 && longitude != 0){
+			  if (alerts == "heading not confirmed") {
+				  lastPoints.push([latitude, longitude, "red"]);
+			  } else if (alerts == "heading confirmed") {
+				lastPoints.push([latitude, longitude, "blue"]);
+			  } else {
+				lastPoints.push([latitude, longitude, "black"]);
+			  }
+		  }
 	      realSpeed = info["realSpeed"];
 
 	      targetSpeed = info["targetSpeed"]
@@ -48,7 +60,11 @@
 
 
 	      heading = info["heading"];
+		  gpsHeading = info["gpsHeading"];
+		  gyroHeading = info["gyroHeading"];
 	      targetHeading = info["targetHeading"];
+
+		  
 
 	      if ("destinations" in info) { // sometimes doesnt send destinations since it is a big array of a lot of data
 	        destinations = info["destinations"];
@@ -61,6 +77,7 @@
 		  }
 	      drawBoard();
 
+		  document.getElementById("alerts").innerHTML = alerts 
 
 	      document.getElementById("leftSpeed").innerHTML = realSpeed[0];
 	      document.getElementById("rightSpeed").innerHTML = realSpeed[1];
@@ -74,7 +91,10 @@
 	      document.getElementById("desLeftSpeed").innerHTML = targetSpeed[0];
 	      document.getElementById("desRightSpeed").innerHTML = targetSpeed[1];
 
-	          
+		  document.getElementById("gyroHeading").innerHTML = gyroHeading;
+	      document.getElementById("gpsHeading").innerHTML = gpsHeading;
+		  
+		  
 	       } else if (this.status == 0){ // did not get correct message
 	         // ready = false;
 	        }
@@ -277,6 +297,36 @@
 	}
 
 	function drawRobot(ctx){
+		
+
+
+		if (document.getElementById("showPath").checked && lastPoints.length > 0) {
+			
+			ctx.beginPath();
+			let oldC = coordToCtx(lastPoints[0][0], lastPoints[0][1])
+			//console.log("old c", lastPoints);
+			
+			let i = 1;
+			ctx.moveTo(oldC[0], oldC[1])
+			while (i<lastPoints.length){
+				
+				// ctx.beginPath();
+				let c = coordToCtx(lastPoints[i][0], lastPoints[i][1])
+				ctx.lineTo(oldC[0], oldC[1], c[0], c[1])
+				oldC = [c[0], c[1]]
+				
+				ctx.strokeStyle = lastPoints[i][2];
+				// ctx.stroke();
+
+				i+=1;
+				
+			}
+			ctx.stroke();
+
+			
+		}
+		ctx.strokeStyle = "black";
+
 	    ctx.beginPath();
 	    ctx.fillStyle = "red";
 	    var coords = coordToCtx(latitude, longitude);
@@ -289,19 +339,30 @@
 	    ctx.stroke();
 
 
-	    // real heading
+		// True heading
+		ctx.beginPath();
+	    ctx.moveTo(x,y);
+	    ctx.strokeStyle = "green";
+	    otherX = x+Math.cos((heading)*Math.PI/180-Math.PI/2)*50;
+	    otherY = y+Math.sin((heading)*Math.PI/180-Math.PI/2)*50
+	    ctx.lineTo(otherX, otherY);
+	    // console.log(otherX, otherY);
+	    ctx.stroke();
+
+
+	    // gyro heading
 	    ctx.strokeStyle = "red";
 	    ctx.beginPath();
 	    ctx.moveTo(x,y);
 
-	    var otherX = x+Math.cos(heading*Math.PI/180-Math.PI/2)*30;
-	    var otherY = y+Math.sin(heading*Math.PI/180-Math.PI/2)*30
+	    var otherX = x+Math.cos(gyroHeading*Math.PI/180-Math.PI/2)*30;
+	    var otherY = y+Math.sin(gyroHeading*Math.PI/180-Math.PI/2)*30
 	    ctx.lineTo(otherX, otherY);
 	  //  console.log(otherX, otherY);
 	    ctx.stroke();
 
 
-	    // target heading
+	    // gps heading
 	    ctx.beginPath();
 	    ctx.moveTo(x,y);
 	    ctx.strokeStyle = "blue";
@@ -311,6 +372,7 @@
 	    ctx.lineTo(otherX, otherY);
 	    // console.log(otherX, otherY);
 	    ctx.stroke();
+
 
 	    ctx.strokeStyle = "black";    
 	    ctx.fillStyle = "black";
@@ -341,6 +403,7 @@ function begin(){
 
 <html>
 <title>Robot Monitor</title>
+alerts: <span id="alerts">__</span>
 
 
 <br>
@@ -354,12 +417,13 @@ Current Position: <span id="lat">__</span>, <span id="long">__</span><br>
 
 
 
+Target heading: <span id="targetHeading">__</span> degrees north<br> 
+<br>Heading: <span id="heading">__</span> <br>
+GPS heading: <span id="gpsHeading">__</span> <br>
+Gyro heading: <span id="gyroHeading">__</span> <br>
 
-<br>Heading: <span id="heading">__</span> degrees north; Target: <span id="targetHeading">__</span> degrees north<br> 
-
-
+Show path: <input type="checkbox" id="showPath" checked> 
 <br>
-
 
 
 

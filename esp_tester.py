@@ -2,6 +2,8 @@
 import time
 from threading import Thread
 import math
+import random
+import nav_functions
 
 """
 This is for testing the navigation code.
@@ -14,6 +16,20 @@ class Esp():
     def __init__(self, robot, espNum):
 
         self.robot = robot
+
+        self.realRobotHeading = 0 # real heading not actually known by the robot
+
+        self.gpsAccuracy = 0.00001
+        self.gpsError = [0,0]
+
+        self.lastKnownCoords = [0,0]
+        self.trueCoords = [40.422313, -86.916339]
+
+        self.robotUpdateFrequency = 10
+        self.loopsToUpdate = 0
+
+        self.gyroError = 0
+
 
         self.espNum = espNum
 
@@ -49,40 +65,60 @@ class Esp():
 
 
     def update(self):
+        self.robot.connectionType = 1
         self.robot.coords = [40.422313, -86.916339]
         while self.robot.notCtrlC:
-            
+            # self.robot.coords = [40.422313, -86.916339]
             updateSpeed = 0.1
             time.sleep(updateSpeed)
             self.robot.gpsAccuracy = 0.1
-            # variables used:
-                # self.robot.targetSpeed = [0, 0]
-
-            # variables to change:
+            self.gpsError = [self.gpsError[0]+random.randint(-1,1)*self.gpsAccuracy/5, self.gpsError[1]+random.randint(-1,1)*self.gpsAccuracy/5]
+            if abs(self.gpsError[0])>self.gpsAccuracy:
+                self.gpsError[0] = self.gpsAccuracy * abs(self.gpsError[0])/self.gpsError[0]
+            if abs(self.gpsError[0])>self.gpsAccuracy:
+                self.gpsError[0] = self.gpsAccuracy * abs(self.gpsError[0])/self.gpsError[0]
 
             self.robot.realSpeed = [(self.robot.realSpeed[0]+self.robot.targetSpeed[0])/2, (self.robot.realSpeed[1]+self.robot.targetSpeed[1])/2]
 
-            # self.robot.realSpeed = [4,4]
-
-            self.robot.heading += self.robot.realSpeed[0]-self.robot.realSpeed[1] # not sure if this is really how it works
+            realHeadingChange = self.robot.realSpeed[0]-self.robot.realSpeed[1]
+            self.realRobotHeading +=  realHeadingChange
 
             distMoved = (self.robot.realSpeed[0] + self.robot.realSpeed[1])/2 # not sure if this is really how it works
+
 
             longCorrection = math.cos(self.robot.coords[0]*math.pi/180)
             mphTolatps = 1/5280*3600/364000
 
             
 
-            self.robot.coords[0] += distMoved * mphTolatps * math.cos(self.robot.heading*math.pi/180) * updateSpeed 
+            self.trueCoords[0] += distMoved * mphTolatps * math.cos(self.realRobotHeading*math.pi/180) * updateSpeed 
 
             longCorrection = math.cos(self.robot.coords[0]*math.pi/180)
 
 
-            self.robot.coords[1] += distMoved*mphTolatps/longCorrection * math.sin(self.robot.heading*math.pi/180) * updateSpeed
+            self.trueCoords[1] += distMoved*mphTolatps/longCorrection * math.sin(self.realRobotHeading*math.pi/180) * updateSpeed
+
+
+            self.gyroError += random.randint(-1,1)*0.5
+            if self.loopsToUpdate == int(self.robotUpdateFrequency/2) or self.loopsToUpdate == 0:
+                self.robot.gyroHeading = self.realRobotHeading + self.gyroError
 
 
 
-    
+            self.loopsToUpdate += 1
+            if self.loopsToUpdate > self.robotUpdateFrequency:
+                self.loopsToUpdate = 0
+                self.robot.coords = [self.trueCoords[0]+self.gpsError[0], self.trueCoords[1]+self.gpsError[1]]
+                self.lastKnownCoords = self.robot.coords[:]
+
+                if distMoved/5280*3600*updateSpeed > 0.2: # moved more than 1 ft
+                    self.robot.gpsHeading = nav_functions.findAngleBetween(self.lastKnownCoords, self.robot.coords)
+                    self.robot.gpsHeadingAvailable = True
+
+                else:
+
+                    self.robot.gpsHeading = 0
+                    self.robot.gpsHeadingAvailable = False
 
 
 

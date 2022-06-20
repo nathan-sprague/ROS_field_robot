@@ -8,20 +8,43 @@ import os.path
 import math
 import time
 import random
-import image_tools
 
 
-class standardDetection():
+def apply_brightness_contrast(input_img, brightness=0, contrast=0):
+    # found this function on stack overflow. All I know is that it works
+    if brightness != 0:
+        if brightness > 0:
+            shadow = brightness
+            highlight = 255
+        else:
+            shadow = 0
+            highlight = 255 + brightness
+        alpha_b = (highlight - shadow) / 255
+        gamma_b = shadow
+
+        buf = cv2.addWeighted(input_img, alpha_b, input_img, 0, gamma_b)
+    else:
+        buf = input_img.copy()
+
+    if contrast != 0:
+        f = 131 * (contrast + 127) / (127 * (131 - contrast))
+        alpha_c = f
+        gamma_c = 127 * (1 - f)
+
+        buf = cv2.addWeighted(buf, alpha_c, buf, 0, gamma_c)
+
+    return buf
+
+
+class StandardDetection():
 
     def __init__(self):
         self.smoothCenter = 0
-
-
-
+        self.lastGood = 0
 
 
     def rowNavigation(self, depth_image, color_image, showStream=False):
-
+        # print(showStream)
         res = {"imagesToShow": [], "center": 0}
 
         explainBadData = False  # print what is wrong when it does not know where it is going
@@ -49,7 +72,7 @@ class standardDetection():
 
         # show step
 
-        depth_image = image_tools.apply_brightness_contrast(depth_image, 10, 100)  # increase contrast
+        depth_image = apply_brightness_contrast(depth_image, 10, 100)  # increase contrast
 
         # show with increased contrast
 
@@ -63,9 +86,6 @@ class standardDetection():
         depth_image[depth_image > 55] = 255
         depth_image[depth_image < 56] = 0
 
-
-        res["imagesToShow"] += [depth_image]
-
         res = depth_image.copy()
 
         # combine the pixel values of each column
@@ -75,10 +95,9 @@ class standardDetection():
         resized = cv2.blur(resized, (5, 5))
 
         # show the 5th step
-
-        removeThis = cv2.resize(resized, (res.shape[1], res.shape[0]), interpolation=cv2.INTER_AREA)
-
-        res["imagesToShow"] += [removeThis]
+        if showStream:
+            visualResize = cv2.resize(resized, (resized.shape[1], 400), interpolation=cv2.INTER_AREA)
+            cv2.imshow("5", visualResize)
 
         # Get the lightest colors
         x = []
@@ -96,6 +115,11 @@ class standardDetection():
                 resized[0][r] = 255
                 x += [r]
 
+        # show the 6th step
+        if showStream:
+            visualResize = cv2.resize(resized, (resized.shape[1], 400), interpolation=cv2.INTER_AREA)
+            cv2.imshow("6", visualResize)
+
         # get indices of the furthest places
         z = np.nonzero(resized[0][:])
 
@@ -106,6 +130,12 @@ class standardDetection():
         # if there actually any valid points, use the median, if not say so
         if len(z[0]) > 0:
             centerSpot = int(np.median(z))
+            # show the initial result
+            if showStream:
+                visualColor = color_image.copy()
+                cv2.line(visualColor, (centerSpot - 2, 0),
+                         (centerSpot - 2, int(color_image.shape[0])), (0, 255, 0), 4)
+                cv2.imshow("7", visualColor)
         else:
             badDataReasons += ["no distant enough spots"]
             badData = True
@@ -129,7 +159,7 @@ class standardDetection():
                 numOutside += 1
 
             i += 1
-        if numInside < numOutside * 5:
+        if numInside < numOutside * 3:
             badDataReasons += ["more lines outside than inside"]
             badData = True
         if numInside < numOutside:
@@ -173,7 +203,7 @@ class standardDetection():
 
         if showStream:
             removeThis = cv2.resize(resized, (res.shape[1], res.shape[0]), interpolation=cv2.INTER_AREA)
-            res["imagesToShow"] += [removeThis]
+            # res["imagesToShow"] += [removeThis]
 
             if badData:
                 cv2.line(color_image, (smoothCenterInt - 2, 0),
@@ -185,5 +215,46 @@ class standardDetection():
                      (int(color_image.shape[1] / 2), int(color_image.shape[0])), (0, 0, 0), 1)
 
 
+            cv2.imshow("a", color_image)
+        # print(self.heading)
+        # print(badDataReasons)
 
-        return res
+        return self.heading
+
+
+    def grayscale_transform(self, image_in):
+        b, g, r = cv2.split(image_in)
+        return 2*g - r - b
+
+
+
+if __name__ == "__main__":
+    import navTypeTester
+
+    print("running")
+
+    bagFileNames = ["/home/nathan/Desktop/bag_files/rs_1655483324.bag",
+    "/home/nathan/Desktop/bag_files/rs_1655483283.bag",
+    "/home/nathan/Desktop/bag_files/rs_1655483251.bag",
+    "/home/nathan/Desktop/bag_files/rs_1655483211.bag",
+    "/home/nathan/Desktop/bag_files/rs_1655483191.bag",
+    "/home/nathan/Desktop/bag_files/rs_1655483174.bag",
+    "/home/nathan/Desktop/bag_files/rs_1655483113.bag",
+    "/home/nathan/Desktop/bag_files/rs_1655483067.bag",
+    "/home/nathan/Desktop/bag_files/rs_1655483024.bag",
+    "/home/nathan/Desktop/bag_files/rs_1655482981.bag",
+    "/home/nathan/Desktop/bag_files/rs_1655482933.bag"
+
+
+    ]
+    # _filename = "/home/john/object_detections/rs_1629482645.bag"
+    # _filename = "/home/nathan/tall/rs_1629482645.bag"#"/home/nathan/v3/rs_1629465226.bag"
+    _filename = bagFileNames[5]
+
+    _useCamera = False
+    _showStream = True
+
+    sd = StandardDetection()
+
+    cam = navTypeTester.RSCamera(useCamera=_useCamera, filename=_filename)
+    cam.videoNavigate(sd.rowNavigation, _showStream)

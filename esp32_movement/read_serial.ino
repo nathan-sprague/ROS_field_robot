@@ -35,7 +35,7 @@ void readSerial() {
 
   */
   if (Serial.available()) {
-   
+
     lastSerialTime = millis(); // timer looking to reset radio. Different from lastSerailReadTime
 
     if (haveSerial && lastSerialReadTime > 30) { // must wait for >30 milliseconds for the full serial message to arrive
@@ -43,24 +43,26 @@ void readSerial() {
       char commandType = Serial.read();
       String serialMsg = "";
 
-     
+
 
       while (Serial.available()) {
         char b = Serial.read();
         serialMsg += b;
       }
-      Serial.println("serial message: " + serialMsg);
+      //      Serial.println("serial message: " + serialMsg);
 
       if (commandType == 'l') {
         targetSpeed[0] = serialMsg.toFloat();
         Serial.println("-l" + String(int(targetSpeed[0])));
+        targetSpeed[0] *= -1;
 
       } else if (commandType == 'r') {
         targetSpeed[1] = serialMsg.toFloat();
         Serial.println("-r" + String(int(targetSpeed[1])));
+        targetSpeed[1] *= -1;
 
       } else if (commandType == 's') {
-        stopNow = true;
+//        stopNow = true;
         targetSpeed[0] = 0;
         targetSpeed[1] = 0;
         pwmSpeed[0] = 0;
@@ -68,7 +70,7 @@ void readSerial() {
         Serial.println("-s");
 
       } else if (commandType == 'g') {
-        stopNow = false;
+//        stopNow = false;
         Serial.println("-g");
       }
 
@@ -88,11 +90,14 @@ void readSerial() {
 
 void sendSerial() {
   if (millis() - lastPrintTime > 1000) {
-//    Serial.println("target speed: " + String(targetSpeed[0]));
-//    Serial.println("pwm speed: " + String(pwmSpeed[0]));
-    Serial.println("l" + String(wheelSpeed[0], 3));
-    Serial.println("r" + String(wheelSpeed[1], 3));
-    lastPrintTime = millis();
+    //    Serial.println("target speed: " + String(targetSpeed[0]));
+    //    Serial.println("pwm speed: " + String(pwmSpeed[0]));
+    Serial.println("l" + String(-wheelSpeed[0], 3));
+    Serial.println("r" + String(-wheelSpeed[1], 3));
     
+//      Serial.println(".pwm control: " + String(pwmIn[0]) + ", " + String(pwmIn[1]));
+    
+    lastPrintTime = millis();
+
   }
 }

@@ -87,25 +87,4 @@ Any Jetson Nano or even a Raspberry Pi would do, but we are using the 4GB model 
 # Software
   Upload the movement.ino Sketch to the ESP832.
   Run the file "robot_navigation.py" on the Jetson Nano.
-  
-  
-# Libraries
-The following Python libraries are required:
-## already in Python's default libraries:
-argparse
-os
-random
-time
-math
-threading
-signal
-platform
-
-## need to download separately
-pyrealsense2
-cv2
-numpy
-statistics
-ublox_gps
-Serial
-pynmea2
+ 

@@ -14,13 +14,13 @@ _stepsShown = []  # [1,2,3,4,5,6]
 
 # _filename = "Desktop/real_corn_july_15/human.bag"
 # _filename = "tall/rs_1629482768.bag"
-_filename = "/Users/nathan/bag_files/rs_1629482768.bag"
+_filename = "/Users/nathan/bag_files/rs_1629481328.bag"
 # _filename = "Desktop/fake_track/object_detection6.bag"
 # _filename=""
 _useCamera = False
 _showStream = True
 _saveVideo = False
-_realtime = False
+_realtime = True
 _startFrame = 300
 _rgbFilename = "blah.mp4"
 _navTypes = ["eStop"]
@@ -92,8 +92,8 @@ class RSCamera:
         self.rampr16 = bb
         self.ramprJet = cv2.applyColorMap(rampr8, cv2.COLORMAP_JET)
         #  print(self.ramprJet[0:1, 0:w])
-        #   cv2.imshow("j", self.ramprJet)
-        #  cv2.imshow("r", self.rampr16)
+        # cv2.imshow("j", self.ramprJet)
+        # cv2.imshow("r", self.rampr16)
         self.rgbFilename = rgbFilename
 
         if useCamera:

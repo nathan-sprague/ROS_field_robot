@@ -24,8 +24,8 @@ def update():
 
 
     responseDict = {"coords": myRobot.coords, "realSpeed": myRobot.realSpeed,
-                    "targetSpeed": myRobot.targetSpeed, "heading": myRobot.heading,
-                    "targetHeading": myRobot.targetHeading}
+                    "targetSpeed": myRobot.targetSpeed, "heading": myRobot.trueHeading,
+                    "targetHeading": myRobot.targetHeading, "gyroHeading": myRobot.gyroHeading, "gpsHeading": myRobot.gpsHeading, "alerts": myRobot.alerts}
 
 
     if request.args.get('haveDestinations') == "0":
@@ -34,7 +34,7 @@ def update():
             destinationsList += [i["coord"]]
         responseDict["destinations"] = destinationsList
 
-
+  #  print("sent:", str(responseDict).replace("'", '"'))
     return (str(responseDict)).replace("'", '"')
 
 

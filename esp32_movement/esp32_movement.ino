@@ -238,6 +238,7 @@ void updateEncoder4() {
 }
 
 
+unsigned long lastPrintTime2 = 0;
 
 void loop() {
 
@@ -245,8 +246,17 @@ void loop() {
 
   calculateSpeed();
 
-  if (millis() - lastSerialTime > 1000 && false) { // haven't gotten a serial message for a second. Switch over to radio control
-    readRadioSpeed();
+  if (millis() - lastSerialTime > 1000 || (abs(pwmIn[0] - 155) < 50 && abs(pwmIn[0] - 155) > 5) ) { // haven't gotten a serial message for a second. Switch over to radio control
+    //    readRadioSpeed();
+    pwmControl = false;
+    ledcWrite(1, pwmIn[0]);
+    ledcWrite(2, pwmIn[1]);
+    if (millis() - lastPrintTime2 > 300) {
+      //      Serial.println("radio " + String(pwmIn[0]) + ", " + String(pwmIn[1]));
+      lastPrintTime2 = millis();
+    }
+  } else {
+    pwmControl = true;
   }
 
 #if USE_GPS

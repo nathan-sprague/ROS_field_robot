@@ -23,11 +23,8 @@ bool gpsUpdated = false;
 
 /*
 The connections are:
-
 SDA - D21
 SCL - D22
-
-
  */
 
 

@@ -28,3 +28,9 @@ abeNorth = [{"coord": [40.422266, -86.916176], "destType": "point"},
                     {"coord": [40.422240, -86.916287], "destType": "point"},
                     {"coord": [40.422194, -86.916221], "destType": "point"},
                     {"coord": [40.422311, -86.916329], "destType": "point"}]
+
+acreBayGrass = [{"coord": [40.470283, -86.995008], "destType": "point"},
+                    {"coord": [40.470155, -86.995092], "destType": "point"},
+                    {"coord": [40.470048, -86.995006], "destType": "point"},
+                    {"coord": [40.469964, -86.995044], "destType": "point"},
+                    {"coord": [40.470160, -86.995063], "destType": "point"}]

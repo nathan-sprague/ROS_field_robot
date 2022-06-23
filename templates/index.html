@@ -351,15 +351,15 @@
 
 
 	    // gyro heading
-	    ctx.strokeStyle = "red";
-	    ctx.beginPath();
-	    ctx.moveTo(x,y);
+	  //   ctx.strokeStyle = "red";
+	  //   ctx.beginPath();
+	  //   ctx.moveTo(x,y);
 
-	    var otherX = x+Math.cos(gyroHeading*Math.PI/180-Math.PI/2)*30;
-	    var otherY = y+Math.sin(gyroHeading*Math.PI/180-Math.PI/2)*30
-	    ctx.lineTo(otherX, otherY);
-	  //  console.log(otherX, otherY);
-	    ctx.stroke();
+	  //   var otherX = x+Math.cos(gyroHeading*Math.PI/180-Math.PI/2)*30;
+	  //   var otherY = y+Math.sin(gyroHeading*Math.PI/180-Math.PI/2)*30
+	  //   ctx.lineTo(otherX, otherY);
+	  // //  console.log(otherX, otherY);
+	  //   ctx.stroke();
 
 
 	    // gps heading
@@ -437,7 +437,7 @@ Dynamic Scale: <input type="checkbox" id="dynamicScale" checked>
 
 
 
-Blue = target heading, Red = heading<br>
+Blue = target heading, Green = heading<br>
 <canvas id="mainCanvas" width="600px" height="600px" onclick="clickEvent(event);" style="background:rgb(200,200,200);">
 
 

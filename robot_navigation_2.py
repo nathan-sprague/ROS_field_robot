@@ -11,6 +11,9 @@ import signal # for graceful exits
 import platform
 import os
 
+# For finding which ports to connect to (GPS, ESP controller, etc)
+import serial.tools.list_ports
+
 
 testing = False
 
@@ -28,10 +31,9 @@ import video_navigation
 
 
 # change to True to navigate through a row endlessly. Useful for testing
-interRowNavigation = True
+interRowNavigation = False
 
-navDestinations = exampleDests.abeNorth # destinations the robot will go to
-
+navDestinations = exampleDests.acreBayGrass # destinations the robot will go to
 
 
 microProcessor = False # tag for whether it is a microprocessor
@@ -97,18 +99,20 @@ class Robot:
 		#################################
 		self.coords = [-1,-1] # lat, long
 		self.coords2 = [-1,-1] # lat, long
-		self.gpsAccuracy = 12345 # meters
+		self.gpsAccuracy = 12345 # mm
 
-		self.gpsHeadingAvailable = False
-		self.gpsHeading = 0 # degrees	
-		self.gyroHeading = 0 # degrees
-		self.lastConfirmedHeading = 0 # degrees
-		self.gyroAtConfirmedHeading = 0 # degrees
+		self.headingAccuracy = 360 # degrees
+		self.headingAccuracyTimer = time.time() # used when doing point-to-point navigation. If the robot doesn't know where it's going, there's no point moving
+		self.lastHeadingTime = time.time() # time since a heading was obtained
 		self.trueHeading = 0 # degrees
 
-		self.useGPSHeading = True
 		self.realSpeed = [0, 0] # mph
-		self.connectionType = 0
+		self.connectionType = 0 # gps connection type (0=none, 1=dead rekoning, 2=2D fix, 3=3D fix, 4=GNSS+dead rekoning, 5=time fix)
+
+		# the type of movement the robot is making. First element is type of movement second element is time the movement started.
+		# motion types are: {waiting, straight-nav, 0-pt-turn, calibration-forward}
+		self.motionType = ["waiting", time.time()] 
+
 
 		###############################
 		# position-target variables
@@ -127,28 +131,50 @@ class Robot:
 		################################
 		# set up the esp's
 		###############################
-		self.espList = [] # list of objects
+		self.espList = [] # list of ESP objects
 		i=0
-		while i<4:
 
-			esp = Esp(self, i)
-			if esp.begin():
-				self.espList += [esp]
-				i+=1
-			else:
-				break 
 		if not testing:
-			self.gpsModule = Gps(self)	
 
-			print("set up", i, "ESPs")
+			headingPort = False
+			mainGpsPort = False
+			# get a list of all of the ports and port infor
+			portsConnected = [tuple(p) for p in list(serial.tools.list_ports.comports())]
+			
+			for i in portsConnected: # connect to all of the relevant ports
+				if i[1] == "CP2102 USB to UART Bridge Controller - CP2102 USB to UART Bridge Controller":
+					print("esp on port", i[0])
+					esp = Esp(self, i[0]) # make a new ESP object and give it this class and the port name
+					if esp.begin():
+						self.espList += [esp] 
+					else:
+						print("ESP connection not successful!")
+						time.sleep(5)
+
+				elif i[1] == "u-blox GNSS receiver":
+					print("gps main on port", i[0])
+					mainGpsPort = i[0]
+
+				else:
+					print("unknown device port", i)
+
+			self.gpsModule = Gps(self, mainGpsPort, verbose=True)	
+
+			print("set up", len(self.espList), "ESPs")
 
 			if  self.gpsModule.begin():
 				print("began GPS")
 			else:
 				print("GPS failed")
-				while True:
-					time.sleep(1)
-					print("set up GPS before continuing")
+				if not interRowNavigation:
+					while True:
+						time.sleep(1)
+						print("set up GPS before continuing")
+		elif testing:
+			esp = Esp(self, 0)
+			esp.begin()
+			self.espList +=[esp]
+
 
 
 	def closeRobot(self):
@@ -166,7 +192,8 @@ class Robot:
 		for esp in self.espList:
 			esp.endEsp()
 		
-		self.gpsModule.endGPS()
+		if not testing:
+			self.gpsModule.endGPS()
 
 		robotThread.join()
 
@@ -235,8 +262,8 @@ class Robot:
 							self.coords[1],
 							self.targetDestination[0],
 							self.targetDestination[1],
-							self.gpsHeading,
-							self.gyroHeading
+							self.headingAccuracy,
+							self.gpsAccuracy
 							]
 
 			# converts the variables to a string and logs them
@@ -250,35 +277,9 @@ class Robot:
 
 	def calculateTrueHeading(self):
 		"""
-		Calculates the real heading based on GPS heading, gyro heading, and current speed
+		Used to calculated the heading given all the senors. Currently just using the GPS so ignore this function
 		"""
-		# if you are moving and not making a sharp turn, just use the GPS heading
-		self.trueHeading = self.gyroHeading
 		return
-		if self.gpsHeadingAvailable:
-			if (self.realSpeed[0] > 1.5 and self.realSpeed[1] > 1.5 and abs(self.realSpeed[0]-self.realSpeed[1]) < 0.2): # you are moving straight forward
-					print("heading confirmed")
-					self.trueHeading = self.gpsHeading
-					self.lastConfirmedHeading = self.trueHeading
-					self.gyroAtConfirmedHeading = self.gyroHeading
-					self.alerts = "heading confirmed"
-					return
-			
-			else:
-				pass
-			#	print("not going forward enough")
-			
-		else:
-			pass
-			#print("heading wasnt available")
-		self.alerts = "heading not confirmed"
-	
-		# at least one of the above conditions were not met. Use the gyro with the last known heading
-		headingChange = self.gyroHeading - self.gyroAtConfirmedHeading
-		self.trueHeading = self.lastConfirmedHeading + headingChange
-	#	print("unconfimed heading:")
-	#	print("gyro was:", self.gyroAtConfirmedHeading, "gyro is now:", self.gyroHeading)
-	#	print("correction:", headingChange, "last confirmed:", self.lastConfirmedHeading, "estimated heading", self.trueHeading)
 
 
 	def navigate(self, destinations):
@@ -395,14 +396,43 @@ class Robot:
 		# manage any errors the sensors give
 		self.manageErrors()
 #		self.coords = [40.4221268, -86.9161606]
-		if self.gpsAccuracy > 90 or self.connectionType == 0:
+		if self.gpsAccuracy > 100000 or self.connectionType == 0:
 			# gps never connected
-			print("waiting for GPS to lock.")
+			print("waiting for GPS to lock.", self.gpsAccuracy, self.connectionType)
+			self.motionType = ["waiting", time.time()]
 
 			return 2
 
+		elif self.headingAccuracy > 90 or self.lastHeadingTime+2 < time.time(): # you can't trust the heading.
+			print("heading accuracy not good enough! Estimated heading:", self.trueHeading, "Heading accuracy:", self.headingAccuracy, "Last updated", int(time.time()-self.lastHeadingTime))
+
+			if self.motionType[0] == "waiting" and self.motionType[1]+3 > time.time(): # robot has been waiting for less than 3 seconds
+				return 1 # keep on waiting
+
+			elif self.motionType[0] == "waiting": # robot has been waiting for more than 3 seconds
+				self.targetSpeed = [0.5, 0.5] # enough waiting. Try moving forward for a bit
+				self.motionType = ["calibration-forward", time.time()]
+				print("waited long enough, try moving forward for a bit")
+				return 1
+
+			elif self.motionType[0] == "calibration-forward" and self.motionType[1]+2 > time.time(): # robot has been moving forward for less than 2 seconds
+				return 0.2 # keep on moving forward
+
+			elif self.motionType[0] == "calibration-forward": # robot has been moving forward for over 2 seconds
+				self.targetSpeed = [0,0] # stop and try to calibrate by staying put
+				self.motionType = ["waiting", time.time()]
+				print("moved forward long enough, no success. Try stopping.")
+				return 0.1
+
+			else: # robot was navigating normally when the heading stopped working
+				self.targetSpeed = [0,0] # stop and try to calibrate by staying put
+				self.motionType = ["waiting", time.time()]
+				return 0.1
+
+
 		else:
-			# gps accuracy is acceptable. Start navigating!
+			# gps and heading accuracy is acceptable. Start navigating!
+
 
 			# get first destination
 			targetCoords = target["coord"]
@@ -431,20 +461,43 @@ class Robot:
 
 			targetSpeedPercent = nav_functions.findDiffSpeeds(distToTarget, self.trueHeading, self.targetHeading, finalHeading = finalHeading, turnConstant = 2, destTolerance = self.atDestinationTolerance)
 
+			if abs(targetSpeedPercent[1]-targetSpeedPercent[0]) > 150 and self.motionType[0] != "0-pt-turn": # started doing a 0-point turn
+				self.motionType = ["0-pt-turn", time.time()]
+				print("started a 0-pt-turn")
+
+			elif abs(targetSpeedPercent[1]-targetSpeedPercent[0]) < 150 and self.motionType[0] != "straight-nav": # started moving normally
+				self.motionType = ["straight-nav", time.time()]
+				print("doing regular navigation")
+
+			elif self.motionType[0] == "0-pt-turn" and self.motionType[1]+1 > time.time(): # doing a 0-pt turn for a second. Try waiting for a second to get its heading
+				self.motionType = ["waiting", time.time()]
+				self.targetSpeed = [0,0]
+				print("pausing after partial 0-pt-turn")
+				return 2
+
+
 			self.targetSpeed = [targetSpeedPercent[0]*self.topSpeed/100, targetSpeedPercent[1]*self.topSpeed/100]
 
 
 
 			# Print status
-			print("\nheading:", self.trueHeading, "target heading:", self.targetHeading)
-			print("current coords:", self.coords, "target coords:", targetCoords, "(accuracy:", self.gpsAccuracy, ")")
-			print("target speeds:", self.targetSpeed)
-			print("real speeds:", self.realSpeed) 
-			print("distance from target:", distToTarget)
+			self.printStatus(targetCoords, distToTarget)
+			
 
 
 			# give appropriate time to wait
 			return 0.3
+
+
+	def printStatus(self, targetCoords, distToTarget):
+		# prints relevant variables for the robot. This should be the only place where stuff is printed
+		print("\nheading:", self.trueHeading, "target heading:", self.targetHeading, "accuracy:", self.headingAccuracy)
+
+		print("current coords:", self.coords, "target coords:", targetCoords, "fix type:", self.connectionType, "(accuracy:", self.gpsAccuracy, ")")
+		print("target speeds:", self.targetSpeed)
+		print("real speeds:", self.realSpeed) 
+		print("distance from target:", distToTarget)
+		print("motion type:", self.motionType)
 
 
 

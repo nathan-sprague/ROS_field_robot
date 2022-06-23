@@ -1,23 +1,24 @@
 
 import serial
+import serial.tools.list_ports
 import time
 from threading import Thread
 
 class Esp():
-    def __init__(self, robot, espNum):
+    def __init__(self, robot, portName):
         """
         This class is associated with a single ESP. It uses parameters given by the robot's targets and sends the message to the esp32s.
     
         Parameters:
             robot - robot object with all the parameters
-            espNum - The port number that the ESP32 is on. It is also can be used as a unique identifier. 
+            portName - The port number that the ESP32 is on. It is also can be used as a unique identifier. 
 
         Returns:
         nothing
         """
         self.robot = robot
 
-        self.espNum = espNum
+        self.portName = portName
 
         self.espType = "unknown"
 
@@ -43,7 +44,7 @@ class Esp():
         """
         print("setting up esp")
         try:
-            self.device = serial.Serial(port='/dev/ttyUSB' + str(self.espNum), baudrate=115200, timeout=.1)
+            self.device = serial.Serial(port=self.portName, baudrate=115200, timeout=.1)
         except:
             return False
         time.sleep(0.5)
@@ -85,6 +86,9 @@ class Esp():
     def processSerial(self, message_bin):
         """
         process the incoming serial message and do the appropriate actions
+
+        It still has some old ids and commands that are no longer used by the robot, like the role of the ESP.
+            I may add it back in someday so I won't remove it yet.
 
         Parameters:
             message_bin - a message with some characters at the beginning and end. It is technically a string, not binary
@@ -283,22 +287,28 @@ class Esp():
                 self.messagesToSend[i][0] = str(fullMessages[i])
                 self.messagesToSend[i][1] = True
 
-class blah:
-    def __init__(self):
-        pass
 
 
 if __name__ == "__main__":
+
+    class blah:
+        def __init__(self):
+            self.notCtrlC = True
+            self.targetSpeed = [0,0]
+            self.wheelSpeed = [0,0]
+            self.heading = 0
+            self.gyroHeading = 0
     b = blah()
     espList = [] # list of objects
     i=0
-    while i<4:
+    portsConnected = [tuple(p) for p in list(serial.tools.list_ports.comports())]
 
-        esp = Esp(b, i)
-        if esp.begin():
-            espList += [esp]
-            i+=1
-        else:
-            break 
+    for i in portsConnected: # connect to all of the relevant ports
+        if i[1] == "CP2102 USB to UART Bridge Controller - CP2102 USB to UART Bridge Controller":
+            print("esp on port", i[0])
+            esp = Esp(b, i[0]) # make a new ESP object and give it this class and the port name
+            if esp.begin():
+                espList += [esp] 
+      
 
-    print("set up", i, "ESPs")
+    print("set up", len(espList), "ESPs")

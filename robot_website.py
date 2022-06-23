@@ -25,7 +25,7 @@ def update():
 
     responseDict = {"coords": myRobot.coords, "realSpeed": myRobot.realSpeed,
                     "targetSpeed": myRobot.targetSpeed, "heading": myRobot.trueHeading,
-                    "targetHeading": myRobot.targetHeading, "gyroHeading": myRobot.gyroHeading, "gpsHeading": myRobot.gpsHeading, "alerts": myRobot.alerts}
+                    "targetHeading": myRobot.targetHeading, "gyroHeading": 0, "gpsHeading": myRobot.trueHeading, "alerts": myRobot.alerts}
 
 
     if request.args.get('haveDestinations') == "0":

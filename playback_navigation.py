@@ -5,9 +5,6 @@ import math
 from threading import Thread
 import signal
 import nav_functions
-from gps_controller import Gps
-
-gpsControlled = True
 
 
 testing = True
@@ -27,7 +24,7 @@ class FakeRobot:
 	def __init__(self):
 		"""
 		Sets up the variables related to the robot's conditions and targets
-
+	
 		Parameteres: none
 		Returns: none
 		"""
@@ -44,13 +41,11 @@ class FakeRobot:
 
 		# vestigial variables used for the website. Remove eventually
 		self.coordListVersion = 0 
-		# self.destinations = [{"coord": [40.422266, -86.916176], "destType": "point"},
-		            # {"coord": [40.422334, -86.916240], "destType": "point"},
-		            # {"coord": [40.422240, -86.916287], "destType": "point"},
-		            # {"coord": [40.422194, -86.916221], "destType": "point"},
-		            # {"coord": [40.422311, -86.916329], "destType": "point"}]
-		self.destinations = [{"coord":[40.48848133333333, -87.00113], "destType": "point"},
-		{"coord":[40.48848133333333, -87.00114], "destType": "point"}]
+		self.destinations = [{"coord": [40.470283, -86.995008], "destType": "point"},
+                    {"coord": [40.470155, -86.995092], "destType": "point"},
+                    {"coord": [40.470048, -86.995006], "destType": "point"},
+                    {"coord": [40.469964, -86.995044], "destType": "point"},
+                    {"coord": [40.470160, -86.995063], "destType": "point"}]
 		self.subPoints = []
 
 		###############################
@@ -86,8 +81,7 @@ class FakeRobot:
 		###############################################
 
 	def begin(self):
-		# self.filename = "/home/nathan/Desktop/ROS_field_robot2_nano_june15/log_1655397241.txt"
-		self.filename = "/home/nathan/Desktop/go through rows.ubx"
+		self.filename = "/home/nathan/log_success/log_1655999853.txt" #"log_1654787004.txt"
 		self.running = True
 		self.recordThread = Thread(target=self.readLogs, args = [self.filename])
 		self.recordThread.start()
@@ -100,7 +94,7 @@ class FakeRobot:
 		"""
 		#return # dont usually use during playback
 		# if you are moving and not making a sharp turn, just use the GPS heading
-		# self.trueHeading = self.gyroHeading
+		# self.trueHeading = 180+self.trueHeading #self.gyroHeading
 		return
 		if self.coords != self.lastCoords and abs(self.lastCoords[0] > 10):
 			newHeading = nav_functions.findAngleBetween(self.lastCoords, self.coords) * 180 / 3.1416
@@ -180,68 +174,54 @@ class FakeRobot:
 		Parameters: filename (text file to log to)
 		Returns: None
 		"""
+		time.sleep(2)
 
-		if gpsControlled:
-			print("reading from:", filename)
-			gps = Gps(self, True)
-			with open(filename) as fileHandle:
+		print("reading from:", filename)
+		lastCoords = [0,0]
+		with open(filename) as fileHandle:
+			line = fileHandle.readline()
+			while line and self.notCtrlC:
+				wordList = []
+				word = ""
+				for i in line:
+					if i ==",":
+						wordList+=[word]
+						word = ""
+					else:
+						word+=i
+				wordList += word
+				# print(wordList)
+
+				self.timer = float(wordList[0])
+				self.trueHeading = float(wordList[1])
+				self.targetHeading = float(wordList[2])
+				self.realSpeed[0] = float(wordList[3])
+				self.realSpeed[1] = float(wordList[4])
+				self.targetSpeed[0] = float(wordList[5])
+				self.targetSpeed[1] = float(wordList[6])
+				# print("real", self.realSpeed)
+				self.coords[0] = float(wordList[7])
+				self.coords[1] = float(wordList[8])
+				self.targetDestination[0] = float(wordList[9])
+				self.targetDestination[1] = float(wordList[10])
+				if len(wordList) > 12: # remove this later, this is for backwards compatability
+					# print("wl", wordList[12])
+					self.headingAccuracy = float(wordList[11])
+					self.gpsAccuracy = float(wordList[12])
+
+					self.calculateTrueHeading()
+
+				# print(wordList)
+
+				if lastCoords!=self.coords:
+					time.sleep(0.1)
+				lastCoords = self.coords[:]
 				line = fileHandle.readline()
-
-				while line and self.notCtrlC:
-
-					gps.parseGps(line)
-					time.sleep(0.001)
-					line = fileHandle.readline()
-
-
-
-
-		else:
-			print("reading from:", filename)
-			lastCoords = [0,0]
-			with open(filename) as fileHandle:
-				line = fileHandle.readline()
-				while line and self.notCtrlC:
-					wordList = []
-					word = ""
-					for i in line:
-						if i ==",":
-							wordList+=[word]
-							word = ""
-						else:
-							word+=i
-					wordList += word
-					# print(wordList)
-
-					self.timer = float(wordList[0])
-					self.trueHeading = float(wordList[1])
-					self.targetHeading = float(wordList[2])
-					self.realSpeed[0] = float(wordList[3])
-					self.realSpeed[1] = float(wordList[4])
-					self.targetSpeed[0] = float(wordList[5])
-					self.targetSpeed[1] = float(wordList[6])
-					# print("real", self.realSpeed)
-					self.coords[0] = float(wordList[7])
-					self.coords[1] = float(wordList[8])
-					self.targetDestination[0] = float(wordList[9])
-					self.targetDestination[1] = float(wordList[10])
-					if len(wordList) > 12: # remove this later, this is for backwards compatability
-						# print("wl", wordList[12])
-						self.gpsHeading = float(wordList[11])
-						self.gyroHeading = float(wordList[12])
-
-						self.calculateTrueHeading()
-
-
-					if lastCoords!=self.coords:
-						time.sleep(0.5)
-					lastCoords = self.coords[:]
-					line = fileHandle.readline()
-					
-				print("All done")
-				self.running = False
-				exit()
-				# robot_website.shutdownServer()
+				
+			print("All done")
+			self.running = False
+			exit()
+			# robot_website.shutdownServer()
 
 
 

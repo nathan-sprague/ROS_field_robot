@@ -33,6 +33,19 @@ def findDistBetween(coords1, coords2):
 
     return x, y
 
+def findDistBetweenAlt(coords1, coords2):
+    # returns a single number in ft
+    lat1 = coords1[0]
+    lat2 = coords2[0]
+    lon1 = coords1[1]
+    lon2 = coords2[1]
+    p = math.pi / 180
+    a = 0.5 - math.cos((lat2 - lat1) * p)/2 +  math.cos(lat1 * p) * math.cos(lat2 * p) * (1 - math.cos((lon2 - lon1) * p))/2
+    return 12742 * math.asin(math.sqrt(a)) * 1000 * 3.28084; # 2 * R; R = 6371 km
+
+print(findDistBetweenAlt([40.4702821, -86.9949355], [40.4702924, -86.9949514] ))
+
+
 def atDestination(coords1, coords2, tolerance=5.0):
     # checks if the two points are on top of each other within specified tolerance
 
@@ -66,6 +79,9 @@ def findAngleBetween(coords1, coords2):
     if realAngle > math.pi:
         realAngle = realAngle - 2 * math.pi
 
+    if angle < 0:
+        angle = 2*math.pi - angle
+
     return realAngle
 
 
@@ -88,7 +104,7 @@ def findDiffSpeeds(distToTarget, currentHeading, targetHeading, finalHeading = F
     destTolerance: point at which the robot will begin pointing toward its final heading
 
     returns:
-    wheel speed (list)
+    wheel speed (list). Both values are between -100 and 100
     """
 
     # examples:

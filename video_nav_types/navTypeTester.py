@@ -19,7 +19,7 @@ class RSCamera:
         self.useRGB = useRGB
         self.rgbJumpTo = 100
         self.cap = False
-        self.shiftAmt = 0.1
+        self.shiftAmt = 0
         
         self.rgbFilename = rgbFilename
 
@@ -195,8 +195,8 @@ class RSCamera:
             depth_color_image_original = np.asanyarray(depth_color_frame.get_data())
             depth_color_image = depth_color_image_original.copy()
 
-            # if showStream:
-                # cv2.imshow('1', depth_color_image)
+            if showStream:
+                cv2.imshow('1', depth_color_image)
 
             rgb_frame = frames.get_color_frame()
             color_image_original = np.asanyarray(rgb_frame.get_data())
@@ -253,5 +253,3 @@ class RSCamera:
                 print("pipeline already stopped")
 
 
-if __name__ == "__main__":
-    r = RSCamera(useRGB = True)

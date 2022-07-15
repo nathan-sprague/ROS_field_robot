@@ -54,12 +54,10 @@ void readSerial() {
       if (commandType == 'l') {
         targetSpeed[0] = serialMsg.toFloat();
         Serial.println("-l" + String(int(targetSpeed[0])));
-        targetSpeed[0] *= -1;
 
       } else if (commandType == 'r') {
         targetSpeed[1] = serialMsg.toFloat();
         Serial.println("-r" + String(int(targetSpeed[1])));
-        targetSpeed[1] *= -1;
 
       } else if (commandType == 's') {
 //        stopNow = true;
@@ -89,11 +87,12 @@ void readSerial() {
 
 
 void sendSerial() {
-  if (millis() - lastPrintTime > 1000) {
+  if (millis() - lastPrintTime > 300) {
     //    Serial.println("target speed: " + String(targetSpeed[0]));
     //    Serial.println("pwm speed: " + String(pwmSpeed[0]));
-    Serial.println("l" + String(-wheelSpeed[0], 3));
-    Serial.println("r" + String(-wheelSpeed[1], 3));
+    Serial.println("l" + String(wheelSpeed[0], 3));
+    
+    Serial.println("r" + String(wheelSpeed[1], 3));
     
 //      Serial.println(".pwm control: " + String(pwmIn[0]) + ", " + String(pwmIn[1]));
     

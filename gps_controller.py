@@ -28,6 +28,10 @@ class Gps():
         self.headingFixLevel = 0
         self.mainGpsPort = mainGpsPort
 
+        self.debugOptions = {"heading board connected": [False, 0], 
+                            "SIV": [0, 0], 
+                            "RTK signal available": [False, 0],
+                            "RTK signal used": [False, 0]}
 
         self.t = 0
         self.ht = time.time()
@@ -54,17 +58,20 @@ class Gps():
         """
         print("setting up GPS")
 
+        if self.mainGpsPort == "none":
+            print("no GPS Connected to computer")
+            return False
         # self.device = serial.Serial(port='/dev/ttyUSB0', baudrate=38400, timeout=1)
         try:
             self.device = serial.Serial(port=self.mainGpsPort, baudrate=115200, timeout=1)
         except:
-            print("unable to connect to GPS")
+            print("unable to connect to GPS, maybe check permissions?", self.mainGpsPort)
             return False
         time.sleep(0.5)
         print("connected to main gps on port", self.mainGpsPort)
 
            # create UBXReader instance, reading only UBX messages
-        ubr = UBXReader(BufferedReader(self.device), protfilter=2)
+        ubr = UBXReader(BufferedReader(self.device))
         serial_lock = Lock()
 
 
@@ -88,7 +95,7 @@ class Gps():
 
     def readUBX(self, stream, lock, ubxreader):
         """
-        reads, parses and prints out incoming UBX messages
+        reads, parses and prints out incoming UBX and NMEA messages
         """
     # pylint: disable=unused-variable, broad-except
 
@@ -98,27 +105,67 @@ class Gps():
                     lock.acquire()
                     (raw_data, parsed_data) = ubxreader.read()
                     lock.release()
-                    if parsed_data:
-                        # print(parsed_data)
 
-                        if hasattr(parsed_data, "relPosHeading"):
-                            if self.verbose:
-                                print("heading", parsed_data.relPosHeading, "accuracy:", parsed_data.accHeading)
+                    if parsed_data:
+                        # print(parsed_data.identity)
+                        # print(parsed_data)
+                        # print("")
+
+                        # print(parsed_data.identity)
+
+
+                        if parsed_data.identity == "NAV-RELPOSNED": #hasattr(parsed_data, "relPosHeading"):
+                            # print("identity")#, #parsed_data.identity)
+                            
+
                             headingAccuracy = parsed_data.accHeading
-                            if headingAccuracy != 0.0: # good heading
-                                self.robot.trueHeading = parsed_data.relPosHeading
+                            heading = parsed_data.relPosHeading
+                            self.robot.trueHeading = parsed_data.relPosHeading # add a constant if the antennas aren't in line with the robot
+                            self.robot.trueHeading %= 360
+
+
+                            if headingAccuracy != 0.0 or heading != 0: # good heading
                                 self.robot.headingAccuracy = headingAccuracy
                             else:
                                 self.robot.headingAccuracy = 360
+                                self.robot.trueHeading = 0
+
+                            if self.verbose:
+                                print("heading", self.robot.trueHeading, "accuracy:", self.robot.headingAccuracy)
+                                print("")
+
                             self.robot.lastHeadingTime = time.time()
 
-                            print("")
-                        if hasattr(parsed_data, "lon"):
+                        if parsed_data.identity == "NAV-PVT": #hasattr(parsed_data, "lon"):
+                            # if parsed_data.identity == "NAV-PVT":
+                            #     print("nav pvt data type")
                             if self.verbose:
                                 print("coords:", parsed_data.lon, parsed_data.lat, "fix type:", parsed_data.fixType, "accuracy:", parsed_data.hAcc, "mm")
                             self.robot.coords = [parsed_data.lat, parsed_data.lon]
-                            self.robot.connectionType = parsed_data.fixType
+                            # self.robot.connectionType = parsed_data.fixType
                             self.robot.gpsAccuracy = parsed_data.hAcc
+
+    
+                        if parsed_data.identity == "RXM-RTCM":
+                            # RTK2B heading msg: <UBX(RXM-RTCM, version=2, crcFailed=0, msgUsed=2, subType=0, refStation=0, msgType=1230)>
+                            # RTK base msg:      <UBX(RXM-RTCM, version=2, crcFailed=0, msgUsed=1, subType=1, refStation=0, msgType=4072)>
+
+                            if parsed_data.msgType == 1230: # heading board id is 1230. I think it should be parsed_data.refStation so pyubx updates may break this in the future.
+                                self.debugOptions["heading board connected"] = [True, int(time.time())]
+                            else: # rtk base message
+                                self.debugOptions["RTK signal available"] = [True, int(time.time())]
+
+                                if parsed_data.msgUsed > 1:
+                                    self.debugOptions["RTK signal used"] = [True, int(time.time())]
+                                elif time.time() - self.debugOptions["RTK signal used"][1] > 2:
+                                    self.debugOptions["RTK signal used"] = [False, int(time.time())]
+
+                                                        
+                        if parsed_data.identity == "GNGGA":
+                            if self.verbose:
+                                print("quality:", parsed_data.quality)
+                            self.robot.connectionType = parsed_data.quality
+                            self.debugOptions["SIV"] = [parsed_data.numSV, int(time.time())]
                             
                 except:
                     pass
@@ -136,7 +183,6 @@ if __name__ == "__main__":
 
     portsConnected = [tuple(p) for p in list(serial.tools.list_ports.comports())]
 
-    headingPort = False
     mainGpsPort = "none"
     for i in portsConnected: # connect to all of the relevant ports
 

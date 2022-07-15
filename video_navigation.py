@@ -15,7 +15,7 @@ _stepsShown = []  # [1,2,3,4,5,6]
 # _filename = "Desktop/real_corn_july_15/human.bag"
 # _filename = "tall/rs_1629482768.bag"
 # _filename = "/Users/nathan/bag_files/rs_1629482768.bag"
-_filename = "/home/john/object_detections/rs_1652891316.bag"
+_filename = "/home/nathan/bag_files/enter_row/backup.bag"
 # _filename=""
 _useCamera = False
 _showStream = True
@@ -29,7 +29,7 @@ _navTypes = ["eStop"]
 
 
 class RSCamera:
-    def __init__(self, useCamera, saveVideo, filename="", rgbFilename="", realtime=True, startFrame=0, stepsShown=[], navMethod = "standard"):
+    def __init__(self, useCamera, saveVideo, filename="", rgbFilename="", realtime=True, startFrame=0, stepsShown=[], navMethod = "standard", robot=False):
         self.useCamera = useCamera
         self.saveVideo = saveVideo
         self.realtime = realtime
@@ -46,6 +46,7 @@ class RSCamera:
         self.lastRight1 = []
         self.lastRight2 = []
         self.stalkCoords = []
+        self.robot = robot
 
 
         if navMethod == "standard":
@@ -108,7 +109,7 @@ class RSCamera:
             else:
                 print("WARNING: Using camera but NOT saving video. Are you sure?\n\n\n\n\n\n")
 
-        elif True:
+        else:
             # Create object for parsing command-line options
             parser = argparse.ArgumentParser(description="Read recorded bag file and display depth stream in jet colormap.\
                                           Remember to change the stream fps and format to match the recorded.")
@@ -174,7 +175,9 @@ class RSCamera:
 
 
         # Streaming loop
-        while not self.stop:
+        robotCtrlC = True
+        while not self.stop and robotCtrlC:
+
 
             # Get frameset of depth
             while frameCount < self.startFrame:
@@ -216,6 +219,9 @@ class RSCamera:
                     cv2.destroyAllWindows()
                     self.stopStream()
                     break
+            if self.robot != False:
+                robotCtrlC = self.robot.notCtrlC
+                # print("robotCtrlC=",robotCtrlC)
 
     def stopStream(self):
 

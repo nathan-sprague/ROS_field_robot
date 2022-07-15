@@ -53,14 +53,16 @@ class StandardDetection():
 
         badData = False  # assume it is good until future tests show it is not
 
-        cropSize = [0.2, 0.3]
+        cropSize = [0.1, 0.2]
         og_width = depth_image.shape[1]
         og_height = depth_image.shape[0]
-        depth_image = depth_image[int(og_height * cropSize[1]):int(og_height * (1 - cropSize[1])),
+        depth_image = depth_image[int(og_height * 0.2):int(og_height * (1 - 0.4)),
                       int(og_width * 0):int(og_width * 1)]
         cv2.rectangle(depth_image, (0, 0), (int(og_width * cropSize[0]), depth_image.shape[0]), (0, 0, 0), -1)
         cv2.rectangle(depth_image, (int(og_width * (1 - cropSize[0])), 0), (depth_image.shape[1], depth_image.shape[0]),
                       (0, 0, 0), -1)
+
+
 
         if cv2.countNonZero(depth_image) / depth_image.size < 0.15:
             # If less than 15% of all points are invalid, just say the it is bad
@@ -78,26 +80,33 @@ class StandardDetection():
 
         depth_image = (depth_image / 256).astype('uint8')  # convert to 8-bit
 
+        cv2.imshow("cropped", depth_image)
         #  mask = np.zeros(depth_image.shape[:2], dtype="uint8")
         # cv2.rectangle(mask, (0, int(depth_image.shape[0] / 6)), (int(depth_image.shape[1]), int(depth_image.shape[0] / 1.5)), 255, -1)
 
         # convert all white (invalid) to  black
-        depth_image[depth_image == 255] = 0
-        depth_image[depth_image > 55] = 255
-        depth_image[depth_image < 56] = 0
+        dic = depth_image.copy()
+        i = 8
+        while i<9:
+            dic = depth_image.copy()
+            thresh = 255
+            # dic[depth_image == 255] = 0
+            # dic[depth_image > thresh] = 255
+            dic[depth_image < thresh] = 0
 
-        res = depth_image.copy()
+            res = dic.copy()
 
-        # combine the pixel values of each column
-        resized = cv2.resize(res, (res.shape[1], 1), interpolation=cv2.INTER_AREA)
+            # combine the pixel values of each column
+            resized = cv2.resize(res, (res.shape[1], 1), interpolation=cv2.INTER_AREA)
 
-        # blur it to average out outliers
-        resized = cv2.blur(resized, (5, 5))
+            # blur it to average out outliers
+            resized = cv2.blur(resized, (5, 5))
 
-        # show the 5th step
-        if showStream:
-            visualResize = cv2.resize(resized, (resized.shape[1], 400), interpolation=cv2.INTER_AREA)
-            cv2.imshow("5", visualResize)
+            # show the 5th step
+            if showStream:
+                visualResize = cv2.resize(resized, (resized.shape[1], 400), interpolation=cv2.INTER_AREA)
+                cv2.imshow("5"+str(i), visualResize)
+            i+=1
 
         # Get the lightest colors
         x = []
@@ -215,7 +224,7 @@ class StandardDetection():
                      (int(color_image.shape[1] / 2), int(color_image.shape[0])), (0, 0, 0), 1)
 
 
-            cv2.imshow("a", color_image)
+            # cv2.imshow("a", color_image)
         # print(self.heading)
         # print(badDataReasons)
 
@@ -233,22 +242,8 @@ if __name__ == "__main__":
 
     print("running")
 
-    bagFileNames = ["/home/nathan/Desktop/bag_files/rs_1655483324.bag",
-    "/home/nathan/Desktop/bag_files/rs_1655483283.bag",
-    "/home/nathan/Desktop/bag_files/rs_1655483251.bag",
-    "/home/nathan/Desktop/bag_files/rs_1655483211.bag",
-    "/home/nathan/Desktop/bag_files/rs_1655483191.bag",
-    "/home/nathan/Desktop/bag_files/rs_1655483174.bag",
-    "/home/nathan/Desktop/bag_files/rs_1655483113.bag",
-    "/home/nathan/Desktop/bag_files/rs_1655483067.bag",
-    "/home/nathan/Desktop/bag_files/rs_1655483024.bag",
-    "/home/nathan/Desktop/bag_files/rs_1655482981.bag",
-    "/home/nathan/Desktop/bag_files/rs_1655482933.bag"
-
-
-    ]
     # _filename = "/home/john/object_detections/rs_1629482645.bag"
-    _filename = "/home/nathan/bag_files/rs_1656706153.bag"#"/home/nathan/v3/rs_1629465226.bag"
+    _filename = "/home/nathan/bag_files/enter_row/backup.bag"#"/home/nathan/v3/rs_1629465226.bag"
     # _filename = bagFileNames[5]
 
     _useCamera = False

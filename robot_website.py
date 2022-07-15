@@ -25,14 +25,33 @@ def update():
 
     responseDict = {"coords": myRobot.coords, "realSpeed": myRobot.realSpeed,
                     "targetSpeed": myRobot.targetSpeed, "heading": myRobot.trueHeading,
-                    "targetHeading": myRobot.targetHeading, "gyroHeading": 0, "gpsHeading": myRobot.trueHeading, "alerts": myRobot.alerts}
+                    "targetHeading": myRobot.targetHeading, "gyroHeading": 0, "gpsHeading": myRobot.trueHeading}
+
+    if myRobot.alertsChanged:
+        responseDict["alerts"] = myRobot.alerts
+        myRobot.alertsChanged = False
 
 
-    if request.args.get('haveDestinations') == "0":
+    if request.args.get('destID') != str(myRobot.destID):
         destinationsList = []
         for i in myRobot.destinations:
             destinationsList += [i["coord"]]
         responseDict["destinations"] = destinationsList
+        responseDict["destID"] = myRobot.destID
+
+
+    if request.args.get('targetPathID') != str(myRobot.targetPathID):
+        destinationsList = []
+        
+        responseDict["targetPath"] = myRobot.targetPath
+        responseDict["targetPathID"] = myRobot.targetPathID
+
+    if request.args.get('obstaclesID') != str(myRobot.obstaclesID):
+        print("id real", myRobot.obstaclesID, "web", request.args.get('obstaclesID'))
+        destinationsList = []
+        
+        responseDict["obstacles"] = myRobot.obstacles
+        responseDict["obstaclesID"] = myRobot.obstaclesID
 
   #  print("sent:", str(responseDict).replace("'", '"'))
     return (str(responseDict)).replace("'", '"')

@@ -3,6 +3,12 @@
 <!-- <script src="/static/main.js"></script> --> 
 
 <script>
+
+
+	var gettingMessages = true;
+	var lastUpdateTime = 0
+
+
 	var targetSpeed = [0,0];
 
 	var realSpeed = [0,0];
@@ -15,12 +21,24 @@
 	var destinations = [];
 	var haveDestinations = 0;
 
+	var targetPaths = [];
+
+	var obstacles = [];
+
 	var stop = 0;
 
 	var targPosApplied = false;
 
 	var heading = 0;
 	var targetHeading = 0;
+
+	var destID = -2
+	var targetPathID = -2
+	var obstaclesID = -2
+
+	var requestInt = setInterval(sendInfo, 200);
+
+	var alerts = "None"
 
 
 	console.log("Starting");
@@ -34,15 +52,24 @@
 	  var xhttp = new XMLHttpRequest();
 	  xhttp.onreadystatechange = function() {
 	    if (this.readyState == 4 && this.status == 200) { 
+	    	if (gettingMessages == false){
+	    		clearInterval(requestInt)
+	    		requestInt = setInterval(sendInfo, 200);
+	    		gettingMessages = true;
+	    	}
 	      // console.log(this.responseText);
 
 	      info = JSON.parse(this.responseText);
 	      // console.log(info);
-		  alerts = info["alerts"];
 
-	      latitude = info["coords"][0];
 
-	      longitude = info["coords"][1];
+	    if ("alerts" in info){
+			  alerts = info["alerts"];
+			}
+
+			latitude = info["coords"][0];
+
+			longitude = info["coords"][1];
 
 		  if (latitude > 40 && latitude < 50 && longitude != 0){
 			  if (alerts == "heading not confirmed") {
@@ -53,15 +80,19 @@
 				lastPoints.push([latitude, longitude, "black"]);
 			  }
 		  }
-	      realSpeed = info["realSpeed"];
+	      realSpeed = info["realSpeed"]
+
+	      realSpeed[0] = realSpeed[0].toFixed(2);
+	      realSpeed[1] = realSpeed[1].toFixed(2);
 
 	      targetSpeed = info["targetSpeed"]
-
+				targetSpeed[0] = targetSpeed[0].toFixed(2);
+	      targetSpeed[1] = targetSpeed[1].toFixed(2);	
 
 
 	      heading = info["heading"];
-		  gpsHeading = info["gpsHeading"];
-		  gyroHeading = info["gyroHeading"];
+		    gpsHeading = info["gpsHeading"];
+		  // gyroHeading = info["gyroHeading"];
 	      targetHeading = info["targetHeading"];
 
 		  
@@ -70,9 +101,35 @@
 	        destinations = info["destinations"];
 	        console.log("destinations:", destinations);
 	        haveDestinations = 0;
-	      }
+	      
+		     	if ("destID" in info) { 
+		        destID = info["destID"];
+		      }
+		    }
 
-	      if (document.getElementById("dynamicScale").checked){
+		    if ("targetPath" in info) { // sometimes doesnt send target path since it is a big array of a lot of data
+	        targetPaths = info["targetPath"];
+	        console.log("target path", targetPaths)
+
+	      
+		     	if ("targetPathID" in info) { 
+		      	targetPathID = info["targetPathID"];
+		      }
+		    }
+
+
+		    if ("obstacles" in info) { // sometimes doesnt send target path since it is a big array of a lot of data
+	        obstacles = info["obstacles"];
+	        console.log("obstacles", obstacles, "id", obstaclesID)
+
+	      
+		     	if ("obstaclesID" in info) { 
+		      	obstaclesID = info["obstaclesID"];
+		      }
+		    }
+
+
+	      if (document.getElementById("dynamicScale").checked && destinations.length > 2){
 		      setScale();
 		  }
 	      drawBoard();
@@ -90,19 +147,40 @@
 
 	      document.getElementById("desLeftSpeed").innerHTML = targetSpeed[0];
 	      document.getElementById("desRightSpeed").innerHTML = targetSpeed[1];
+	      dif1= (targetSpeed[0]-realSpeed[0]).toFixed(2);
+	      dif2= (targetSpeed[1]-realSpeed[1]).toFixed(2);
+	      txt = dif1 + ", " + dif2;
+	      document.getElementById("speedError").innerHTML = txt;
 
-		  document.getElementById("gyroHeading").innerHTML = gyroHeading;
-	      document.getElementById("gpsHeading").innerHTML = gpsHeading;
+	      lastUpdateTime = 0;
+		    document.getElementById("lastUpdateTime").innerHTML = lastUpdateTime;
+
+		  // document.getElementById("gyroHeading").innerHTML = gyroHeading;
+	      // document.getElementById("gpsHeading").innerHTML = gpsHeading;
 		  
 		  
-	       } else if (this.status == 0){ // did not get correct message
+	       } else if (this.readyState == 4 && this.status == 0){ // did not get correct message
+	       	console.log("failed to get message")
+	       	lastUpdateTime += 2;
+		    	console.log(lastUpdateTime)
+		    	document.getElementById("lastUpdateTime").innerHTML = lastUpdateTime;
+
+	       	if (gettingMessages == true){
+	       		clearInterval(requestInt)
+		    		requestInt = setInterval(sendInfo, 2000);
+
+
+		    		gettingMessages = false;
+					}
+	       	
+
 	         // ready = false;
 	        }
 	     };
 
 	    shouldOverride = 1;
 	    
-	    argList = "?haveDestinations=" + haveDestinations;
+	    argList = "?destID=" + destID + "&targetPathID=" + targetPathID + "&obstaclesID=" + obstaclesID;
 	     
 
 
@@ -241,17 +319,56 @@
 	function clickEvent(event){
 	  var clickedCoords = ctxToCoord(event.offsetX, event.offsetY);
 	  console.log(clickedCoords);
+	  document.getElementById("clickCoords").innerHTML = clickedCoords 
 	}
 
 
 	function drawDestinations(ctx){
-	  a = [40.4216702, -86.9184231]//coordToCtx(40,-80);
+
+
+		ctx.fillStyle = "red";
+	  ctx.strokeStyle = "black";
+
+	  let j = 0;
+	  while (j<obstacles.length){
+			ob = obstacles[j]
+			
+			ctx.beginPath();
+			let oldC = coordToCtx(ob[0][0], ob[0][1])
+			let firstC = [oldC[0], oldC[1]]
+			//console.log("old c", lastPoints);
+			
+			let i = 1;
+			ctx.moveTo(oldC[0], oldC[1])
+			while (i<ob.length){
+				
+				// ctx.beginPath();
+				let c = coordToCtx(ob[i][0], ob[i][1])
+				ctx.lineTo(oldC[0], oldC[1], c[0], c[1])
+				oldC = [c[0], c[1]]
+
+				i+=1;
+				
+			}
+			ctx.lineTo(oldC[0], oldC[1], firstC[0], firstC[1])
+			ctx.closePath();
+			ctx.fill();
+			ctx.stroke()
+			j+=1
+		
+		}
+		ctx.fillStyle = "black";
+	  ctx.strokeStyle = "black";
+
+	  
+	  a = [40.4216702, -86.9184231]
 	  // console.log("convert", coordToCtx(a[0],a[1]));
 	  var i = 0;
 	    // console.log(targetPositions);
 
 
 	    n = 0
+
 	    while (n<destinations.length){
 	      c = destinations[n]
 	      // console.log(c)
@@ -282,17 +399,11 @@
 	      // console.log("drew at", x,y)
 	      n+=1;
 	    }
-
-	  while (i<destinations.length){
-
-	    var coords = coordToCtx(destinations[i][0], destinations[i][1]);
-
-	    i+=1;
-	  }
 	 
-	  ctx.fillStyle = "black";
-	  ctx.strokeStyle = "black";
 
+
+
+	
 
 	}
 
@@ -315,16 +426,42 @@
 				ctx.lineTo(oldC[0], oldC[1], c[0], c[1])
 				oldC = [c[0], c[1]]
 				
-				ctx.strokeStyle = lastPoints[i][2];
 				// ctx.stroke();
 
 				i+=1;
 				
 			}
 			ctx.stroke();
-
-			
 		}
+
+
+		ctx.strokeStyle = "yellow";
+
+		if (targetPaths.length > 2) {
+			
+			ctx.beginPath();
+			let oldC = coordToCtx(targetPaths[0][0], targetPaths[0][1])
+			//console.log("old c", lastPoints);
+			
+			let i = 1;
+			ctx.moveTo(oldC[0], oldC[1])
+			while (i<targetPaths.length){
+				
+				// ctx.beginPath();
+				let c = coordToCtx(targetPaths[i][0], targetPaths[i][1])
+				ctx.lineTo(oldC[0], oldC[1], c[0], c[1])
+				oldC = [c[0], c[1]]
+				
+				// ctx.stroke();
+
+				i+=1;
+				
+			}
+			ctx.stroke();
+		}
+
+
+
 		ctx.strokeStyle = "black";
 
 	    ctx.beginPath();
@@ -350,7 +487,7 @@
 	    ctx.stroke();
 
 
-	    // gyro heading
+	  //   // gyro heading
 	  //   ctx.strokeStyle = "red";
 	  //   ctx.beginPath();
 	  //   ctx.moveTo(x,y);
@@ -362,7 +499,7 @@
 	  //   ctx.stroke();
 
 
-	    // gps heading
+	    // target heading
 	    ctx.beginPath();
 	    ctx.moveTo(x,y);
 	    ctx.strokeStyle = "blue";
@@ -395,7 +532,7 @@ function begin(){
 
 
 
-  var requestInt = setInterval(sendInfo, 200);
+  
 }
 
 
@@ -403,12 +540,15 @@ function begin(){
 
 <html>
 <title>Robot Monitor</title>
+
+Last updated: <span id="lastUpdateTime">-1</span> s ago
+<br>
 alerts: <span id="alerts">__</span>
 
 
 <br>
 Real Speed: <span id="leftSpeed">__</span>, <span id="rightSpeed">__</span> mph<br>
-Desired Speed: <span id="desLeftSpeed">__</span>, <span id="desRightSpeed">__</span> mph<br>
+Desired Speed: <span id="desLeftSpeed">__</span>, <span id="desRightSpeed">__</span> mph, (<span id="speedError">__ </span> mph off)<br>
 
 <br>
 Current Position: <span id="lat">__</span>, <span id="long">__</span><br>
@@ -419,11 +559,14 @@ Current Position: <span id="lat">__</span>, <span id="long">__</span><br>
 
 Target heading: <span id="targetHeading">__</span> degrees north<br> 
 <br>Heading: <span id="heading">__</span> <br>
-GPS heading: <span id="gpsHeading">__</span> <br>
+<!-- GPS heading: <span id="gpsHeading">__</span> <br>
 Gyro heading: <span id="gyroHeading">__</span> <br>
+ -->
+Show path: <input type="checkbox" id="showPath" checked> <button type="button" id="erasePath", onclick="lastPoints = []" >Erase path</button>
 
-Show path: <input type="checkbox" id="showPath" checked> 
+
 <br>
+
 
 
 
@@ -433,11 +576,13 @@ scale:<br>
 <br>
 Dynamic Scale: <input type="checkbox" id="dynamicScale" checked> 
 <br>
+<span id="clickCoords"></span>
 <br>
 
 
 
-Blue = target heading, Green = heading<br>
+
+Blue = target heading, green = heading<br>
 <canvas id="mainCanvas" width="600px" height="600px" onclick="clickEvent(event);" style="background:rgb(200,200,200);">
 
 

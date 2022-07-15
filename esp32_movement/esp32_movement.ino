@@ -1,46 +1,7 @@
 
-// set USE_WIFI to 0 for faster compiling. It won't let you make the website though
-#define USE_WIFI 0
-#define USE_AP 0
-
-#define USE_GPS 0
 
 void ICACHE_RAM_ATTR handleInterrupt();
 
-
-
-#if USE_WIFI
-
-#include <WiFi.h>
-#include <WiFiClient.h>
-#include <WiFiAP.h>
-#include <WebServer.h>
-#include <HTTPClient.h>
-#include <ESPmDNS.h>
-
-#include <AsyncTCP.h>
-#include <ESPAsyncWebServer.h>
-
-AsyncWebServer server(80);
-
-#else
-#if USE_AP
-#include <ESPmDNS.h>
-#include <WiFi.h>
-#include <WiFiAP.h>
-#endif
-
-#endif
-
-#if USE_GPS
-#include <Wire.h>
-#include <SparkFun_u-blox_GNSS_Arduino_Library.h> //http://librarymanager/All#SparkFun_u-blox_GNSS
-
-#include <Adafruit_Sensor.h>
-#include <Adafruit_BNO055.h>
-SFE_UBLOX_GNSS myGNSS;
-Adafruit_BNO055 bno = Adafruit_BNO055(55, 0x28);
-#endif
 
 bool stopNow = false;
 
@@ -87,7 +48,7 @@ bool altEncoderActivated[] = {false, false};
 float targetSpeed[] = {0, 0};
 float pwmSpeed[] = {155, 155};
 
-float kp = 1;
+float kp = 2;
 float ki = 0;
 float kd = 0;
 
@@ -125,22 +86,6 @@ void setup() {
   ledcAttachPin(motorPinL, 2);
 
 
-#if USE_WIFI
-  setupAP();
-  setupPages();
-  server.begin();
-#else
-#if USE_AP
-  setupAP();
-#endif
-#endif
-
-#if USE_GPS
-  beginGPS();
-  bno.begin();
-#endif
-
-
 
 }
 
@@ -163,21 +108,6 @@ void calculateSpeed() {
     lastHitTime[wheelNum] = millis();
 
 
-    // this backwards calculation doesn't work (one encoder doesnt work right now for some reason)
-    if (leadEncoder[0] == 0 && leadEncoder[1] == 1) { // backwards
-      ws *= -1;
-    }
-
-    // this backwards calculation should
-    if (pwmSpeed[wheelNum] < 155 && pwmSpeed[wheelNum] > 90 && abs(ws) < 0.3) { // going backwards
-      goingForward[wheelNum] = -1;
-
-
-    } else if (pwmSpeed[wheelNum] > 155 && abs(ws) < 0.3) {  // going forwards
-      goingForward[wheelNum] = 1;
-    }
-
-
     wheelSpeed[wheelNum]  = ws * goingForward[wheelNum];
 
 
@@ -194,47 +124,71 @@ void calculateSpeed() {
 }
 
 void updateEncoder1() {
-  if (digitalRead(hallPin1) == HIGH) { // pin is turning high
 
-    // directional control not working for some reason
-    if (altEncoderActivated[1]) {
-      //      goingForward[0] = false; // going backwards
+  /*
+    Forward:
+    hall pin 1 low
+    hall pin 2 high
+    hall pin 1 high
+    hall pin 2 low
+    hall pin 1 low
+    hall pin 2 high
+    hall pin 1 high
+    hall pin 2 low
 
-    } else {
-      //      goingForward[0] = true; // going forwards
-    }
+    Backward:
+    hall pin 1 low
+    hall pin 1 high
+    hall pin 2 high
+    hall pin 1 low
+    hall pin 2 low
+    hall pin 1 high
+
+  */
+  bool p1 = digitalRead(hallPin1);
+  bool p2 = digitalRead(hallPin2);
+
+  if (p1 == p2) {
+    goingForward[0] = 1;
+  } else {
+    goingForward[0] = -1;
   }
   encoderTicks[0]++; // add 1 to the number of ticks experienced
 }
 
 void updateEncoder2() {
-  if (hallPin1 == HIGH) {
-    altEncoderActivated[0] = true;
+  bool p1 = digitalRead(hallPin1);
+  bool p2 = digitalRead(hallPin2);
+
+  if (p1 == p2) {
+    goingForward[0] = -1;
   } else {
-    altEncoderActivated[0] = false;
+    goingForward[0] = 1;
   }
 }
 
 void updateEncoder3() {
-  if (digitalRead(hallPin3) == HIGH) { // pin is turning high
+  bool p3 = digitalRead(hallPin3);
+  bool p4 = digitalRead(hallPin4);
 
-    // directional control not working for some reason
-    if (altEncoderActivated[1]) {
-      //      goingForward[1] = false; // going backwards
-
-    } else {
-      //      goingForward[1] = true; // going forwards
-    }
+  if (p3 == p4) {
+    goingForward[1] = 1;
+  } else {
+    goingForward[1] = -1;
   }
   encoderTicks[1]++; // add 1 to the number of ticks experienced
 }
 
 void updateEncoder4() {
-  if (hallPin3 == HIGH) {
-    altEncoderActivated[1] = true;
+  bool p3 = digitalRead(hallPin3);
+  bool p4 = digitalRead(hallPin4);
+
+  if (p3 == p4) {
+    goingForward[1] = -1;
   } else {
-    altEncoderActivated[1] = false;
+    goingForward[1] = 1;
   }
+
 }
 
 
@@ -246,22 +200,18 @@ void loop() {
 
   calculateSpeed();
 
+
   if (millis() - lastSerialTime > 1000 || (abs(pwmIn[0] - 155) < 50 && abs(pwmIn[0] - 155) > 5) ) { // haven't gotten a serial message for a second. Switch over to radio control
     //    readRadioSpeed();
     pwmControl = false;
     ledcWrite(1, pwmIn[0]);
     ledcWrite(2, pwmIn[1]);
-    if (millis() - lastPrintTime2 > 300) {
-      //      Serial.println("radio " + String(pwmIn[0]) + ", " + String(pwmIn[1]));
-      lastPrintTime2 = millis();
-    }
+
   } else {
     pwmControl = true;
   }
 
-#if USE_GPS
-  readGPS();
-#endif
+
 
   if (stopNow) {
     targetSpeed[0] = 0;
@@ -273,6 +223,12 @@ void loop() {
   } else if (pwmControl) {
     setMotorSpeed();
   }
+  //
+  //    if (millis() - lastPrintTime2 > 300) {
+  //      Serial.println("forward: " + String(goingForward[0]) + ", " + String(goingForward[1]) );
+  //      lastPrintTime2 = millis();
+  //    }
+
 
   sendSerial();
 

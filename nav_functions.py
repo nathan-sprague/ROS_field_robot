@@ -6,6 +6,7 @@ from shapely.geometry import Point, Polygon
 
 def findShortestAngle(targetHeading, heading):
     # finds the smaller angle between one heading or another (go negative or positive)
+    # uses degrees
     
     steerDif = targetHeading % 360 - heading % 360
 
@@ -244,8 +245,6 @@ def findDiffSpeeds(currentCoords, targetCoords, currentHeading, targetHeading, f
 
 
 
-
-
     dist1 = (distToTarget[0]*distToTarget[0] + distToTarget[1]*distToTarget[1])**0.5 # linear distance from target in feet
 
 
@@ -266,6 +265,11 @@ def findDiffSpeeds(currentCoords, targetCoords, currentHeading, targetHeading, f
             turnConstant = hd / dist1
 
         # print("tc", turnConstant)
+
+
+    if abs(headingDiff) > 140 and distToTarget[0]**2 + distToTarget[1]**2 < 4**2: # target is close and the robot passed it. Just back up a bit
+        return [-20, -20]
+
 
         
 
@@ -293,7 +297,6 @@ def findDiffSpeeds(currentCoords, targetCoords, currentHeading, targetHeading, f
         robotSpeed = [fasterSpeed, slowerSpeed]
     elif headingDiff < 0:
         robotSpeed = [slowerSpeed, fasterSpeed]
-
 
 
     if False: # len(obstacles) > 0:
@@ -329,8 +332,9 @@ def find0ptTurnSpeed(heading, targetHeading, tolerance):
     headingDiffMag = abs(headingDiff)# * 180/3.14
 
     turnSpeed = maxSpeed
+
     if headingDiffMag < 90:
-        turnSpeed = minSpeed + (maxSpeed-minSpeed)*(headingDiffMag/90)
+        turnSpeed = minSpeed + (maxSpeed-minSpeed)*(headingDiffMag/90)/2
 
 
     if headingDiff < 0:
@@ -350,7 +354,7 @@ def makePath(currentCoords, currentHeading, targetCoords, finalHeading = False, 
     subPoints = [currentCoords[:]]
 
     coords = currentCoords[:]
-    while i<30 and (abs(coords[0]-targetCoords[0]) > 0.0000001 or abs(coords[1]-targetCoords[1]) > 0.0000001):
+    while i<30 and (abs(coords[0] - targetCoords[0]) > 0.0000001 or abs(coords[1]-targetCoords[1]) > 0.0000001):
 
         targetHeading = math.degrees(findAngleBetween(coords, targetCoords))
 

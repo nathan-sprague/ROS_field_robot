@@ -63,30 +63,30 @@ Making a file: nano or vi a file that does not exist and it will make it.
 # About the python files
 ## robot_navigation.py
 This is the main python file used to navigate point-to-point or between rows.
-### Change the destinations 
-At the top there are some example dictionaries with points. Make your own dictionary in the same format as the others and comment the others out. <br>
-Each point a has few other things about them, such as destination type and heading. Destination type should usually be just "point" and heading is where the robot will face when it reaches the point. Leave the heading blank if you don't care where it ends up at.
 
 ### Switch between between-row navigation and point-to-point navigation
 The default navigation method is to go from point-to-point. The robot will switch to inter-row navigation automatically when specified in the destinations dictionary. To make the robot always run in inter-row navigation mode, change the variable "interRowNavigation" to True in robot_navigation2.py
 
+## destinations.py
+There are some example destinations that the robot can use. They include examples of the different kinds of parameters the robot can understand, such as final heading and obstacles.
+
 ## video_navigation.py
 Run this program to just view the stream or camera feed. It just calculates the center of the row. There are different video-based navigation methods that this file can call. The default is video_nav_types/standard.py
 
-## GPS controller.py
-Read the GPS and updates relevant information to the robot object. No need to look at this.
+## gps_controller.py
+Read the GPS and updates relevant information to the robot object.
 
 ## robot_esp_control.py
-Controls the ESP32. No need to look at this.
+Sends commands and recieves statuses from the ESP32s. Sends commands based on the robot's target speed.
 
 ## esp_tester.py
-Simulates robot_esp_control.py when there are no ESP32s connected. Modify this to change the simualtion parameters 
+Simulates robot_esp_control.py when there are no ESP32s connected. Modify this to change the simualtion parameters .
 
 ## robot_website.py
-Controls the website. No need to look at this.
+Hosts a website for the user to view the robot's status. The website html and js files are in the templates and static folders.
 
 ## nav_functions.py
-Various functions that are used in other programs. No need to look at this.
+Various functions that are used in other programs, such as converting coordinates.
 
 # Hardware
 ## Controllers
@@ -96,17 +96,42 @@ You need at least 1 ESP32. Check the movement.ino file for specific pinouts. Mos
 ### Jetson Nano
 Any Jetson Nano or even a Raspberry Pi would do, but we are using the 4GB model of the Jetson Nano.
 
+### Access point
+To ssh into the Jetson nano, you need an access point. An ESP32 can be used to make an access point easily. Using the motor controlling ESP32 is not reccomended because using wifi may slow down the speed and reliability.
+
 ## Sensors
 ### Ardusimple simpleRTK2B+heading board
   For the robot to know its heading, it needs to have RTK corrections. Therefore you will need a base station nearby. The robot can run with a different heading sensor, but the code will need to be modified
   
+### intel Realsense camera
+<br>
+
 # Software
-  Upload the movement.ino Sketch to the ESP832.
+  Upload the movement.ino Sketch to the ESP32.
   Run the file "robot_navigation.py" on the Jetson Nano.
- 
+
+<br>
+
+
+# Initial software setup process
+1. Flash the Jetson Nano .iso image to an SD card and set up the Jetson Nano
+2. Clone this repository
+3. Install the pyrealsense2 library. It must be compiled from source, which may take a while.
+4. Download the remaining required libraries using pip. 
+5. Change the permissions to enable the program to access the serial ports. To give access one time, enter in the terminal:
+```console
+ sudo chmod -777 /dev/ttyACM0
+ ```
+ 6. To give access forever, enter:
+ ```console
+sudo adduser dialout [your username]
+```
+7. Run robot_navigation.py and the robot will go!
+
+
 <br>
 
 # Things Left To Do
 - The robot struggles to enter the row coming from point-based navigation
-- The robot does not move through any type of corn height.
+- The robot does not move through all types of corn height.
 - Destinations and movement must be given to the robot manually. While it can do basic obstacle avoidance, it cannot optimize a path around the obstacles.

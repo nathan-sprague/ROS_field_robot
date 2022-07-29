@@ -15,8 +15,13 @@
 
 	var lastPoints = [];
 
+	var updateSpeed = -1;
+	var updateSpeedInfo = -1;
+
 	var latitude = 0;
 	var longitude = 0;
+
+	var gpsAccuracy = -1;
 
 	var destinations = [];
 	var haveDestinations = 0;
@@ -80,19 +85,24 @@
 				lastPoints.push([latitude, longitude, "black"]);
 			  }
 		  }
-	      realSpeed = info["realSpeed"]
+	      realSpeed = info["realSpeed"];
+
+
+	      updateSpeedInfo = info["updateSpeed"];
 
 	      realSpeed[0] = realSpeed[0].toFixed(2);
 	      realSpeed[1] = realSpeed[1].toFixed(2);
 
 	      targetSpeed = info["targetSpeed"]
 				targetSpeed[0] = targetSpeed[0].toFixed(2);
-	      targetSpeed[1] = targetSpeed[1].toFixed(2);	
+	      targetSpeed[1] = targetSpeed[1].toFixed(2);
+
 
 
 	      heading = info["heading"];
 		    gpsHeading = info["gpsHeading"];
-		  // gyroHeading = info["gyroHeading"];
+		    gpsAccuracy = info["gpsAccuracy"]
+
 	      targetHeading = info["targetHeading"];
 
 		  
@@ -118,6 +128,7 @@
 		    }
 
 
+
 		    if ("obstacles" in info) { // sometimes doesnt send target path since it is a big array of a lot of data
 	        obstacles = info["obstacles"];
 	        console.log("obstacles", obstacles, "id", obstaclesID)
@@ -134,7 +145,15 @@
 		  }
 	      drawBoard();
 
+
+	      if (updateSpeedInfo > 0 && document.getElementById("speedController").style.display === "none") {
+    				document.getElementById("speedController").style.display = "block";
+    				document.title = "Robot Monitor Sim";
+    		}
+
+
 		  document.getElementById("alerts").innerHTML = alerts 
+		  	document.getElementById("acc").innerHTML = gpsAccuracy/1000;
 
 	      document.getElementById("leftSpeed").innerHTML = realSpeed[0];
 	      document.getElementById("rightSpeed").innerHTML = realSpeed[1];
@@ -155,9 +174,6 @@
 	      lastUpdateTime = 0;
 		    document.getElementById("lastUpdateTime").innerHTML = lastUpdateTime;
 
-		  // document.getElementById("gyroHeading").innerHTML = gyroHeading;
-	      // document.getElementById("gpsHeading").innerHTML = gpsHeading;
-		  
 		  
 	       } else if (this.readyState == 4 && this.status == 0){ // did not get correct message
 	       	console.log("failed to get message")
@@ -182,7 +198,9 @@
 	    
 	    argList = "?destID=" + destID + "&targetPathID=" + targetPathID + "&obstaclesID=" + obstaclesID;
 	     
-
+	    if (updateSpeedInfo > 0){
+	    	argList += "&updateSpeed=" + updateSpeed;
+	    }
 
 	    // console.log("arg list", argList);
 	     xhttp.open('GET', '/_info' + argList, true);
@@ -293,25 +311,7 @@
 
 
 
-	function coordToCtx(lat, long){
-	  var longCorrection = Math.cos(latitude*Math.PI/180);
-	  // longCorrection=1;
 
-	  var x = canvasScale*(long - longitude)*longCorrection + 300;
-	  var y = 600-(canvasScale*(lat - latitude)+300);
-
-	  return [x,y];
-	}
-
-	function ctxToCoord(x, y){
-	  var longCorrection = Math.cos(latitude*Math.PI/180);
-
-	  var long = (canvasScale*longitude*longCorrection+x-300)/(canvasScale*longCorrection);
-
-	  var lat = (canvasScale*latitude-y+300)/canvasScale;
-
-	  return [lat,long];
-	}
 	// 1 degree of Longitude = cosine (latitude in decimal degrees) * length of degree (miles) at equator
 
 
@@ -399,13 +399,9 @@
 	      // console.log("drew at", x,y)
 	      n+=1;
 	    }
-	 
-
-
-
-	
-
 	}
+
+
 
 	function drawRobot(ctx){
 		
@@ -464,8 +460,13 @@
 
 		ctx.strokeStyle = "black";
 
+
 	    ctx.beginPath();
-	    ctx.fillStyle = "red";
+	    if (targetHeading == -1){
+		    ctx.fillStyle = "blue";
+		  } else {
+		  	ctx.fillStyle = "red";
+		  }
 	    var coords = coordToCtx(latitude, longitude);
 	    var x = coords[0]
 	    var y = coords[1]
@@ -487,28 +488,19 @@
 	    ctx.stroke();
 
 
-	  //   // gyro heading
-	  //   ctx.strokeStyle = "red";
-	  //   ctx.beginPath();
-	  //   ctx.moveTo(x,y);
-
-	  //   var otherX = x+Math.cos(gyroHeading*Math.PI/180-Math.PI/2)*30;
-	  //   var otherY = y+Math.sin(gyroHeading*Math.PI/180-Math.PI/2)*30
-	  //   ctx.lineTo(otherX, otherY);
-	  // //  console.log(otherX, otherY);
-	  //   ctx.stroke();
-
 
 	    // target heading
-	    ctx.beginPath();
-	    ctx.moveTo(x,y);
-	    ctx.strokeStyle = "blue";
+	    if (targetHeading != -1){
+		    ctx.beginPath();
+		    ctx.moveTo(x,y);
+		    ctx.strokeStyle = "blue";
 
-	    otherX = x+Math.cos((targetHeading)*Math.PI/180-Math.PI/2)*30;
-	    otherY = y+Math.sin((targetHeading)*Math.PI/180-Math.PI/2)*30
-	    ctx.lineTo(otherX, otherY);
-	    // console.log(otherX, otherY);
-	    ctx.stroke();
+		    otherX = x+Math.cos((targetHeading)*Math.PI/180-Math.PI/2)*30;
+		    otherY = y+Math.sin((targetHeading)*Math.PI/180-Math.PI/2)*30
+		    ctx.lineTo(otherX, otherY);
+		    // console.log(otherX, otherY);
+		    ctx.stroke();
+		  }
 
 
 	    ctx.strokeStyle = "black";    
@@ -536,6 +528,9 @@ function begin(){
 }
 
 
+
+
+
 </script>
 
 <html>
@@ -551,7 +546,7 @@ Real Speed: <span id="leftSpeed">__</span>, <span id="rightSpeed">__</span> mph<
 Desired Speed: <span id="desLeftSpeed">__</span>, <span id="desRightSpeed">__</span> mph, (<span id="speedError">__ </span> mph off)<br>
 
 <br>
-Current Position: <span id="lat">__</span>, <span id="long">__</span><br>
+Current Position: <span id="lat">__</span>, <span id="long">__</span> (accuracy: <span id="acc">___</span> m)<br>
 
 
 
@@ -559,10 +554,8 @@ Current Position: <span id="lat">__</span>, <span id="long">__</span><br>
 
 Target heading: <span id="targetHeading">__</span> degrees north<br> 
 <br>Heading: <span id="heading">__</span> <br>
-<!-- GPS heading: <span id="gpsHeading">__</span> <br>
-Gyro heading: <span id="gyroHeading">__</span> <br>
- -->
-Show path: <input type="checkbox" id="showPath" checked> <button type="button" id="erasePath", onclick="lastPoints = []" >Erase path</button>
+
+Show path: <input type="checkbox" id="showPath" checked> <button type="button" id="erasePath", onclick="lastPoints = []; drawBoard();" >Erase path</button>
 
 
 <br>
@@ -576,6 +569,12 @@ scale:<br>
 <br>
 Dynamic Scale: <input type="checkbox" id="dynamicScale" checked> 
 <br>
+  
+ <div id="speedController" style="display:none;">
+  	Update speed: <input type="range" min="1" max="300" value="100" class="slider" id="playSpeed"> <span id="playSpeedVal"></span>%
+ </div>
+
+
 <span id="clickCoords"></span>
 <br>
 
@@ -586,11 +585,23 @@ Blue = target heading, green = heading<br>
 <canvas id="mainCanvas" width="600px" height="600px" onclick="clickEvent(event);" style="background:rgb(200,200,200);">
 
 
-
 <body onload="begin();">
 
 <!-- <body onload="setup();"> -->
 
 
+<script>
+var slider = document.getElementById("playSpeed");
+var output = document.getElementById("playSpeedVal");
+output.innerHTML = slider.value; // Display the default slider value
 
-</html>
+// Update the current slider value (each time you drag the slider handle)
+slider.oninput = function() {
+  output.innerHTML = this.value;
+  updateSpeed = this.value;
+}
+
+
+</script>
+</html
+

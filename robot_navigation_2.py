@@ -17,6 +17,7 @@ import serial.tools.list_ports
 testing = False
 if len(list(serial.tools.list_ports.comports())) == 0:
 	testing = True
+	simulationFileName = "/home/nathan/new_logs/july28/log_1659037308"
 	print("no devices connected, assuming this is a test")
 
 # import python filestrueCoords in folder
@@ -32,15 +33,20 @@ import robot_website
 import video_navigation
 
 
-
-
 # change to True to navigate through a row endlessly. Useful for testing
 interRowNavigation = False
 
-# change to False to prevent the robot from moving automatically. Useful for collecting log data without real movement.
+# change to True to use during navigation at times other than interrow navigation (keep true to logc)
+useCamForNormalNav = True
+
+# change to False to prevent the robot from moving automatically. Useful for controlling the robot and collecting data
 moveRobot = True
 
-navDestinations = exampleDests.acreBayCorn #acreBayCorn # destinations the robot will go to
+if testing:
+	# change the number to vary what things are played back. 0=none, 1=just camera, 2=full, 3=just position, 4=full but still process
+	playbackLevel = 4
+
+navDestinations = exampleDests.acreBayCorn # destinations the robot will go to
 
 
 
@@ -70,10 +76,14 @@ class Robot:
 		self.alerts = "None"
 		self.alertsChanged = True
 
+		self.runMode = "real"
+		if testing:
+			if playbackLevel > 1:
+				self.runMode = "playback"
+			else:
+				self.runMode = "testing"
+		self.navStatus = [0] # number representing a message. See html file for the status types
 
-		# vestigial variables used for the website. Remove eventually
-		self.destinations = []
-		self.subPoints = []
 
 		###############################
 		# robot attributes
@@ -87,7 +97,6 @@ class Robot:
 		# true position-related variables
 		#################################
 		self.coords = [-1,-1] # lat, long
-		self.coords2 = [-1,-1] # lat, long
 		self.gpsAccuracy = 12345 # mm
 
 		self.headingAccuracy = 360 # degrees
@@ -107,11 +116,17 @@ class Robot:
 		# position-target variables
 		###############################
 
+		self.destinations = []
+		
+		self.subPoints = [] # will add back eventually
+
 		# to get the target speed to automatically be sent to the ESP controller whenever the target speed is changed, properties are used.
 		self.targetSpeed = [0, 0] # mph
 
 		self.targetHeading = 0 # deg (north = 0)
 		self.targetDestination = [0, 0]
+
+		self.rowDirection = -1 # angle of the row (degrees)
 
 		self.targetPath = []
 		self.targetPathID = random.randint(0, 1000)
@@ -127,27 +142,32 @@ class Robot:
 		self.lastCalcPowerTime = time.time()
 
 
+		####################################
+		# Website and testing variables
+		####################################
 		self.obstacles = []
 		self.obstaclesID = random.randint(0,1000)
 
-		###############################################
-		# logging variables and set up recording thread
-		###############################################
-		self.loggingData = False
-		if not testing:
-			self.loggingData = True
-			self.filename = "log_" + str(self.startTime) + ".txt"
-			self.recordThread = Thread(target=self.logData, args = [self.filename])
-			self.recordThread.start()
+		self.obstructions = []
+
+		self.updateSpeed = -1
+		self.defaultUpdateSpeed = 0.1
+		if testing:
+			# how often the robot updates
+			self.defaultUpdateSpeed = 0.1
+			self.updateSpeed = self.defaultUpdateSpeed
 
 		################################
-		# set up the esp's
+		# set up the sensors (ESP, GPS and camera)
 		###############################
 		self.espList = [] # list of ESP objects
 		i=0
 		self.gpsConnected = False
 
+		self.camConnected = False
+
 		if not testing:
+			self.logDir = "log_" + str(self.startTime)
 
 			mainGpsPort = "none"
 
@@ -174,7 +194,6 @@ class Robot:
 					print("unknown device port", i)
 
 
-
 			print("set up", len(self.espList), "ESPs")
 
 
@@ -189,14 +208,36 @@ class Robot:
 					while True:
 						time.sleep(1)
 						print("set up GPS before continuing")
-						break
+
+			self.cam = video_navigation.RSCamera(useCamera=True, saveVideo=True,
+						filename=self.logDir, navMethod=0, robot=self)
+			
+			self.camConnected = True
+						
 
 		elif testing:
-			esp = Esp(self, 0)
-			esp.begin()
-			self.espList +=[esp]
+			if playbackLevel < 2:
+				esp = Esp(self, 0)
+				esp.begin()
+				self.espList +=[esp]
 
 			self.gpsModule = Gps()
+
+			# self.cam = video_navigation.RSCamera(useCamera=False, saveVideo=False,
+			# 			filename=simulationFileName, robot=self)
+			self.cam = video_navigation.RSCamera(useCamera=False, saveVideo=False,
+						filename=simulationFileName, navMethod=0, playbackLevel=playbackLevel, robot=self)
+			
+			self.camConnected = True
+
+
+
+		if self.camConnected:
+			self.cam.idle = False
+			self.videoThread = Thread(target=self.cam.videoNavigate, args=([testing]))
+			self.videoThread.start()
+
+
 
 
 
@@ -210,6 +251,7 @@ class Robot:
 		"""
 
 		print("shutting down robot")
+		self.navStatus = [16];
 		self.targetSpeed = [0, 0]
 
 		for esp in self.espList:
@@ -221,118 +263,6 @@ class Robot:
 		robotThread.join()
 
 
-		# close recording thread
-		if self.loggingData:
-			self.recordThread.join()
-			if time.time() - self.startTime < 5:
-				print("Ran for < 5 seconds. Not worth keeping the log file")
-				os.remove(self.filename)
-			else:
-				print("saved log file as", self.filename)
-
-
-	def logData(self, filename):
-		"""
-		Logs the variables related to the robot's status into a text file. 
-		This is helpful for viewing what the robot thought was going on during a past run.
-
-		Parameters: filename (text file to log to)
-		Returns: None
-		"""
-
-		print("recording to:", filename, "\n")
-
-
-		while abs(self.coords[0])<2 and self.notCtrlC:
-			time.sleep(0.3)
-
-		while self.targetSpeed[0] == 0 and self.targetSpeed[1] == 0 and self.notCtrlC:
-			time.sleep(0.3)
-
-		if not self.notCtrlC:
-			print("never logged anything")
-			return
-
-		print("coords are real and the robot is moving, it is worth logging now")
-
-	
-
-		
-		recordDestID = -2
-		lastMsg = [0]*20
-
-		while self.notCtrlC:
-			time.sleep(0.3)
-		
-
-			""" 
-			log the important variables:
-					1. time since start
-					2. heading
-					3. target heading
-					4. real left speed
-					5. real right speed
-					6. target left speed
-					7. target right speed
-					8. current coordinates[0]
-					9. current coordinates[1]
-					10. target coordinates[0]
-					11. target coordinates[1]
-					12. heading accuracy
-					13. connection type
-			"""
-
-			if recordDestID != self.destID and len(self.destinations) > 0:
-				msg = "d,"
-				for d in self.destinations:
-					msg += str(d["coord"][0]) + "," + str(d["coord"][1]) + ","
-
-				with open(filename, 'a+') as fileHandle:
-					fileHandle.write(str(msg) + "\n")
-					fileHandle.close()
-				recordDestID = self.destID
-
-
-
-			importantVars = [int(time.time()) - self.startTime,
-							self.trueHeading,
-							int(self.targetHeading),
-							self.realSpeed[0],
-							self.realSpeed[1],
-							self.targetSpeed[0],
-							self.targetSpeed[1],
-							self.coords[0],
-							self.coords[1],
-							self.targetDestination[0],
-							self.targetDestination[1],
-							self.headingAccuracy,
-							self.gpsAccuracy,
-							self.connectionType
-							]
-
-
-			# converts the variables to a string and logs them
-			msg = ""
-			j=0
-			for i in importantVars:
-				dif = i-lastMsg[j]
-				if abs(dif)>0.000001:
-					msg += str(i) + ","
-					lastMsg[j] = i
-				else:
-					msg += ","
-				j+=1
-
-			with open(filename, 'a+') as fileHandle:
-				fileHandle.write(str(msg) + "\n")
-				fileHandle.close()
-
-
-	def calculateTrueHeading(self):
-		"""
-		Used to calculated the heading given all the senors. Currently just using the GPS so ignore this function
-		"""
-		return
 
 
 	def navigate(self, destinations):
@@ -345,8 +275,10 @@ class Robot:
 		Returns:
 		none
 		""" 
+		if testing:
+			if playbackLevel == 2:
+				return
 
-		
 
 		if "obstacles" in destinations[0]:
 			print("there are obstacles")
@@ -357,29 +289,27 @@ class Robot:
 
 		else:
 			print("no obstacles")
-			exit()
 
 		# add destinations to a list for the website. Possibly remove later, idk
 		self.destinations = destinations
 
 
 		if interRowNavigation:
-			cam = video_navigation.RSCamera(useCamera=True, saveVideo=True, filename= "object_detections/rs_" + str(self.startTime) + ".bag")
-		#	cam = video_navigation.RSCamera(useCamera=False, saveVideo=False, filename= "object_detections/rs_1652890000.bag")
-			videoThread = Thread(target=cam.videoNavigate, args = [False])
-			videoThread.start()
-			while self.notCtrlC:
-				delayTime = self.interRowNavigate(cam)
-        
-				if delayTime > 0:
-					time.sleep(delayTime)
-				else:
-					break
-			self.notCtrlC = True
-			cam.stopStream()
-			cam.stop = True
-			print("cam stopped")
-			videoThread.join()
+			if self.camConnected:
+				self.cam.rowNavigate = True
+				while self.notCtrlC:
+					delayTime = self.interRowNavigate()
+					if delayTime > 0:
+						time.sleep(delayTime)
+					else:
+						break
+				self.notCtrlC = False
+				self.cam.stopStream()
+				self.cam.stop = True
+				print("cam stopped")
+				self.videoThread.join()
+			else:
+				print("need to connect to a camera to do row navigation")
 			return
 
 		while self.notCtrlC and len(self.destinations) > 0:
@@ -389,15 +319,19 @@ class Robot:
 			if "destTolerance" in dest:
 				self.atDestinationTolerance = dest["destTolerance"]
 			navType = dest["destType"]
-			self.calculateTrueHeading()
 
 			if navType == "point":
 				# gps-based point-to-point navigation
+				if self.camConnected:
+					self.cam.navMethod = 0
+					self.obstructions = self.cam.obstructions
 				delayTime = self.navigateToPoint(dest)
 
 			elif navType == "row":
 				# find the best direction to move wheels
-				delayTime = self.interRowNavigate(cam, dest)
+				self.cam.navMethod = 1
+				self.cam.idle = False
+				delayTime = self.interRowNavigate(dest)
 
 			elif navType == "sample":
 				# just a placeholder for sampling for now. It will eventually do something.
@@ -410,6 +344,7 @@ class Robot:
 				self.closeRobot()
 				exit()
 
+
 			if delayTime > 0:
 				# call the function again
 				time.sleep(delayTime)
@@ -418,68 +353,18 @@ class Robot:
 				# reached the destination
 				self.reachedDestination = False
 
-				if len(destinations) > 0:
+				if len(destinations) > 1:
 					destinations = destinations[1::] # remove the old destination from the destination list
 					self.destinations = destinations[:]
 					self.destID = random.randint(0, 1000)
-					
-					# if the new destination type is through a row, start the video navigation thread
-					dest = destinations[0]
-					if dest["destType"] == "row":
-						if testing:
-							cam = video_navigation.RSCamera(useCamera=False, saveVideo=False,
-							filename= "/home/nathan/bag_files/rs_1655483324.bag", robot=self)
-						else:
-							cam = video_navigation.RSCamera(useCamera=True, saveVideo=True, 
-							filename= "object_detections/rs_" + str(self.startTime) + ".bag", robot=self)
-
-						videoThread = Thread(target=cam.videoNavigate, args=([testing]))
-						videoThread.start()
 
 				else:
 					print("reached all destinations")
 					self.closeRobot()
-					exit()
+					time.sleep(0.5)
+					os.kill(os.getpid(), signal.SIGUSR1)
 
 
-
-	def calcPowerConsumption(self):
-
-		t = time.time() - self.lastCalcPowerTime
-
-		# 0-pt turn is 30 amp
-		# straight is 1 amp
-
-		if abs(self.realSpeed[0]-self.realSpeed[1]) > 2.5: # 0-pt turn
-			self.estimatedEnergyConsumed += 1*30 / t
-			print("0-pt turn")
-		elif self.realSpeed == [0,0]:
-			self.estimatedEnergyConsumed += 0.5 / t
-		else:
-			self.estimatedEnergyConsumed += 1*24 / t
-			print("normal movement")
-
-
-		self.lastCalcPowerTime = time.time()
-
-
-
-	def manageErrors(self):
-		# run through any errors and correct them.
-
-		for i in self.errorList:
- 
-			if i[0]==0: # motor powered but not moving
-				print("stuck")
-
-			if i[0]==1: # ESP cannot connect to GPS
-				print("gps not connected")
-
-			if i[0]==2: 
-				print("gyro not connected. Stil running but heading will be less accurate")
-
-		self.errorList = []
-		return
 
 
 	def checkGPS(self):
@@ -514,12 +399,14 @@ class Robot:
 			print("")
 
 			self.motionType = ["waiting", time.time()]
+			self.navStatus = [1]
 
 			return 2
 
 		elif self.headingAccuracy > 90 or self.lastHeadingTime+2 < time.time(): # you can't trust the heading.
 			print("Heading accuracy not good enough! Estimated heading:", self.trueHeading, "Heading accuracy:", self.headingAccuracy, "Last updated", int(time.time()-self.lastHeadingTime), "s ago. GPS accuracy", self.gpsAccuracy, "mm")
 
+			self.navStatus = [3]
 			if self.motionType[0] == "waiting": # robot has been waiting
 				
 				# go through the debugging possibilities
@@ -554,7 +441,6 @@ class Robot:
 
 
 
-
 	def navigateToPoint(self, target):
 		""" 
 		Manages any errors and sets the target speed and heading
@@ -568,11 +454,16 @@ class Robot:
 		# 	self.targetPathID = random.randint(0,1000)
 		# 	self.lastTargetPathTime = time.time()
 
-
-		# manage any errors the sensors give
-		self.manageErrors()
 #		self.coords = [40.4221268, -86.9161606]
+
+		if self.camConnected:
+			if self.cam.aboutToHit:
+				print("about to hit")
+				self.targetSpeed=[0,0]
+				self.navStatus = [18,19]
+				return 0.3
 		
+
 		gpsQual = self.checkGPS()
 
 		if gpsQual != 0: # The fix of the GPS is not good enough to navigate
@@ -605,20 +496,33 @@ class Robot:
 				if finalHeading == False: # reached destination with no heading requirement
 					self.targetSpeed = [0,0]
 					print("reached destination, no heading requirement")
-					time.sleep(3)
+					self.navStatus = [8]
+					time.sleep(2)
 					return -1
 				if abs(nav_functions.findShortestAngle(finalHeading, self.trueHeading)) < 5: # reached destination with the right heading
 					print("reached destination with right heading")
+					self.navStatus = [8]
 					self.targetSpeed = [0, 0]
-					time.sleep(3)
-					return -1
+					time.sleep(1)
+					if abs(nav_functions.findShortestAngle(finalHeading, self.trueHeading)) < 5:
+						print("actually at the right heading")
+						time.sleep(2)
+						return -1
+					else:
+						print("stopped being at right heading")
+						self.navStats = [9]
+						return 0.3
 				else:
+					print("at destination with incorrect heading")
+					self.navStatus = [9]
 					self.targetHeading = finalHeading
+					self.atDestinationTolerance = 10000
 
 			elif distToTarget[0]**2 + distToTarget[1]**2 < self.atDestinationTolerance ** 2: # reached the destination
 				self.reachedDestination = True
 				print(" -_-_-_-_-_-_-_- reached destination -_-_-_-_-_-_-_-_-_")
 				self.targetSpeed = [0,0]
+				time.sleep(1)
 				
 			else:
 				self.reachedDestination = False
@@ -626,7 +530,8 @@ class Robot:
 
 
 			# set ideal speed given the heading and the distance from target
-			targetSpeedPercent = nav_functions.findDiffSpeeds(self.coords, targetCoords, self.trueHeading, self.targetHeading, finalHeading = finalHeading, turnConstant = 2, destTolerance = self.atDestinationTolerance, obstacles = self.obstacles)
+			targetSpeedPercent = nav_functions.findDiffSpeeds(self.coords, targetCoords, self.trueHeading, self.targetHeading, 
+				finalHeading = finalHeading, turnConstant = 2, destTolerance = self.atDestinationTolerance, obstacles = self.obstacles)
 			
 			zeroPt = False
 			if abs(targetSpeedPercent[1]-targetSpeedPercent[0]) > 100:
@@ -640,16 +545,22 @@ class Robot:
 			if zeroPt and self.motionType[0] != "0-pt-turn": # started doing a 0-point turn
 				self.motionType = ["0-pt-turn", time.time()]
 				print("started a 0-pt-turn")
+				self.navStatus = [6]
 
 			elif not zeroPt and self.motionType[0] != "straight-nav": # started moving normally
 				self.motionType = ["straight-nav", time.time()]
 				print("doing regular navigation")
+				self.navStatus = [4]
 
-			elif False and self.motionType[0] == "0-pt-turn" and self.motionType[1]+1 < time.time(): # doing a 0-pt turn for 4 seconds. Try waiting for a second to get its heading
+			elif  self.motionType[0] == "0-pt-turn" and self.motionType[1]+1 < time.time(): # doing a 0-pt turn for 4 seconds. Try waiting for a second to get its heading
 				self.motionType = ["waiting", time.time()]
 				self.targetSpeed = [0,0]
 				print("pausing after partial 0-pt-turn")
-				return 1
+				self.navStatus = [7]
+				return 0.5
+			else:
+				self.navStatus = [4]
+			print("navStatus", self.navStatus)
 
 
 			# conver the target speed from the above function to a real speed. target speed percent is -100 to 100. the robot should usually move -2 to 2 mph
@@ -661,8 +572,6 @@ class Robot:
 			elif not zeroPt and self.alerts != "no zeropt":
 				self.alerts = "no zero pt turn"
 				self.alertsChanged = True
-
-
 
 
 			# Print status
@@ -681,14 +590,13 @@ class Robot:
 		# print("current coords:", self.coords, "target coords:", targetCoords, "fix type:", self.connectionType, "(accuracy:", self.gpsAccuracy, ")")
 		print("target speeds:", self.targetSpeed,"real speeds:", self.realSpeed, "distance from target:", distToTarget, "\n")
 		# print("motion type:", self.motionType)
-		self.calcPowerConsumption()
 		print("runtime:", int(time.time()-self.startTime))
 
 
 
 
 
-	def interRowNavigate(self, cam, destination = False):
+	def interRowNavigate(self, destination = False):
 		"""
 		Call the navigation time
 
@@ -701,33 +609,81 @@ class Robot:
 
 		"""
 
-		if cam.stop or not self.notCtrlC:
+		if self.cam.stop or not self.notCtrlC:
 			# the camera stopped. Something happened in the video navigation program
 			# stop streaming and go to the next destination
-			cam.stopStream()
+			self.cam.stopStream()
 			print("stopped camera stream")
 			return -1
 
-		# manage any error codes
-		self.manageErrors()
+		# copy the variable to this scope because there is a slight chance it will change as it is being analyzed (threading thing)
+		camHeading = self.cam.heading 
 
-		if abs(cam.heading)<100:
-			travelDirection = -cam.heading-1 # find direction it should be facing (degrees)
+		if type(camHeading) == list: # there are multiple rows that the robot can enter
+			if self.rowDirection == -1: # no specific row direction, go into the center row
+				camHeading = camHeading[int(len(camHeading)/2)]
+			else:
+				bestHeading = camHeading[0]
+				bestHeadingDif = abs(nav_functions.findShortestAngle(self.rowDirection, camHeading[0]+self.trueHeading))
+				
+				ind = 0
+				bestInd = 0
+				print("true heading", self.trueHeading)
+				for i in camHeading:
+
+					headingDif = abs(nav_functions.findShortestAngle(self.rowDirection, i+self.trueHeading))
+					print("heading dif", headingDif, "angle", i)
+					if bestHeadingDif > headingDif:
+						bestHeadingDif = headingDif
+						bestHeading = i
+						bestInd = ind
+					ind+=1
+
+
+				print("best index", bestInd, "\n")
+				camHeading = bestHeading
+
+
+		if abs(camHeading)<100:
+			travelDirection = -camHeading-1 # find direction it should be facing (degrees)
 		else:	
 			travelDirection = 0
 
-		print("heading", cam.heading)
-		if abs(cam.heading) < 10: # facing approximately correct way
-			maxSpeed = 1
+		if self.cam.aboutToHit:
+			if self.motionType[0] != "obstacleStop":
+				print("about to hit")
+				self.targetSpeed = [0,0]
+				print("speed", self.targetSpeed)
+				self.motionType = ["obstacleStop", time.time()]
+				return 0.3
+			else:
+				print("backing up - obstacle in sight")
+				self.targetSpeed = [-self.topSpeed*0.1, -self.topSpeed*0.1]
+				self.motionType = ["reversing", time.time()]
+				return 0.3
 
-		elif cam.heading == 1000: # does not know where it is facing
+		elif self.motionType[0] == "reversing" and time.time()-self.motionType[1] < 5: # continue to back up for a bit even when there is no longer an obstacle
+			print("backing up - just to be safe")
+			self.targetSpeed = [-self.topSpeed*0.1, -self.topSpeed*0.1]
+			return 0.3
+		else:
+			self.motionType = ["normal", 0]
+
+
+		print("heading", camHeading)
+		if abs(camHeading) < 10: # facing approximately correct way
+			maxSpeed = self.topSpeed*0.5
+			self.navStatus = [10, 14]
+
+		elif camHeading == 1000 or abs(camHeading) > 44: # does not know where it is facing
 			print("dont know what way its facing")
-			maxSpeed = 0.1
-			cam.heading = 0
+			maxSpeed = self.topSpeed*0.1
+			h = 0
+			self.navStatus = [10, 13]
 
 		else: # facing wrong way but knows where it is facing
-			maxSpeed = 0.5
-
+			maxSpeed = self.topSpeed*0.2
+			self.navStatus = [10, 15]
 
 
 		# speed range is how different the faster wheel and slower wheel can go. 
@@ -737,13 +693,33 @@ class Robot:
 
 
 		# note the /60 part of the equation is a hard-coded value. Change as seen fit
-		slowerWheelSpeed = maxSpeed - (abs(travelDirection)/60 *  speedRange)
+		if self.cam.distFromCorn > 1200:
+			print("outside row")
+
+			rowDirAngle = nav_functions.findShortestAngle(self.rowDirection, self.trueHeading)
+			print("row angle", rowDirAngle)
+			if abs(rowDirAngle) > 10 and self.rowDirection !=-1:
+				if abs(rowDirAngle) > 20:
+					rowDirAngle = 20*abs(rowDirAngle)/rowDirAngle
+
+				travelDirection = rowDirAngle
+				self.navStatus += [17]
+
+			slowerWheelSpeed = maxSpeed - (abs(travelDirection)/40 *  speedRange)
+
+			self.navStatus += [11]
+
+		else:
+			slowerWheelSpeed = maxSpeed - (abs(travelDirection)/60 *  speedRange)
+
 
 
 		if slowerWheelSpeed > maxSpeed:
 			print("something is wrong! the slower wheel speed is faster. Fix this code!!!!")
 			self.closeRobot()
 			exit()
+
+		self.targetHeading = self.trueHeading + travelDirection
 
 		if travelDirection > 0: # should turn right
 			self.targetSpeed = [maxSpeed, slowerWheelSpeed]
@@ -760,13 +736,10 @@ class Robot:
 
 
 
-
-
 def beginRobot():
 	# this function begins the navigation function. 
 	# For some reason you need to call a function outside of the Robot when threading for it to work properly.
 	myRobot.navigate(navDestinations)
-
 
 
 
@@ -777,11 +750,8 @@ def signal_handler(sig, frame):
 	print('You pressed Ctrl+C!')
 
 	myRobot.notCtrlC = False
-	myRobot.closeRobot()
 	time.sleep(0.5)
 	exit()
-
-
 
 
 

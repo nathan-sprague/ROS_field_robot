@@ -51,7 +51,7 @@ class StandardDetection():
         badDataReasons = []
         # Start streaming from file
 
-        badData = False  # assume it is good until future tests show it is not
+        badData = False # assume it is good until future tests show it is not
 
         cropSize = [0.1, 0.2]
         og_width = depth_image.shape[1]
@@ -65,7 +65,7 @@ class StandardDetection():
 
 
         if cv2.countNonZero(depth_image) / depth_image.size < 0.15:
-            # If less than 15% of all points are invalid, just say the it is bad
+            # If less than 15% of all points are valid, just say the it is bad
             badDataReasons += ["too many invalid points"]
             badData = True
 
@@ -84,29 +84,39 @@ class StandardDetection():
         #  mask = np.zeros(depth_image.shape[:2], dtype="uint8")
         # cv2.rectangle(mask, (0, int(depth_image.shape[0] / 6)), (int(depth_image.shape[1]), int(depth_image.shape[0] / 1.5)), 255, -1)
 
-        # convert all white (invalid) to  black
+
         dic = depth_image.copy()
-        i = 8
-        while i<9:
-            dic = depth_image.copy()
-            thresh = 255
-            # dic[depth_image == 255] = 0
-            # dic[depth_image > thresh] = 255
-            dic[depth_image < thresh] = 0
 
-            res = dic.copy()
+        # convert all white (invalid) to  black
+        dic[depth_image == 255] = 0
 
-            # combine the pixel values of each column
-            resized = cv2.resize(res, (res.shape[1], 1), interpolation=cv2.INTER_AREA)
+        
+        try:
+            std = np.std(dic[np.nonzero(dic)])
+            thresh = np.median(dic[np.nonzero(dic)]) - int(std)
+        except:
+            thresh = 100
 
-            # blur it to average out outliers
-            resized = cv2.blur(resized, (5, 5))
+        
+        dic[dic > thresh] = 255
 
-            # show the 5th step
-            if showStream:
-                visualResize = cv2.resize(resized, (resized.shape[1], 400), interpolation=cv2.INTER_AREA)
-                cv2.imshow("5"+str(i), visualResize)
-            i+=1
+        # cv2.imshow("threshed", dic)
+
+        # dic[depth_image < thresh] = 0
+
+        res = dic.copy()
+
+        # combine the pixel values of each column
+        resized = cv2.resize(res, (res.shape[1], 1), interpolation=cv2.INTER_AREA)
+
+        # blur it to average out outliers
+        resized = cv2.blur(resized, (5, 5))
+
+        # show the 5th step
+        if showStream:
+            visualResize = cv2.resize(resized, (resized.shape[1], 400), interpolation=cv2.INTER_AREA)
+            # cv2.imshow("5", visualResize)
+        
 
         # Get the lightest colors
         x = []
@@ -132,6 +142,32 @@ class StandardDetection():
         # get indices of the furthest places
         z = np.nonzero(resized[0][:])
 
+
+        cs = np.where(np.diff(resized[0]) > 0)[0] + 1
+        ci = color_image.copy()
+        whiteStart = 99999
+        blackStart = 0
+        i=0
+        
+        areas = [[0,0]]
+        while i < len(cs)-1:
+            if i%2 == 0: # black to white
+                if areas[0][0] == 0:
+                    areas[0][0] = cs[i]
+                elif cs[i]-cs[i-1] > 20:
+                    areas += [[cs[i], cs[i]]]
+
+
+   
+            else: # white to black
+                areas[-1][1] = cs[i]  
+
+            i+=1
+        for i in areas:
+            if i[1]-i[0]>30:
+                cv2.rectangle(ci, (i[0], 0), [i[1],100], (255,0,0), 20)
+
+        cv2.imshow("spots:", ci)
         # the initial center is estimated as the average of all the far away points.
         frameCenter = int(depth_image.shape[1] / 2)
         centerSpot = frameCenter
@@ -144,7 +180,7 @@ class StandardDetection():
                 visualColor = color_image.copy()
                 cv2.line(visualColor, (centerSpot - 2, 0),
                          (centerSpot - 2, int(color_image.shape[0])), (0, 255, 0), 4)
-                cv2.imshow("7", visualColor)
+                # cv2.imshow("7", visualColor)
         else:
             badDataReasons += ["no distant enough spots"]
             badData = True
@@ -211,7 +247,7 @@ class StandardDetection():
             self.heading = 1000  # set the heading to an unreasonable number so the user can know it is invalid
 
         if showStream:
-            removeThis = cv2.resize(resized, (res.shape[1], res.shape[0]), interpolation=cv2.INTER_AREA)
+            # removeThis = cv2.resize(resized, (res.shape[1], res.shape[0]), interpolation=cv2.INTER_AREA)
             # res["imagesToShow"] += [removeThis]
 
             if badData:
@@ -243,7 +279,7 @@ if __name__ == "__main__":
     print("running")
 
     # _filename = "/home/john/object_detections/rs_1629482645.bag"
-    _filename = "/home/nathan/bag_files/enter_row/backup.bag"#"/home/nathan/v3/rs_1629465226.bag"
+    _filename = "/home/nathan/bag_files/enter_row/enter_real.bag"
     # _filename = bagFileNames[5]
 
     _useCamera = False

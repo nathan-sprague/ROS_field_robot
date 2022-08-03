@@ -142,7 +142,8 @@ class Esp():
                 keyName = message[1] # since the 1st character was a minus, the 2nd character is the ID character and the following characters are the value
               #  print(self.messagesToSend[keyName])
                 if keyName in self.lastSent:
-                    if int(float(self.lastSent[keyName][0])) == int(float(message[2::])): # ESP correctly got the message we are trying to send
+                    # Assuming the response is good. FIX LATER
+                    if True: # int(float(self.lastSent[keyName][0])) == int(float(message[2::])): # ESP correctly got the message we are trying to send
                         self.lastSent[keyName][1] = True
                         self.lastSent[keyName][3] = time.time()
 
@@ -161,37 +162,31 @@ class Esp():
                return
 
 
-            # convert the message to a float
-            try:
-                res = float(message[1::])
-            except:
-                if len(message)>3:
-                    firstChars = message[0:3]
-                else:
-                    firstChars = ""
-
-                # when the ESP32 restarts, it sometimes writes these phrases through serial. Ignore them.
-                restartChars = ["chk", "csu", "v00", "~ld", "loa", "tai"] 
-
-                if firstChars == " et": # the first characters the ESP32 prints when it restarts
-                    print(self.espType + " restarting")
-                elif firstChars not in restartChars:
-                    print("invalid message from " + self.espType + ": " + message)
-                return
-
+         
+            res = message[1::]
 
 
             # analyze the message based on the prefix
-            if msgType == "l":  # left wheel speed
-                self.robot.realSpeed[0] = res
-
-            elif msgType == "r":  # right wheel speed
-                self.robot.realSpeed[1] = res
-#                print("real speeed: ", self.robot.realSpeed[1])
+            if msgType == "w": # speed of both wheels
+                leftSpeed = ""
+                rightSpeed = ""
+                writeLeft = True
+                for c in res:
+                    if c == ",":
+                        writeLeft = False
+                    elif writeLeft:
+                        leftSpeed += c
+                    else:
+                        rightSpeed += c
+                try:
+                    self.robot.realSpeed[0] = float(leftSpeed)
+                    self.robot.realSpeed[1] = float(rightSpeed)
+                except:
+                    print("error getting speed!!\n\n\n")
 
             
-            elif msgType == "o": # An error occured represented by a number. Deal with it elsewhere (todo)
-                pass
+#             elif msgType == "o": # An error occured represented by a number. Deal with it elsewhere (todo)
+#                 pass
             return True
         else:
             return False

@@ -26,6 +26,8 @@ class StandardDetection():
         self.smoothCenter = 0
         self.lastGood = 0
         self.outsideRow = True
+        self.rowSide = 0
+        self.lastRowSideTime = 0
 
 
     def rowNavigation(self, depth_image, color_image, showStream=False):
@@ -56,49 +58,66 @@ class StandardDetection():
         obstacleImg = self.showObstacles(depth_image_untouched.copy())
         if showStream:
             cv2.imshow("obs", obstacleImg)
-        # check if anything directly in front of it is close
-        hitChance = self.checkIfHitting(depth_image_untouched.copy(), obstacleImg, showStream)
-        
-        if self.outsideRow or distFromCorn < 1000:
-            if hitChance > 5:
-                detectionStatus += [1]
-                # print("about to hit", hitChance)
-            elif hitChance == -1:
-                detectionStatus += [1]
-                # print("about to hit - few valid points")
+ 
         # print(distFromCorn)
 
 
         if self.outsideRow:
-            centerEstimation, ds = self.enterRowNavigate(depth_image, obstacleImg, showStream)
+            centerEstimation, ds = self.enterRowNavigate(depth_image, showStream)
           
         else:
             centerEstimation, ds = self.innerRowNavigate(depth_image, showStream)
+                
 
 
 
         if type(centerEstimation) == list:
+            mainCenter = centerEstimation[int(len(centerEstimation)/2)]
             centerEst = []
             for i in centerEstimation:
                 cv2.line(color_image, (i, 0), (i, 480), (255,0,0), 2)
                 centerEst += [(depth_image_untouched.shape[1] / 2 - i) * 90 / depth_image_untouched.shape[1]]
+
         else:
             color = (255,0,0)
+            mainCenter = centerEstimation
             if centerEstimation == 0:
                 centerEstimation = int(depth_image_untouched.shape[1] / 2)
                 color = (0,0,255)
-            cv2.line(color_image, (centerEstimation, 0), (centerEstimation, 480), color, 2)
-            centerEst = (depth_image_untouched.shape[1] / 2 - centerEstimation) * 90 / depth_image_untouched.shape[1]
-     
+                badData = True
 
+            cv2.line(color_image, (centerEstimation, 0), (centerEstimation, 480), color, 4)
+            centerEst = (depth_image_untouched.shape[1] / 2 - centerEstimation) * 90 / depth_image_untouched.shape[1]
+
+
+
+
+        # check if anything directly in front of it is close
+        # print(mainCenter)
+        if abs(mainCenter-320) > 100:
+            mainCenter = 320
+        
+        if self.outsideRow:
+            hitChance = self.checkIfHitting(depth_image_untouched.copy(), obstacleImg, showStream=showStream, hitableArea=(0.3,0.2), center=mainCenter)
+        else:
+            hitChance = self.checkIfHitting(depth_image_untouched.copy(), obstacleImg, showStream=showStream, hitableArea=(0.15,0.15), center=mainCenter)
+
+        if self.outsideRow:
+            if hitChance > 7:
+                detectionStatus += [1]
+                print("about to hit", hitChance)
+            elif hitChance == -1:
+                detectionStatus += [1]
+                print("about to hit - few valid points")
 
 
         detectionStatus += ds
         # print(detectionStatus)
         if showStream:
             cv2.imshow("res", color_image)
+
         # print("est", centerEst)
-        return centerEst, distFromCorn, detectionStatus
+        return centerEst, distFromCorn, detectionStatus, self.outsideRow
 
 
     def innerRowNavigate(self, depth_image, showStream = False):
@@ -124,14 +143,26 @@ class StandardDetection():
         depth_image[depth_image == 255] = 0 # convert all white (invalid) pixels back to black
 
         # Use a binary threshold to turn everything black/white
-        depth_image[depth_image > 55] = 255
-        depth_image[depth_image < 56] = 0
+        if self.outsideRow:
+            depth_image[depth_image > 100] = 255
+            depth_image[depth_image < 100] = 0
+        else:
+            depth_image[depth_image > 55] = 255
+            depth_image[depth_image < 56] = 0
 
+
+        if showStream:
+            cv2.imshow("4", depth_image)
 
         ## Convert the image to 1D array to analyze only vertically
         resized = cv2.resize(depth_image, (depth_image.shape[1], 1), interpolation=cv2.INTER_AREA) # combine the pixel values of each column
         resized = cv2.blur(resized, (5, 5)) # blur it to average out outliers
         avgColor = np.mean(resized) # Get the lightest colors
+
+        # show the step
+        if False: # showStream:
+            visualResize = cv2.resize(resized, (resized.shape[1], 400), interpolation=cv2.INTER_AREA)
+            cv2.imshow("5", visualResize)
 
         ## Further filter to only have the brightest lines
         sd = np.std(resized)
@@ -148,6 +179,7 @@ class StandardDetection():
         colorChanges = np.where(np.diff(resized[0]) > 0)[0] + 1
         i=0            
         largestLocation = [0, 0]
+        otherLocations = []
         largestSize = -1
         sizes = []
         s=0
@@ -160,12 +192,18 @@ class StandardDetection():
             
             if s>largestSize:
                 largestSize = s
+                otherLocations += [largestLocation]
                 largestLocation = [colorChanges[i], colorChanges[i+1]]
+            else:
+                otherLocations += [[colorChanges[i], colorChanges[i+1]]]
             sizes += [s]
             i+=2
 
         if np.sum(sizes) > largestSize * 2: # there are many other lines
             detectionStatus += [2]
+
+        for i in otherLocations:
+            resized[0][i[0]:i[1]] = 50 # make the area used obvious
 
         resized[0][largestLocation[0]:largestLocation[1]] = 100 # make the area used obvious
   
@@ -178,74 +216,181 @@ class StandardDetection():
         return centerEstimation, detectionStatus
 
 
-    def enterRowNavigate(self, depth_image, obstacleImg, showStream):
+    def enterRowNavigate(self, depth_image, showStream=False):
         detectionStatus = []
 
-        depth_image[obstacleImg == 0] = 0 # remove the sky and 
-        depth_image = 256*256-1 - depth_image # invert the image
-        # if showStream:
-            # cv2.imshow("b3", (depth_image/256*10).astype('uint8'))
+        ## remove the general area with the floor and sky to only analyze the central area
+        cropSize = [0.2, 0.3]
+        og_width = depth_image.shape[1]
+        og_height = depth_image.shape[0]
+        depth_image = depth_image[int(og_height * cropSize[1]):int(og_height * (1 - cropSize[1])),
+                      int(og_width * 0):int(og_width * 1)]
+        cv2.rectangle(depth_image, (0, 0), (int(og_width * cropSize[0]), depth_image.shape[0]), (0, 0, 0), -1)
+        cv2.rectangle(depth_image, (int(og_width * (1 - cropSize[0])), 0), (depth_image.shape[1], depth_image.shape[0]),
+                      (0, 0, 0), -1)
 
-        depth_image = cv2.resize(depth_image, (640, 1), interpolation=cv2.INTER_AREA)
+       
+        ## convert the whole image to black/white and threshold
+        depth_image[depth_image == 0] = 65535 # Convert all black pixels to white. 65535 is 16-bit
+        depth_image = self.apply_brightness_contrast(depth_image, 10, 100)  # increase contrast
+        depth_image = (depth_image / 256).astype('uint8')  # convert to 8-bit
 
-        depth_image = (256-depth_image/256*10).astype('uint8')
-        depth_image[depth_image>np.median(depth_image[np.nonzero(depth_image)])] = 255
-        depth_image[depth_image<255] = 0
+        depth_image[depth_image == 255] = 0 # convert all white (invalid) pixels back to black
+
+        # Use a binary threshold to turn everything black/white
+        if self.outsideRow:
+            depth_image[depth_image > 100] = 255
+            depth_image[depth_image < 100] = 0
+        else:
+            depth_image[depth_image > 55] = 255
+            depth_image[depth_image < 56] = 0
 
 
         if showStream:
-            dicVisual = cv2.resize(depth_image, (640, 480), interpolation=cv2.INTER_AREA)
-            # cv2.imshow("b2", dicVisual)
+            cv2.imshow("4", depth_image)
 
-        cs = np.where(np.diff(depth_image[0]) > 0)[0] + 1
-        
-        # find blotches of white, which are most likely row entrances.
+        ## Convert the image to 1D array to analyze only vertically
+        resized = cv2.resize(depth_image, (depth_image.shape[1], 1), interpolation=cv2.INTER_AREA) # combine the pixel values of each column
+        resized = cv2.blur(resized, (5, 5)) # blur it to average out outliers
+        avgColor = np.mean(resized) # Get the lightest colors
+
+        # show the step
+        if False: # showStream:
+            visualResize = cv2.resize(resized, (resized.shape[1], 400), interpolation=cv2.INTER_AREA)
+            cv2.imshow("5", visualResize)
+
+        ## Further filter to only have the brightest lines
+        sd = np.std(resized)
+        resized[0][resized[0] < avgColor + sd / 3] = 0
+        resized[0][resized[0] != 0] = 255
+
+        # show the step
+        if showStream:
+            visualResize = cv2.resize(resized, (resized.shape[1], 400), interpolation=cv2.INTER_AREA)
+            cv2.imshow("6", visualResize)
+
+
+        ## find the largest blotch of white
+        ## find the largest blotch of white
+        colorChanges = np.where(np.diff(resized[0]) > 0)[0] + 1
         i=0            
-        areas = [[0,0]]
-        while i < len(cs):
-            if i%2 == 1: # black to white
-                if areas[0][0] == 0:
-                    areas[0][0] = cs[i]
-                elif cs[i]-cs[i-1] > 20:
-                    areas += [[cs[i], cs[i]]]
-            else: # white to black
-                areas[-1][1] = cs[i]  
+        largestLocation = [0, 0]
+        otherLocations = []
+        largestSize = -1
+        sizes = []
+        s=0
+        while i < len(colorChanges):
+            if i>1:
+                if colorChanges[i] - colorChanges[i-1] < 20: # allow for a small black gap
+                    colorChanges[i] = colorChanges[i-2]
+                    sizes = sizes[0:-1]
+            s = colorChanges[i+1]-colorChanges[i]
+            
+            if s>largestSize:
+                largestSize = s
+                otherLocations += [largestLocation]
+                largestLocation = [colorChanges[i], colorChanges[i+1]]
+            else:
+                otherLocations += [[colorChanges[i], colorChanges[i+1]]]
+            sizes += [s]
+            i+=2
 
-            i+=1
-
-        areaAvgs = []
-        for i in areas:
-            if i[1]-i[0]>30 and i[1]-i[0]<100:
-                areaAvgs += [int((i[1]+i[0])/2)]#[int((320-(i[1]+i[0])/2) * 90 / depth_image.shape[1])]
-        if len(areaAvgs) > 1:
-            return areaAvgs, detectionStatus
-        elif len(areaAvgs) == 1:
-            return areaAvgs[0], detectionStatus
-        else:
-            return 0, detectionStatus
-
-        return 0, detectionStatus
+        if np.sum(sizes) > 5: # there are many other lines
+            detectionStatus += [2]
 
 
+        for i in otherLocations:
+            resized[0][i[0]:i[1]] = 10 # make the area used obvious
+
+
+
+        validLocations = [int((largestLocation[0]+largestLocation[1])/2)]
+        for i in otherLocations:
+            if (i[1]-i[0])*2 > 40:
+                resized[0][i[0]:i[1]] = 50 # make the area used obvious
+                validLocations += [int((i[0]+i[1])/2)]
+        if len(validLocations)==1:
+            validLocations = validLocations[0]
+        # print("valid", validLocations)
+
+        resized[0][largestLocation[0]:largestLocation[1]] = 100 # make the area used obvious
+  
+        if showStream:
+            visualResize = cv2.resize(resized, (resized.shape[1], 400), interpolation=cv2.INTER_AREA)
+            cv2.imshow("7", visualResize)
+
+        centerEstimation = int((largestLocation[0]+largestLocation[1])/2)
+        
+        return validLocations, detectionStatus
 
   
     def findDistFromCorn(self, depth_image):
-        try:
-            std = np.std(depth_image[np.nonzero(depth_image)])
-            distFromCorn = np.median(depth_image[np.nonzero(depth_image)]) - int(std)
-            if distFromCorn < 0:
-                distFromCorn = np.median(depth_image[np.nonzero(depth_image)])
-                # print("negative")
-        except: # sometimes a division by zero error
-            distFromCorn = 0
-        if distFromCorn > 1200:
-            if not self.outsideRow:
-                print("outside row", distFromCorn)
-                self.outsideRow = True
+        ht = 480
+        wt = 640
+        left = depth_image[0:ht, 0:int(wt*0.2)]
+        right = depth_image[:, int(wt*0.8)::]
+
+        corn = depth_image[int(ht*0.3):int(ht*0.6), :]
+
+
+        # std = np.std(depth_image[np.nonzero(depth_image)])
+        distFromCorn = np.median(corn[np.nonzero(corn)])# - int(std)
+
+        # stdR = np.std(right[np.nonzero(right)])
+        distFromCornRight = np.median(right[np.nonzero(right)])
+   
+
+        # stdL = np.std(left[np.nonzero(left)])
+        distFromCornLeft = np.median(left[np.nonzero(left)])
+       
+
+        # print(distFromCorn, distFromCornLeft, distFromCornRight)
+
+        distFromCornSide = distFromCornLeft + distFromCornRight
+
+
+        rst = time.time()-self.lastRowSideTime
+        if rst > 1000:
+            rst = 0
+
+        if distFromCornSide > 2000:
+            self.rowSide -= 1 * rst * 3
+            # if not self.outsideRow:
+                # print("maybe outside row")
         else:
+            self.rowSide += 11
+            # if self.outsideRow:
+                # print("maybe inside row")
+
+        if self.rowSide > 10:
             if self.outsideRow:
-                print("inside row", distFromCorn)
                 self.outsideRow = False
+                # print("inside row")
+        else:
+            if not self.outsideRow:
+                self.outsideRow = True
+                # print("outside row")
+        if self.rowSide < 0:
+            self.rowSide = 0
+        elif self.rowSide > 18:
+            self.rowSide = 18
+
+        self.lastRowSideTime = time.time()
+
+
+
+
+        # if distFromCornSide > 2000:
+
+        #     if not self.outsideRow:
+        #         print("outside row", distFromCornSide)
+        #         self.outsideRow = True
+        # else:
+
+        #     if self.outsideRow:
+        #         print("inside row", distFromCornSide)
+        #         self.outsideRow = False
+
         return distFromCorn
 
     def showObstacles(self, depth_image):
@@ -269,31 +414,42 @@ class StandardDetection():
         bright[bright>0] = 256*255 # turn everything either black or white (no gray)
 
         # cv2.imshow("b3", (bright/256).astype('uint8'))
-        return (bright/256).astype('uint8')
+        bright = (bright/256).astype('uint8')
+        resized = cv2.resize(bright, (depth_image.shape[1], 1), interpolation=cv2.INTER_AREA) # combine the pixel values of each column
+        resized = cv2.resize(resized, (depth_image.shape[1], depth_image.shape[0]), interpolation=cv2.INTER_AREA) # combine the pixel values of each column
+        bright[resized<15] = 0
+        return bright
 
 
 
 
-    def checkIfHitting(self, depth_image, obstacleImg, showStream=False):
+    def checkIfHitting(self, depth_image, obstacleImg, showStream=False, hitableArea=(0.3,0.2), center = 320, distThresh=3):
         ht = 480
         wt = 640
+
+
+
+        hitArea = int(ht/2-(ht*hitableArea[1])), int(ht/2+(ht*hitableArea[1])), int(center-(wt*hitableArea[0])), int(center+(wt*hitableArea[0]))
+
 
         depth_image_og = depth_image.copy()
         depth_image[obstacleImg==0] = 0
         depth_image = (255-depth_image/256).astype('uint8')
         depth_image[depth_image==255] = 0
 
-        diCropped = depth_image[int(ht*0.3):int(ht*0.7), int(wt*0.2):int(wt*0.8)]
-        diCropped[depth_image[int(ht*0.3):int(ht*0.7), int(wt*0.2):int(wt*0.8)] < 252] = 0
+        diCropped = depth_image[hitArea[0]:hitArea[1], hitArea[2]:hitArea[3]]
+        diCropped[depth_image[hitArea[0]:hitArea[1], hitArea[2]:hitArea[3]] < 255-distThresh] = 0
         nz = np.count_nonzero(diCropped)
 
-        diCropped[depth_image_og[int(ht*0.3):int(ht*0.7), int(wt*0.2):int(wt*0.8)] != 0] = 100
+        if showStream:
+            cv2.imshow("di", depth_image)
+        
+
+        diCropped[depth_image_og[hitArea[0]:hitArea[1], hitArea[2]:hitArea[3]] != 0] = 100
         validPx =  np.count_nonzero(diCropped) - nz
 
- 
-        if showStream:
-            # depth_image[depth_image_og==0] = 0 
-            cv2.imshow("di", depth_image)
+        
+
         # if color_image != False:
             # color_image[bright]
         # print(validPx, diCropped.size)
@@ -319,10 +475,12 @@ class StandardDetection():
         # Remove the sky and ground
         obstacleImg = self.showObstacles(depth_image_untouched.copy())
         if showStream:
+            cv2.line(obstacleImg, (0, 260), (640, 260), 256*255, 1)
             cv2.imshow("obs", obstacleImg)
         # check if anything directly in front of it is close
-        hitChance = self.checkIfHitting(depth_image_untouched.copy(), obstacleImg)
+        hitChance = self.checkIfHitting(depth_image_untouched.copy(), obstacleImg, showStream=showStream, distThresh=5)
         
+        # print("about to hit", hitChance)
         if hitChance > 13:
             detectionStatus = [1]
             # print("about to hit", hitChance)
@@ -337,8 +495,7 @@ class StandardDetection():
                 cv2.rectangle(color_image, (i[0],i[1]), (i[2],i[3]), (0,255,0), 1)
             cv2.imshow("res", color_image)
         for i in distantObstacles:
-            distantObstaclesRes += [[int((i[0]-320)*100/640), int((i[1]-240)*100/480), int((i[2]-320)*100/480), int((i[3]-240)*100/480)]]
-
+            distantObstaclesRes += [[int((i[0]-320)*80/640), int((i[1]-240)*100/480), int((i[2]-320)*80/480), int((i[3]-240)*100/480), i[4], i[5]]]
         return distantObstaclesRes, distFromCorn, detectionStatus
 
 
@@ -365,10 +522,23 @@ class StandardDetection():
             x,y,w,h = cv2.boundingRect(c)
             area = cv2.contourArea(c)
             if area>5000:
+            
+                try:
+                    sideL = depth_image[y:y+h, x:x+int(w*0.2)]
+                    leftColor = np.min(sideL[sideL>0])
 
-                leftColor = np.median(np.nonzero(depth_image[y:y+h, x:x+int(h*0.2)]))
-                rightColor = np.median(np.nonzero(depth_image[y:y+h, x+int(h*0.8):x+h]))
-                res += [[x,y,x+w,y+h,leftColor,rightColor]]
+                    sideR = depth_image[y:y+h, x+int(w*0.8):x+w]
+                    rightColor = np.min(sideR[sideR>0])
+                    
+                    if leftColor < rightColor:
+                        if rightColor>leftColor+10000:
+                            rightColor = leftColor
+                    elif rightColor+10000<leftColor:
+                        leftColor = rightColor
+    
+                    res += [[x,y,x+w,y+h,leftColor,rightColor]]
+                except:
+                    print("error finding obstacle")
         return res
 
 
@@ -429,12 +599,9 @@ if __name__ == "__main__":
 
     print("running")
 
-    # _filename = "/home/john/object_detections/rs_1629482645.bag
-    _filename = "/home/nathan/bag_files/enter_row/july22"
-    _filename = "/home/nathan/bag_files/tall"
 
-    _filename = "/home/nathan/new_logs/july27/enter_row_full_10fps"
-
+    # _filename = "/home/nathan/new_logs/july27_wont_work/enter_row_fail"
+    _filename = "/home/nathan/new_logs/july29/afternoon/log_1659126759"
 
     _useCamera = False
     _showStream = True
@@ -443,6 +610,6 @@ if __name__ == "__main__":
 
     cam = navTypeTester.RSCamera(useCamera=_useCamera, filename=_filename)
 
-    # cam.videoNavigate(sd.normalNavigation, _showStream)
-    cam.videoNavigate(sd.rowNavigation, _showStream)
+    cam.videoNavigate(sd.normalNavigation, _showStream)
+    # cam.videoNavigate(sd.rowNavigation, _showStream)
 

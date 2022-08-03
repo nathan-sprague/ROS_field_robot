@@ -14,26 +14,29 @@ from threading import Thread
 
 
 
-_filename = "/home/nathan/bag_files/enter_row/july22"
-_filename = "/home/nathan/new_logs/older/tall/"
-_filename = "/home/nathan/new_logs/july27/delete"
+# _filename = "run"
+# _filename = "/home/nathan/new_logs/older/tall/"
+# _filename = "/home/nathan/new_logs/july27_wont_work/enter_row_fail"
+# _filename = "/home/nathan/new_logs/july29/morning/log_1659107512"
+_filename = "/home/nathan/new_logs/Aug2/afternoon/success_but_backup"
+
 
 _useCamera = False
 _showStream = True
 _saveVideo = False
 _realtime = True
-_startFrame = 0
+_startFrame = 50
+_playbackLevel=2# 0=Real, 1=Simulation without video, 2=simulation with just video, 3=simulation with video and position, 4=full playback but still process, 5=full playback
 
 
 
 
 class RSCamera:
-    def __init__(self, useCamera, saveVideo, filename="run", realtime=True, startFrame=0, navScript="standard", navMethod=0, playbackLevel=1, robot=False):
-        print("setting up camera. Usecam=", useCamera)
+    def __init__(self, robot, useCamera, saveVideo, filename="run", realtime=True, startFrame=0, navScript="standard", navMethod=0, playbackLevel=2):
+        print("setting up camera. Usecam =", useCamera)
         self.useCamera = useCamera
         self.saveVideo = saveVideo
         self.realtime = realtime
-        self.startFrame = startFrame
         self.robot = robot
         self.idle = False
         self.noLog = False
@@ -41,7 +44,10 @@ class RSCamera:
         self.navMethod = navMethod # (0=normal, 1=enter row, 2=inner row)
         self.navScript = navScript
         self.playbackLevel = playbackLevel
-
+        self.filename=filename
+        self.startFrame = startFrame
+        
+        self.insideRow = False
         self.stop = False
         self.heading = 0
         self.smoothCenter = -1000
@@ -50,11 +56,13 @@ class RSCamera:
         self.detectionStatus = []
         self.aboutToHit = False
         self.obstructions = []
-        self.imuData = [0,0,0,0,0,0]
+        self.originalHeading = -1
+        self.originalTargetHeading = -1
 
         self.fpsStart = 0
         self.fpsFramesCount = 0
         self.totalFrameCount = 0
+        self.lastProcessedFrame = -1
 
         self.lastFrameTime = -1
 
@@ -62,18 +70,17 @@ class RSCamera:
         self.obstaclesID = -1
 
 
-        self.filename = filename
-
-        size = (640, 480)
-
         if navScript == "standard":
             import video_nav_types.standard as navTool
 
 
         self.navToolObj = navTool.StandardDetection()
 
-      
-        if useCamera:
+
+
+
+    def begin(self):
+        if self.useCamera:
             self.pipeline = rs.pipeline()
             self.config = rs.config()
             self.config.enable_stream(rs.stream.depth, 640, 480, rs.format.z16, 30)
@@ -81,8 +88,10 @@ class RSCamera:
             # self.config.enable_stream(rs.stream.accel)
             # self.config.enable_stream(rs.stream.gyro)
 
+            size = (640, 480)
+
             if self.saveVideo:
-          
+                
                 if os.path.exists(self.filename):
                     self.filename += str(int(time.time())%1000)
                 os.makedirs(self.filename)
@@ -108,20 +117,21 @@ class RSCamera:
             fileType = ".avi"
 
             fileNames = ["color", "depth1", "depth2"]
-            print("reading files:", fileNames, "at", filename)
-            print("for example:", filename + "/" + fileNames[0] + fileType)
+            print("reading files:", fileNames, "at", self.filename)
+            print("for example:", self.filename + "/" + fileNames[0] + fileType)
 
-            self.rgbCap = cv2.VideoCapture(filename + "/" + fileNames[0] + fileType)
-            self.depthCap1 = cv2.VideoCapture(filename + "/" + fileNames[1] + fileType)
-            self.depthCap2 = cv2.VideoCapture(filename + "/" + fileNames[2] + fileType)
+            self.rgbCap = cv2.VideoCapture(self.filename + "/" + fileNames[0] + fileType)
+            self.depthCap1 = cv2.VideoCapture(self.filename + "/" + fileNames[1] + fileType)
+            self.depthCap2 = cv2.VideoCapture(self.filename + "/" + fileNames[2] + fileType)
          
             if (self.rgbCap.isOpened() == False):
                 print("Error reading video file")
                 exit()
-            if startFrame!=0:
-                self.rgbCap.set(1, startFrame);
-                self.depthCap1.set(1, startFrame);
-                self.depthCap2.set(1, startFrame);
+            if self.startFrame!=0:
+                print("setting frame to", self.startFrame)
+                self.rgbCap.set(1, self.startFrame);
+                self.depthCap1.set(1, self.startFrame);
+                self.depthCap2.set(1, self.startFrame);
         
 
 
@@ -140,10 +150,10 @@ class RSCamera:
             colorizer = rs.colorizer()
 
 
-        robotCtrlC = True
+ 
         self.totalFrameCount = 0
 
-        while not self.stop and robotCtrlC:
+        while not self.stop and self.robot.notCtrlC:
             if self.idle:
                 print("camera idling")
                 time.sleep(0.3)
@@ -197,14 +207,12 @@ class RSCamera:
                     # depth_image = depth_image + depth2_image.astype("uint16")
                     depth_image = depth1_image.astype("uint16")*256 + depth2_image.astype("uint16")
 
-                
+                    
 
 
 
                 self.color_image = color_image
                 self.depth_image = depth_image
-
-
                 
 
                 if self.useCamera and self.saveVideo:
@@ -218,6 +226,10 @@ class RSCamera:
                     sleepTime = self.readLogs(depth_image)
                     # print("og sleep time", sleepTime)
                     sleepTime -= (time.time()-self.lastFrameTime)
+
+                    if self.totalFrameCount < self.startFrame:
+                        sleepTime=0
+
                     if sleepTime>0 and self.lastFrameTime != -1 and sleepTime < 1 and self.realtime:
                         time.sleep(sleepTime)
 
@@ -239,11 +251,6 @@ class RSCamera:
                         break
 
             self.totalFrameCount += 1
-
-            if self.robot != False:
-                robotCtrlC = self.robot.notCtrlC
-
-
 
 
 
@@ -272,8 +279,10 @@ class RSCamera:
         10. target right speed (mph*100)+32768
         11. current coordinates[0] (decimal*1e7)+1e14 (3 pixels)
         12. current coordinates[1] (decimal*1e7)+1e14 (3 pixels)
-        13. connection type
-        14. Extra information (0=none, 1=destinations, 2=obstacles); count of extra information*10
+        13. gps accuracy (mm)
+        14. connection type
+        15. navigation status messages (sum of 2^message number)
+        16. Extra information (0=none, 1=destinations, 2=obstacles); count of extra information*10
         """
 
         frameTime = int((time.time()-self.lastFrameTime)*100)
@@ -290,13 +299,20 @@ class RSCamera:
                 detectedHeading = [1, int(self.heading[0]*200) + 32768]
             else:
                 detectedHeading = [1, int(self.heading*200) + 32768]
+
             leftSpeed = [1, int(self.robot.realSpeed[0]*100)+32768]
             rightSpeed = [1, int(self.robot.realSpeed[1]*100)+32768]
             targetLeftSpeed = [1, int(self.robot.targetSpeed[0]*100)+32768]
             targetRightSpeed = [1, int(self.robot.targetSpeed[1]*100)+32768]
             currentCoordsX = [3, self.robot.coords[0] * 10**7 + 10**14]
             currentCoordsY = [3, self.robot.coords[1] * 10**7 + 10**14]
+            gpsAccuracy = [1, self.robot.gpsAccuracy]
+            if gpsAccuracy[1] > 59999:
+                gpsAccuracy[1] = 59999
             connectionType = [1, self.robot.connectionType]
+            navStatus = [2, 0] # right now 24/32 possible messages can be saved, may need more bytes in the future
+            for i in self.robot.navStatus:
+                navStatus[1] += 2**i
             extraInformation = [1, 0]
 
             dataToLog = [
@@ -312,12 +328,14 @@ class RSCamera:
             targetRightSpeed,
             currentCoordsX,
             currentCoordsY,
+            gpsAccuracy,
             connectionType,
+            navStatus,
             extraInformation
             ]
+            
 
             if self.destID != self.robot.destID:
-                print("logging new destinations")
 
                 destinationsList = []
                 for i in self.robot.destinations:
@@ -329,10 +347,8 @@ class RSCamera:
                     dataToLog += [[3, i[0]* 10**7 + 10**14]]
                     dataToLog += [[3, i[1]* 10**7 + 10**14]]
                 self.destID = self.robot.destID
-                print(dataToLog)
 
             elif self.obstaclesID != self.robot.obstaclesID:
-                print("logging new obstacles")
                 dataToLog[-1][1] = 2
 
                 
@@ -344,12 +360,7 @@ class RSCamera:
                 dataToLog[-1][1] = 2 + 10*len(res)
                 dataToLog += res
 
-                print("converted", self.robot.obstacles, "\nres", dataToLog)
                 self.obstaclesID = self.robot.obstaclesID
-
-
-
-
 
             numRows = 4
 
@@ -385,8 +396,8 @@ class RSCamera:
         elif logVersion == 2:
 
             i=0
-            sizes = [1,1,1,1,1,1,1,1,1,1,3,3,1,1]
-            values = [0]*14
+            sizes = [1,1,1,1,1,1,1,1,1,1,3,3,1,1,2,1]
+            values = [0]*16
             numRows = 4
             i=0
             px = 0
@@ -398,7 +409,10 @@ class RSCamera:
                     depth_image[px%numRows, int(px/numRows)] = 0
                     values[i] += val*(256**(2*j))
 
-                    if i==13 and int(val/10) > 0: # if there are more values to be made
+                    if i==15 and int(val/10) > 0: # if there are more values to be made
+                        if val/10 > 100:
+                            print("log format broken")
+                            return 0.1
                         values += [0]*int(val/10)
                         sizes += [3]*int(val/10)
                     px += 1
@@ -407,7 +421,8 @@ class RSCamera:
 
                 i+=1
 
-            if self.playbackLevel == 0 or self.playbackLevel == 1:
+            # 0=Real, 1=Simulation without video, 2=simulation with just video, 3=simulation with video and position, 4=full playback but still process, 5=full playback
+            if self.playbackLevel < 3:
                 return values[1]/100
             elif self.playbackLevel == 3:
                 self.robot.coords[0] = (values[10] - 10**14) / (10**7)
@@ -419,19 +434,37 @@ class RSCamera:
             self.robot.trueHeading = values[2] / 100
             self.robot.headingAccuracy = values[3] / 100
             self.robot.targetHeading = values[4] / 100
-            heading = (values[5] - 32768)/200
+            self.originalTargetHeading = self.robot.targetHeading-self.robot.trueHeading
+            if self.originalTargetHeading > 180:
+                self.originalTargetHeading = 360-self.originalTargetHeading
+            self.originalTargetHeading = (self.originalTargetHeading/90*320 + 320)
+            # print("original heading", self.originalHeading)
+            self.originalHeading = -(values[5] - 32768)/200
+
+            if self.originalHeading !=0:
+                self.originalHeading =  640+((640/90*self.originalHeading)-320)
             self.robot.realSpeed[0]= (values[6] - 32768)/100
             self.robot.realSpeed[1]= (values[7] - 32768)/100
             self.robot.targetSpeed[0]= (values[8] - 32768)/200
             self.robot.targetSpeed[1]= (values[9] - 32768)/200
             self.robot.coords[0] = (values[10] - 10**14) / (10**7)
             self.robot.coords[1] = (values[11] - 10**14) / (10**7)
-            self.robot.connectionType = values[12]
+            self.robot.gpsAccuracy = values[12]
+            self.robot.connectionType = values[13]
+            navStatus = values[14]
+            self.robot.navStatus = set()
+            i=32
+            while i>0:
+                if navStatus >= 2**i:
+                    navStatus -= 2**i
+                    self.robot.navStatus.add(i)
+                i-=1
 
-            extraInfo = values[13]%10
+
+            extraInfo = values[15]%10
             extraInfoCount = int(values[13]/10)
             if extraInfo != 0:
-                i=14
+                i=16
                 coordList = []
                 while i<len(values):
                     coordList += [[(values[i] - 10**14) / (10**7), (values[i+1] - 10**14) / (10**7)]]
@@ -443,8 +476,14 @@ class RSCamera:
                         dests+=[{"coord": i, "destType": "point"}]
                     self.robot.destinations = dests
                     self.robot.destID = random.randint(0,100)
+                    print("got destinations", dests)
+
                 elif extraInfo == 2:
-                    self.robot.obstacles = [coordList]
+                    print("extra info coord list", coordList)
+                    if len(coordList) ==0:
+                        self.robot.obstacles = []
+                    else:
+                        self.robot.obstacles = [coordList]
                     self.robot.obstaclesID = random.randint(0,100)
 
 
@@ -473,29 +512,40 @@ class RSCamera:
 
 
         # Streaming loop
-        robotCtrlC = True
-        while not self.stop and robotCtrlC:
+        while not self.stop and self.robot.notCtrlC:
             if self.idle:
                 time.sleep(0.3)
+            elif self.lastProcessedFrame == self.totalFrameCount:
+                # print("dont process again")
+                time.sleep(0.05)
             else:
                 try:
                     depth_image = self.depth_image.copy()
                     color_image = self.color_image.copy()
+                    self.lastProcessedFrame = self.totalFrameCount
                 except:
                     print("unable to process image")
-                    time.sleep(0.1)
+                    time.sleep(0.3)
                 else:
                     # print("row navigate", showStream)
                     if self.navMethod == 1 or self.navMethod == 2:
-                        self.heading, self.distFromCorn, self.detectionStatus = self.navToolObj.rowNavigation(depth_image, color_image, showStream)
+                        
+                        self.heading, self.distFromCorn, self.detectionStatus, outsideRow = self.navToolObj.rowNavigation(depth_image, color_image, showStream)
                         self.obstructions = []
-                        if self.distFromCorn > 1200:
-                            self.navMethod = 1
-                        else:
-                            self.navMethod = 2
+                        if self.playbackLevel != 2:
+                            self.outsideRow = outsideRow
                     else:
+                        # print("normalNavigation")
                         self.obstructions, self.distFromCorn, self.detectionStatus = self.navToolObj.normalNavigation(depth_image, color_image, showStream)
 
+                    if showStream:
+                        if self.originalHeading != -1:
+                            self.originalHeading = int(self.originalHeading)
+                            cv2.line(color_image, (self.originalHeading, 0), (self.originalHeading, 480), (255,120,120), 2)
+                        if self.originalTargetHeading != -1:
+                            self.originalTargetHeading = int(self.originalTargetHeading)
+                            cv2.line(color_image, (self.originalTargetHeading, 0), (self.originalTargetHeading, 480), (255,255,255), 1)
+                        cv2.imshow("res", color_image)
 
                     if 1 in self.detectionStatus:
                         self.aboutToHit = True
@@ -521,11 +571,7 @@ class RSCamera:
                             cv2.destroyAllWindows()
                             self.stopStream()
                             break
-                finally:
 
-                    if self.robot != False:
-                        robotCtrlC = self.robot.notCtrlC
-                 
                 
 
     def stopStream(self):
@@ -555,7 +601,7 @@ if __name__ == "__main__":
             self.errorList = []
             self.alerts = "None"
             self.alertsChanged = True
-            self.navStatus = [0]
+            self.navStatus = {0}
             self.destinations = []
             self.destID = random.randint(0, 1000)
             self.subPoints = []
@@ -588,7 +634,8 @@ if __name__ == "__main__":
     myRobot = Robot()
 
 
-    cam = RSCamera(_useCamera, _saveVideo, filename=_filename, realtime=_realtime,
-                   startFrame=_startFrame, robot=myRobot)
-    cam.navMethod = 1
+    cam = RSCamera(myRobot, _useCamera, _saveVideo, filename=_filename, realtime=_realtime,
+                   startFrame=_startFrame, playbackLevel=_playbackLevel)
+    cam.begin()
+    cam.navMethod = 1 # (0=normal, 1=enter row, 2=inner row)
     cam.videoNavigate(_showStream)

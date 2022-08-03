@@ -25,18 +25,18 @@ def base():
 def update():
 
     runID = str(myRobot.startTime)
-    if myRobot.runMode != "real":
-        runID = myRobot.runMode + "_" + runID
+    if myRobot.runMode>0 and myRobot.runMode < 2:
+        runID = "sim_" + runID
+    elif myRobot.runMode>1:
+        runID = "playback_" + runID
 
 
     responseDict = {"coords": myRobot.coords, "realSpeed": myRobot.realSpeed,
                     "targetSpeed": myRobot.targetSpeed, "heading": myRobot.trueHeading, "headingAccuracy": myRobot.headingAccuracy,
                     "targetHeading": myRobot.targetHeading%360, "gpsAccuracy": myRobot.gpsAccuracy, "connectionType": myRobot.connectionType,
-                     "updateSpeed": myRobot.updateSpeed, "runID": runID, "runTime": int(time.time()-myRobot.startTime), "status": myRobot.navStatus}
+                     "runID": runID, "runTime": int(time.time()-myRobot.startTime), "status": list(myRobot.navStatus)}
 
-    if myRobot.alertsChanged:
-        responseDict["alerts"] = myRobot.alerts
-        myRobot.alertsChanged = False
+
 
 
     if request.args.get('destID') != str(myRobot.destID):
@@ -47,12 +47,6 @@ def update():
         responseDict["destID"] = myRobot.destID
 
 
-    if request.args.get('targetPathID') != str(myRobot.targetPathID):
-        destinationsList = []
-        
-        responseDict["targetPath"] = myRobot.targetPath
-        responseDict["targetPathID"] = myRobot.targetPathID
-
     if request.args.get('obstaclesID') != str(myRobot.obstaclesID):
         responseDict["obstacles"] = myRobot.obstacles
         responseDict["obstaclesID"] = myRobot.obstaclesID
@@ -62,12 +56,6 @@ def update():
         responseDict["obstructions"] = myRobot.obstructions
        # responseDict["obstructionsID"] = myRobot.obstructionsID
 
-
-    if "updateSpeed" in request.args:
-        # print("update speed", int(request.args.get('updateSpeed')));
-        if (int(request.args.get('updateSpeed')) > 0):
-            myRobot.updateSpeed = myRobot.defaultUpdateSpeed / int(request.args.get('updateSpeed')) * 100
-            # print("robot update speed", myRobot.updateSpeed)
     if "maxSpeed" in request.args:
         myRobot.topSpeed = float(request.args.get('maxSpeed'))
 

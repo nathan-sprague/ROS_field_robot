@@ -203,6 +203,22 @@ def estimateCoords(robotCoords, robotHeading, robotSpeed, updateSpeed, proj=Fals
 
     return newCoords, robotHeading
 
+def polarToCoords(coords, heading, distance, proj=False):
+    if proj == False:
+        proj = pyproj.Proj('epsg:2793') 
+
+    x, y = proj(coords[1], coords[0])
+    dy = distance * math.cos(heading*math.pi/180)
+    dx = distance * math.sin(heading*math.pi/180)
+    x += dx
+    y += dy
+
+    y2,x2 = proj(x, y, inverse=True)
+
+    newCoords = [x2, y2]
+
+    return newCoords
+
 
 
 
@@ -249,6 +265,8 @@ def findDiffSpeeds(currentCoords, targetCoords, currentHeading, targetHeading, f
 
 
     headingDiff = findShortestAngle(targetHeading, currentHeading)
+
+    print("targetHeading", targetHeading, "currentHeading", currentHeading, "headingDiff", headingDiff)
 
 
     if turnConstant == 0:
@@ -371,8 +389,6 @@ def makePath(currentCoords, currentHeading, targetCoords, finalHeading = False, 
     return subPoints
 
 # print(makePath([40.4705552, -86.9952982], 40, [40.470558, -86.995371]))
-
-
 
 
 

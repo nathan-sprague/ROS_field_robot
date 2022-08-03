@@ -14,39 +14,36 @@ import signal # for graceful exits
 import serial.tools.list_ports
 
 
-testing = False
+_runMode = 5 # 0=Real, 1=Simulation without video, 2=simulation with just video, 3=simulation with video and position, 4=full playback but still process, 5=full playback
 if len(list(serial.tools.list_ports.comports())) == 0:
-	testing = True
-	simulationFileName = "/home/nathan/new_logs/july28/log_1659037308"
-	print("no devices connected, assuming this is a test")
+	print("no devices connected, assuming this is a simulation or playback")
+else:
+	print("devices connected. This is not a test")
+	_runMode = 0
 
-# import python filestrueCoords in folder
-if testing:
+if _runMode != 0:
 	from esp_tester import Esp, Gps
+	simulationFileName = "/home/nathan/new_logs/Aug2/late_afternoon/extended_1659476403"
+
 else:
 	from esp_controller import Esp
 	from gps_controller import Gps
-	
+
+
 import nav_functions
 import destinations as exampleDests
 import robot_website
 import video_navigation
 
 
-# change to True to navigate through a row endlessly. Useful for testing
-interRowNavigation = False
 
-# change to True to use during navigation at times other than interrow navigation (keep true to logc)
+# change to True to use during navigation at times other than interrow navigation (keep true to log)
 useCamForNormalNav = True
 
 # change to False to prevent the robot from moving automatically. Useful for controlling the robot and collecting data
 moveRobot = True
 
-if testing:
-	# change the number to vary what things are played back. 0=none, 1=just camera, 2=full, 3=just position, 4=full but still process
-	playbackLevel = 4
-
-navDestinations = exampleDests.acreBayCorn # destinations the robot will go to
+navDestinations = exampleDests.acreBayCornSouth # destinations the robot will go to
 
 
 
@@ -58,7 +55,7 @@ class Robot:
 	This allows it to navigate autonomously through both corn rows and gps-based points
 	"""
 
-	def __init__(self):
+	def __init__(self, runMode=0):
 		"""
 		Sets up the variables related to the robot's conditions and targets
 	
@@ -73,16 +70,11 @@ class Robot:
 		self.notCtrlC = True # tag used to have graceful shutdowns. When this is set to false, would-be inifnite loops stop
 
 		self.errorList = []
-		self.alerts = "None"
-		self.alertsChanged = True
+	
 
-		self.runMode = "real"
-		if testing:
-			if playbackLevel > 1:
-				self.runMode = "playback"
-			else:
-				self.runMode = "testing"
-		self.navStatus = [0] # number representing a message. See html file for the status types
+		self.runMode = runMode
+
+		self.navStatus = {0} # number representing a message. See html file for the status types
 
 
 		###############################
@@ -145,96 +137,64 @@ class Robot:
 		####################################
 		# Website and testing variables
 		####################################
-		self.obstacles = []
+		self.obstacles = [] # includes obstacles detected by camera
+		self.mapObstacles = [] # obstacles just given from destinations dictionary
 		self.obstaclesID = random.randint(0,1000)
 
 		self.obstructions = []
 
+
 		self.updateSpeed = -1
 		self.defaultUpdateSpeed = 0.1
-		if testing:
-			# how often the robot updates
-			self.defaultUpdateSpeed = 0.1
-			self.updateSpeed = self.defaultUpdateSpeed
+
 
 		################################
 		# set up the sensors (ESP, GPS and camera)
 		###############################
-		self.espList = [] # list of ESP objects
-		i=0
-		self.gpsConnected = False
-
-		self.camConnected = False
-
-		if not testing:
-			self.logDir = "log_" + str(self.startTime)
-
-			mainGpsPort = "none"
-
-			# get a list of all of the ports and port information
+		self.logFileName = "log_" + str(self.startTime)
+		if self.runMode==0: # not testing
 			portsConnected = [tuple(p) for p in list(serial.tools.list_ports.comports())]
 
-			
 			for i in portsConnected: # connect to all of the relevant ports
 				if i[1] == "CP2102 USB to UART Bridge Controller - CP2102 USB to UART Bridge Controller":
-					print("esp on port", i[0])
-					esp = Esp(self, i[0]) # make a new ESP object and give it this class and the port name
-					if esp.begin(moveRobot):
-						self.espList += [esp] 
+					
+					self.espModule = Esp(self, i[0]) # make a new ESP object and give it this class and the port name
+					if self.espModule.begin(True):
+						print("Connected to ESP on port", i[0])
 					else:
-						print("ESP connection not successful!")
-						time.sleep(5)
+						print("Connection for ESP on port", i[0], "not successful!")
+						exit()
 
-				elif i[1] == "u-blox GNSS receiver":
-					print("gps main on port", i[0])
-					mainGpsPort = i[0]
-					self.gpsConnected = True
-
+				elif i[1] == "u-blox GNSS receiver": # initialize the GPS with the port found
+					self.gpsModule = Gps(self, i[0], verbose=False)	
+					if self.gpsModule.begin():
+						print("Connected to GPS on port", i[0])
+					else:
+						print("Connection for GPS on port", i[0], "not successful!")
+						exit()
 				else:
-					print("unknown device port", i)
+					print("unknown device port", i[0])
+
+			self.cam = video_navigation.RSCamera(self, useCamera=True, saveVideo=True,
+						filename=self.logFileName, navMethod=0, playbackLevel=self.runMode)
+			self.cam.begin()
+			self.videoThread = Thread(target=self.cam.videoNavigate, args=([False]))
+			self.videoThread.start()
 
 
-			print("set up", len(self.espList), "ESPs")
-
-
-			# initialize the GPS with the port found
-			self.gpsModule = Gps(self, mainGpsPort, verbose=False)	
-
-			if  self.gpsModule.begin():
-				print("began GPS")
-			else:
-				print("GPS failed")
-				if not interRowNavigation:
-					while True:
-						time.sleep(1)
-						print("set up GPS before continuing")
-
-			self.cam = video_navigation.RSCamera(useCamera=True, saveVideo=True,
-						filename=self.logDir, navMethod=0, robot=self)
-			
-			self.camConnected = True
-						
-
-		elif testing:
-			if playbackLevel < 2:
-				esp = Esp(self, 0)
-				esp.begin()
-				self.espList +=[esp]
-
+		else: # simulation or playback
+			self.espModule = Esp(self, 0)
 			self.gpsModule = Gps()
+			self.cam = video_navigation.RSCamera(self, useCamera=False, saveVideo=False,
+						filename=simulationFileName, navMethod=0, startFrame=0, playbackLevel=self.runMode)
+			print("made cam")
 
-			# self.cam = video_navigation.RSCamera(useCamera=False, saveVideo=False,
-			# 			filename=simulationFileName, robot=self)
-			self.cam = video_navigation.RSCamera(useCamera=False, saveVideo=False,
-						filename=simulationFileName, navMethod=0, playbackLevel=playbackLevel, robot=self)
-			
-			self.camConnected = True
+			if self.runMode < 3: # simulation
+				self.espModule.begin()
 
-
-
-		if self.camConnected:
-			self.cam.idle = False
-			self.videoThread = Thread(target=self.cam.videoNavigate, args=([testing]))
+			if self.runMode > 1 or self.runMode==0:
+				self.cam.begin()
+			self.videoThread = Thread(target=self.cam.videoNavigate, args=([True]))
 			self.videoThread.start()
 
 
@@ -251,14 +211,14 @@ class Robot:
 		"""
 
 		print("shutting down robot")
-		self.navStatus = [16];
+		self.navStatus = {16};
 		self.targetSpeed = [0, 0]
 
-		for esp in self.espList:
-			esp.endEsp()
 		
-		if self.gpsConnected:
-			self.gpsModule.endGPS()
+		self.espModule.endEsp()
+		
+		
+		self.gpsModule.endGPS()
 
 		robotThread.join()
 
@@ -275,44 +235,25 @@ class Robot:
 		Returns:
 		none
 		""" 
-		if testing:
-			if playbackLevel == 2:
-				return
+
+		if self.runMode==5: # full playback doesn't use this
+			return
 
 
 		if "obstacles" in destinations[0]:
-			print("there are obstacles")
+			print("there are obstacles\n\n")
 			self.obstacles = destinations[0]["obstacles"]
+			self.mapObstacles = destinations[0]["obstacles"]
 			self.obstaclesID = random.randint(0,1000)
 			destinations = destinations[1::]
 
-
-		else:
-			print("no obstacles")
 
 		# add destinations to a list for the website. Possibly remove later, idk
 		self.destinations = destinations
 
 
-		if interRowNavigation:
-			if self.camConnected:
-				self.cam.rowNavigate = True
-				while self.notCtrlC:
-					delayTime = self.interRowNavigate()
-					if delayTime > 0:
-						time.sleep(delayTime)
-					else:
-						break
-				self.notCtrlC = False
-				self.cam.stopStream()
-				self.cam.stop = True
-				print("cam stopped")
-				self.videoThread.join()
-			else:
-				print("need to connect to a camera to do row navigation")
-			return
-
 		while self.notCtrlC and len(self.destinations) > 0:
+			self.navStatus = set()
 			dest = destinations[0]
 			self.targetDestination = dest["coord"]
 			self.atDestinationTolerance = self.defaultAtDestinationTolerance
@@ -322,9 +263,8 @@ class Robot:
 
 			if navType == "point":
 				# gps-based point-to-point navigation
-				if self.camConnected:
-					self.cam.navMethod = 0
-					self.obstructions = self.cam.obstructions
+				self.cam.navMethod = 0
+				self.obstructions = self.cam.obstructions
 				delayTime = self.navigateToPoint(dest)
 
 			elif navType == "row":
@@ -380,17 +320,13 @@ class Robot:
 		waitTime (number) (if GPS is bad)
 		"""
 
-		if testing:
+		if self.runMode != 0:
 			return 0
 
 		connectionTypesLabels = ["Position not known", "Position known without RTK", "DGPS", "UNKNOWN FIX LEVEL 3", "RTK float", "RTK fixed"]
 
 
 		if self.gpsAccuracy > 100000 or self.connectionType == 0:
-			# gps never connected
-			if self.gpsConnected == False:
-					print("GPS is not connected")
-					return 2
 
 			# gps connected but no lock
 			print("No GPS fix.", self.gpsModule.debugOptions["SIV"][0], "SIV as of", int(time.time() - self.gpsModule.debugOptions["SIV"][1]), "s ago")
@@ -399,14 +335,14 @@ class Robot:
 			print("")
 
 			self.motionType = ["waiting", time.time()]
-			self.navStatus = [1]
+			self.navStatus.add(4)
 
 			return 2
 
 		elif self.headingAccuracy > 90 or self.lastHeadingTime+2 < time.time(): # you can't trust the heading.
 			print("Heading accuracy not good enough! Estimated heading:", self.trueHeading, "Heading accuracy:", self.headingAccuracy, "Last updated", int(time.time()-self.lastHeadingTime), "s ago. GPS accuracy", self.gpsAccuracy, "mm")
 
-			self.navStatus = [3]
+			self.navStatus.add(3)
 			if self.motionType[0] == "waiting": # robot has been waiting
 				
 				# go through the debugging possibilities
@@ -456,13 +392,31 @@ class Robot:
 
 #		self.coords = [40.4221268, -86.9161606]
 
-		if self.camConnected:
-			if self.cam.aboutToHit:
+		if self.cam.aboutToHit:
+			if self.cam.aboutToHit and self.motionType[0]!="obstacleStop":
 				print("about to hit")
 				self.targetSpeed=[0,0]
-				self.navStatus = [18,19]
-				return 0.3
-		
+				self.navStatus.add(18)
+				self.navStatus.add(19)
+				self.motionType = ["obstacleStop", time.time()]
+				
+			elif time.time()-self.motionType[1] < 2:
+				print("obstacle still there")
+				self.targetSpeed = [0,0]
+				self.navStatus.add(18)
+				self.navStatus.add(19)
+
+			else:
+				print("turning to avoid the obstacle")
+				self.targetSpeed = [self.topSpeed*0.3, -self.topSpeed*0.5]
+				self.navStatus.add(22)
+				self.motionType = ["avoidingObstacle", time.time()]
+			return 0.3
+		elif self.motionType[0] == "avoidingObstacle" and time.time()-self.motionType[1] < 3:
+			self.targetSpeed = [self.topSpeed*0.3, self.topSpeed*0.3]
+			return 0.2
+
+			
 
 		gpsQual = self.checkGPS()
 
@@ -496,12 +450,12 @@ class Robot:
 				if finalHeading == False: # reached destination with no heading requirement
 					self.targetSpeed = [0,0]
 					print("reached destination, no heading requirement")
-					self.navStatus = [8]
+					self.navStatus.add(8)
 					time.sleep(2)
 					return -1
 				if abs(nav_functions.findShortestAngle(finalHeading, self.trueHeading)) < 5: # reached destination with the right heading
 					print("reached destination with right heading")
-					self.navStatus = [8]
+					self.navStatus.add(8)
 					self.targetSpeed = [0, 0]
 					time.sleep(1)
 					if abs(nav_functions.findShortestAngle(finalHeading, self.trueHeading)) < 5:
@@ -510,11 +464,11 @@ class Robot:
 						return -1
 					else:
 						print("stopped being at right heading")
-						self.navStats = [9]
+						self.navStatus.add(9)
 						return 0.3
 				else:
 					print("at destination with incorrect heading")
-					self.navStatus = [9]
+					self.navStatus.add(9)
 					self.targetHeading = finalHeading
 					self.atDestinationTolerance = 10000
 
@@ -545,33 +499,29 @@ class Robot:
 			if zeroPt and self.motionType[0] != "0-pt-turn": # started doing a 0-point turn
 				self.motionType = ["0-pt-turn", time.time()]
 				print("started a 0-pt-turn")
-				self.navStatus = [6]
+				self.navStatus.add(6)
 
 			elif not zeroPt and self.motionType[0] != "straight-nav": # started moving normally
 				self.motionType = ["straight-nav", time.time()]
 				print("doing regular navigation")
-				self.navStatus = [4]
+				print(self.navStatus)
+				self.navStatus.add(4)
 
 			elif  self.motionType[0] == "0-pt-turn" and self.motionType[1]+1 < time.time(): # doing a 0-pt turn for 4 seconds. Try waiting for a second to get its heading
 				self.motionType = ["waiting", time.time()]
 				self.targetSpeed = [0,0]
 				print("pausing after partial 0-pt-turn")
-				self.navStatus = [7]
+				self.navStatus.add(7)
 				return 0.5
 			else:
-				self.navStatus = [4]
+				self.navStatus.add(4)
 			print("navStatus", self.navStatus)
 
 
 			# conver the target speed from the above function to a real speed. target speed percent is -100 to 100. the robot should usually move -2 to 2 mph
 			self.targetSpeed = [targetSpeedPercent[0]*self.topSpeed/100, targetSpeedPercent[1]*self.topSpeed/100]
 
-			if zeroPt and self.alerts != "0-PT TURN!!!":
-				self.alerts = "0-PT TURN!!!"
-				self.alertsChanged = True
-			elif not zeroPt and self.alerts != "no zeropt":
-				self.alerts = "no zero pt turn"
-				self.alertsChanged = True
+
 
 
 			# Print status
@@ -608,6 +558,10 @@ class Robot:
 			time to delay before calling this function again
 
 		"""
+
+		maxSpeed = self.topSpeed
+
+
 
 		if self.cam.stop or not self.notCtrlC:
 			# the camera stopped. Something happened in the video navigation program
@@ -646,44 +600,70 @@ class Robot:
 
 		if abs(camHeading)<100:
 			travelDirection = -camHeading-1 # find direction it should be facing (degrees)
-		else:	
+		else:
 			travelDirection = 0
 
 		if self.cam.aboutToHit:
-			if self.motionType[0] != "obstacleStop":
+
+			if not self.cam.outsideRow:
+				print("about to hit but inside row. Just going slowly")
+				self.navStatus.add(18)
+				self.navStatus.add(23)
+				maxSpeed*=0.5
+
+
+			elif self.motionType[0] != "obstacleStop" and self.motionType[0] != "reversing":
 				print("about to hit")
 				self.targetSpeed = [0,0]
 				print("speed", self.targetSpeed)
 				self.motionType = ["obstacleStop", time.time()]
+			
+				self.navStatus.add(18)
+				self.navStatus.add(19)
 				return 0.3
 			else:
 				print("backing up - obstacle in sight")
-				self.targetSpeed = [-self.topSpeed*0.1, -self.topSpeed*0.1]
+				self.targetSpeed = [-self.topSpeed*0.3, -self.topSpeed*0.3]
 				self.motionType = ["reversing", time.time()]
+				self.navStatus.add(18)
+				self.navStatus.add(20)
 				return 0.3
 
 		elif self.motionType[0] == "reversing" and time.time()-self.motionType[1] < 5: # continue to back up for a bit even when there is no longer an obstacle
 			print("backing up - just to be safe")
-			self.targetSpeed = [-self.topSpeed*0.1, -self.topSpeed*0.1]
+			self.targetSpeed = [-self.topSpeed*0.2, -self.topSpeed*0.2]
+			self.navStatus.add(21)
 			return 0.3
+		elif self.motionType[0] == "reversing" and time.time()-self.motionType[1] < 10: # 0-pt turn to face the target location this time
+			if camHeading > 0:
+				print("turning left after reversing")
+				self.targetSpeed = [-self.topSpeed*0.15, self.topSpeed*0.1]
+
+			else:
+				print("turning right after reversing")
+				self.targetSpeed = [self.topSpeed*0.1, -self.topSpeed*0.15]
+
 		else:
 			self.motionType = ["normal", 0]
 
 
 		print("heading", camHeading)
 		if abs(camHeading) < 10: # facing approximately correct way
-			maxSpeed = self.topSpeed*0.5
-			self.navStatus = [10, 14]
+			maxSpeed*=0.5
+			self.navStatus.add(10)
+			self.navStatus.add(14)
 
-		elif camHeading == 1000 or abs(camHeading) > 44: # does not know where it is facing
+		elif camHeading == 0 or abs(camHeading) > 44: # does not know where it is facing
 			print("dont know what way its facing")
-			maxSpeed = self.topSpeed*0.1
+			maxSpeed*=0.1
 			h = 0
-			self.navStatus = [10, 13]
+			self.navStatus.add(10)
+			self.navStatus.add(13)
 
 		else: # facing wrong way but knows where it is facing
-			maxSpeed = self.topSpeed*0.2
-			self.navStatus = [10, 15]
+			maxSpeed*=0.2
+			self.navStatus.add(10)
+			self.navStatus.add(14)
 
 
 		# speed range is how different the faster wheel and slower wheel can go. 
@@ -703,11 +683,11 @@ class Robot:
 					rowDirAngle = 20*abs(rowDirAngle)/rowDirAngle
 
 				travelDirection = rowDirAngle
-				self.navStatus += [17]
+				self.navStatus.add(17)
 
 			slowerWheelSpeed = maxSpeed - (abs(travelDirection)/40 *  speedRange)
 
-			self.navStatus += [11]
+			self.navStatus.add(11)
 
 		else:
 			slowerWheelSpeed = maxSpeed - (abs(travelDirection)/60 *  speedRange)
@@ -758,7 +738,7 @@ def signal_handler(sig, frame):
 if __name__ == "__main__":
 	signal.signal(signal.SIGINT, signal_handler)
 
-	myRobot = Robot()
+	myRobot = Robot(runMode=_runMode)
 
 
 	robotThread = Thread(target=beginRobot)

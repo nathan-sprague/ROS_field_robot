@@ -150,11 +150,11 @@ class Esp():
 
             # print("esp sleeping", self.robot.updateSpeed, self.updateSpeed)
             startSleepTime = time.time()
-            while self.robot.updateSpeed+startSleepTime-time.time() > 1:
+            while self.updateSpeed+startSleepTime-time.time() > 1:
                 time.sleep(1)
 
-            if self.robot.updateSpeed+startSleepTime-time.time() > 0:
-                time.sleep(self.robot.updateSpeed+startSleepTime-time.time())
+            if self.updateSpeed+startSleepTime-time.time() > 0:
+                time.sleep(self.updateSpeed+startSleepTime-time.time())
 
         return
 

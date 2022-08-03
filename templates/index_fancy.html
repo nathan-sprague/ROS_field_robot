@@ -27,6 +27,7 @@ var runID = -1;
 var runMode = 0
 var runTime = 0;
 
+var mapFeatures = [ ["green", [40.470660, -86.995236], [40.470560, -86.995229], [40.470554, -86.995360], [40.469927, -86.995355], [40.469834, -86.995500], [40.469767, -86.995515], [40.469751, -86.996771], [40.470864, -86.996777]],["gray", [40.470539, -86.995253], [40.469761, -86.995264], [40.469761, -86.996155], [40.469697, -86.996155], [40.469697, -86.995155], [40.470540, -86.995163]]];
 var destID = -1;
 var obstaclesID = -1;
 var settingsVersion = -1;
@@ -106,7 +107,7 @@ function sendInfo(){
 
 			targetSpeed = [info["targetSpeed"][0].toFixed(2), info["targetSpeed"][0].toFixed(2)];
 			let speedError = [(targetSpeed[0]-realSpeed[0]).toFixed(2), (targetSpeed[1]-realSpeed[1]).toFixed(2)];
-			document.getElementById("targetSpeedBoxBody").innerHTML = targetSpeed + " mph (" + speedError + " off)";
+			document.getElementById("targetSpeedBoxBody").innerHTML = targetSpeed + " mph<br>(" + speedError + " off)";
 
 			if (runID != info["runID"]){
 				runID = info["runID"];
@@ -114,9 +115,9 @@ function sendInfo(){
 				console.log("run mode", runID)
 				pathPoints = [];
 				logData = "";
-				if (runID[0] == 't'){
-					console.log("testing!!!")
-					document.title = "Test Robot Monitor";
+				if (runID[0] == 's'){
+					console.log("simulation!!!")
+					document.title = "Simulation Robot Monitor";
 					runMode = 1;
 					document.getElementById("saveLogsBox").style.display="none"
 					document.getElementById("maxSpeedBox").style.display="block";
@@ -179,7 +180,7 @@ function sendInfo(){
 	    }
 
 	    if ("status" in info){
-		    let statusCodes = {0: "Waiting to start", 1: "Waiting for GPS fix", 2: "Waiting for better GPS accuracy", 3: "Waiting for GPS heading", 4: "Moving forward normally", 5: "Close to destination, slowing down", 6: "Moving in zero point turn", 7: "Pausing during a zero point turn", 8: "At destination, pausing", 9: "Moving to correct heading", 10: "Video-based Navigation", 11: "Outside row", 12: "Don't know which way the robot is facing, slowing down", 13: "Know where the robot is facing", 14: "Slight correction necessary", 15: "major correction necessary", 16: "Shutting down robot", 17: "Heading too different from the row angle", 18: "Obstacle in view", 19: "stopping to avoid obstacle", 20: "backing up to avoid obstacle"};
+		    let statusCodes = {0: "Waiting to start", 1: "Waiting for GPS fix", 2: "Waiting for better GPS accuracy", 3: "Waiting for GPS heading", 4: "Moving forward normally", 5: "Close to destination, slowing down", 6: "Moving in zero point turn", 7: "Pausing during a zero point turn", 8: "At destination, pausing", 9: "Moving to correct heading", 10: "Video-based Navigation", 11: "Outside row", 12: "Don't know which way the robot is facing, slowing down", 13: "Know where the robot is facing", 14: "Slight correction necessary", 15: "major correction necessary", 16: "Shutting down robot", 17: "Heading too different from the row angle", 18: "Obstacle in view", 19: "Stopping to avoid obstacle", 20: "backing up to avoid obstacle", 21: "Backing up more to be safe", 22: "Turning to avoid obstacle", 23: "Inside row so ignoring obstacle"};
 		    let msg = "";
 		    i = 0;
 		    while (i<info["status"].length){
@@ -340,25 +341,29 @@ function drawBoard(){
 		i+=1
 	}
 
-	//draw obstacles
+	//draw map features
 	i=0;
-	if (obstaclePoints.length > 0){
+	if (mapFeatures.length > 0){
 
-		while (i<obstaclePoints.length) {
+		while (i<mapFeatures.length) {
+
 			ctx.beginPath();
-			let firstCoords = coordToCtx(obstaclePoints[i][0][0], obstaclePoints[i][0][1]);
+
+			ctx.fillStyle = mapFeatures[i][0]
+
+			let firstCoords = coordToCtx(mapFeatures[i][1][0], mapFeatures[i][1][1]);
 			firstCoords = [centerCtxCoords[0]-firstCoords[0], (centerCtxCoords[1]-firstCoords[1])];
 			moveTo(firstCoords[0], firstCoords[1]);
-			let j = 1;
-			while (j<obstaclePoints[i].length){
+			let j = 2;
+			while (j<mapFeatures[i].length){
 
-				let coords = coordToCtx(obstaclePoints[i][j][0], obstaclePoints[i][j][1]);
+				let coords = coordToCtx(mapFeatures[i][j][0], mapFeatures[i][j][1]);
 				coords = [centerCtxCoords[0]-coords[0], (centerCtxCoords[1]-coords[1])];
 				ctx.lineTo(coords[0], coords[1])
 		    j+=1;
 		  }
 
-		  ctx.fillStyle = "red";
+		  // ctx.fillStyle = "red";
 		  ctx.lineTo(firstCoords[0], firstCoords[1])
 		  ctx.closePath();
 		  ctx.fill();
@@ -366,6 +371,41 @@ function drawBoard(){
 			i+=1
 		}
 	}
+
+
+	//draw obstacles
+	i=0;
+
+	while (i<obstaclePoints.length) {
+		if (obstaclePoints[i].length>3) {
+			ctx.lineWidth = 1
+		} else{
+			ctx.lineWidth = 10;
+			ctx.lineColor = "red"
+		}
+		ctx.beginPath();
+		let firstCoords = coordToCtx(obstaclePoints[i][0][0], obstaclePoints[i][0][1]);
+		firstCoords = [centerCtxCoords[0]-firstCoords[0], (centerCtxCoords[1]-firstCoords[1])];
+		moveTo(firstCoords[0], firstCoords[1]);
+		let j = 1;
+		while (j<obstaclePoints[i].length){
+
+			let coords = coordToCtx(obstaclePoints[i][j][0], obstaclePoints[i][j][1]);
+			coords = [centerCtxCoords[0]-coords[0], (centerCtxCoords[1]-coords[1])];
+			ctx.lineTo(coords[0], coords[1])
+	    j+=1;
+	  }
+
+	  ctx.fillStyle = "red";
+	  ctx.lineTo(firstCoords[0], firstCoords[1])
+	  ctx.closePath();
+	  ctx.fill();
+	  ctx.stroke();
+		i+=1
+	}
+	
+	ctx.lineWidth = 1
+	ctx.lineColor = "black"
 
 
 	// draw robot
@@ -385,13 +425,13 @@ function drawBoard(){
 	// True heading
 	ctx.beginPath();
 	ctx.moveTo(robotCtxCoords[0],robotCtxCoords[1]);
-	ctx.strokeStyle = "green";
+	ctx.strokeStyle = "blue";
 	otherX = robotCtxCoords[0]+Math.cos((trueHeading)*Math.PI/180-Math.PI/2)*50;
 	otherY = robotCtxCoords[1]+Math.sin((trueHeading)*Math.PI/180-Math.PI/2)*50
 	ctx.lineTo(otherX, otherY);
 	// console.log(otherX, otherY);
 	ctx.stroke();
-
+	ctx.strokeStyle = "black";
 
 	// draw path
 	if (showPath && pathPoints.length>2){
@@ -425,12 +465,41 @@ function drawCamBoard(){
 	let canvasHeight = c.height;
 	ctx.clearRect(0, 0, canvasWidth, canvasHeight);
 
+	ctx.beginPath()
+	ctx.fillStyle = "cyan"
+	ctx.rect(0, 0, canvasWidth, canvasHeight/1.8);
+	ctx.fill();
+	ctx.stroke();
+
+	ctx.beginPath();
+	ctx.fillStyle = "rgb(100,255,100)";
+	ctx.rect(0, canvasHeight/1.8, canvasWidth, canvasHeight);
+	ctx.fill();
+	ctx.stroke();
+
+
+
 	let i=0;
 	while (i<obstructions.length) {
 		ctx.beginPath();
-		let coords = [(obstructions[i][0]*canvasWidth/100)+canvasWidth/2, (obstructions[i][1]*canvasHeight/100)+canvasHeight/2, (obstructions[i][2]*canvasWidth/100)+canvasWidth/2, (obstructions[i][3]*canvasHeight/100)+canvasHeight/2]
+		//int((i[1]-240)*100/480)
+		// (i[1]-wt/2) * 100 / wt
+		// i
+		c = obstructions[i]
+		let ht = canvasHeight;
+		let wt = canvasWidth;
+		let x = (c[0]/100 * wt)+wt/2;
+		let y = (c[1]/100 * ht)+ht/2;
+		let w = (c[2]/100 * wt)+wt/2 - x
+		let h = (c[3]/100 * ht)+ht/2 - y
+		let d1 = c[4]/100;
+		let d2 = c[5]/100;
+		let color = (d1+d2)/2;
+		if (color>255){color=255;}
+		// console.log(color)
+		let coords = [x,y,w,h]
 		ctx.rect(coords[0], coords[1], coords[2], coords[3])
-	  ctx.fillStyle = "green";
+	  ctx.fillStyle = "rgb("+ (255-color) +",0," + color + ")";
 	  ctx.fill();
 	  ctx.stroke();
 		i+=1

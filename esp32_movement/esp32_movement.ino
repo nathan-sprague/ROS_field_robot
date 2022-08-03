@@ -54,6 +54,10 @@ float kd = 0;
 
 int goingForward[] = {1, 1};
 
+float targetDistance[] = {0, 0};
+float distTravelled[] = {0, 0};
+float useTargetDist[] = {false, false};
+float topDistSpeed = 1;
 
 
 // function declarations
@@ -98,6 +102,8 @@ void calculateSpeed() {
 
     float timeBetweenHits = (millis() - lastHitTime[wheelNum]);
     float ws = 0;
+
+    distTravelled[wheelNum] += float(encoderTicks[wheelNum]) / 10000 * goingForward[wheelNum];
 
     if (timeBetweenHits != 0) {
       ws = encoderTicks[wheelNum] / timeBetweenHits / 10;

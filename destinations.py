@@ -35,7 +35,7 @@ acreBayGrass = [{"coord": [40.470283, -86.995008], "destType": "point"},
                     {"coord": [40.469964, -86.995044], "destType": "point"},
                     {"coord": [40.470160, -86.995063], "destType": "point"}]
 
-acreBayCorn = [{"obstacles": [ [[40.46977123481278,-86.99552120541317], [40.46993606641275,-86.99534717740178], [40.4701423474349,-86.99534608852393], [40.47013772209357,-86.99572404600923], [40.469767727757464,-86.99572404600923] ] ]},
+acreBayCorn = [{"obstacles": []},
                     {"coord": [40.469895, -86.995335], "destType": "point", "destTolerance": 1.5},
                     {"coord": [40.469955, -86.995278], "destType": "point", "destTolerance": 1.5},
 
@@ -43,11 +43,14 @@ acreBayCorn = [{"obstacles": [ [[40.46977123481278,-86.99552120541317], [40.4699
                     {"coord": [40.4699390, -86.99533555], "destType": "row", "rowDirection": 270}]
                     # {"coord": [40.469810, -86.996626], "destType": "endRow"}]
 
-acreBayCornNorth = [{"obstacles": [ [[40.470660, -86.995236], [40.470560, -86.995229], [40.470554, -86.995360], [40.469927, -86.995355], [40.469834, -86.995500], [40.469767, -86.995515], [40.469751, -86.996771], [40.470864, -86.996777] ] ]},
-                 #   {"coord": [40.4705652, -86.9952982], "destType": "point"}, # test point inside of obstacle
-                    {"coord": [40.4705552, -86.9952982], "finalHeading": 1, "destType": "point"},
-                    {"coord": [40.4705552, -86.9952982], "destType": "row"},
-                    {"coord": [40.470558, -86.995371], "destType": "point"},
-                    {"coord": [40.470558, -86.995259], "destType": "point"}
-                    ]
+acreBayCornNorth = [{"obstacles":[]},                 #   {"coord": [40.4705652, -86.9952982], "destType": "point"}, # test point inside of obstacle
+                    {"coord": [40.4705473, -86.9952983], "finalHeading": 360, "destType": "point", "destTolerance": 0.4},
+                    {"coord": [40.4705473, -86.9952983], "destType": "row", "rowDirection": 360},
+                    {"coord": [40.470558, -86.995371], "destType": "point"}]
+
+acreBayCornSouth = [{'obstacles': []},
+                    {"coord": [40.4698295, -86.9954764], "finalHeading": 270, "destType": "point", "destTolerance": 0.4},
+                    {"coord": [40.4698295, -86.9954764], "destType": "row", "rowDirection": 270},
+                    {"coord": [40.4698172, -86.9968853], "destType": "point"}]
+                  
                     

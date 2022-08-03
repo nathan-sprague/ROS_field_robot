@@ -91,16 +91,16 @@ class StandardDetection():
         dic[depth_image == 255] = 0
 
         
-        try:
-            std = np.std(dic[np.nonzero(dic)])
-            thresh = np.median(dic[np.nonzero(dic)]) - int(std)
-        except:
-            thresh = 100
+        # try:
+        #     std = np.std(dic[np.nonzero(dic)])
+        #     thresh = np.median(dic[np.nonzero(dic)]) - int(std)
+        # except:
+        #     thresh = 100
 
         
-        dic[dic > thresh] = 255
+        # dic[dic > thresh] = 255
 
-        # cv2.imshow("threshed", dic)
+        cv2.imshow("threshed", dic)
 
         # dic[depth_image < thresh] = 0
 
@@ -115,7 +115,7 @@ class StandardDetection():
         # show the 5th step
         if showStream:
             visualResize = cv2.resize(resized, (resized.shape[1], 400), interpolation=cv2.INTER_AREA)
-            # cv2.imshow("5", visualResize)
+            cv2.imshow("5", visualResize)
         
 
         # Get the lightest colors
@@ -264,7 +264,7 @@ class StandardDetection():
         # print(self.heading)
         # print(badDataReasons)
 
-        return self.heading
+        return self.heading,0,0
 
 
     def grayscale_transform(self, image_in):
@@ -279,7 +279,7 @@ if __name__ == "__main__":
     print("running")
 
     # _filename = "/home/john/object_detections/rs_1629482645.bag"
-    _filename = "/home/nathan/bag_files/enter_row/enter_real.bag"
+    _filename = "/home/nathan/new_logs/july27_wont_work/enter_row_fail"
     # _filename = bagFileNames[5]
 
     _useCamera = False

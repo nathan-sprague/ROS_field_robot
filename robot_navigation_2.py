@@ -14,7 +14,7 @@ import signal # for graceful exits
 import serial.tools.list_ports
 
 
-_runMode = 5 # 0=Real, 1=Simulation without video, 2=simulation with just video, 3=simulation with video and position, 4=full playback but still process, 5=full playback
+_runMode = 1 # 0=Real, 1=Simulation with sim video, 2=simulation with recorded video, 3=simulation with recorded video and position, 4=full playback but still process, 5=full playback
 if len(list(serial.tools.list_ports.comports())) == 0:
 	print("no devices connected, assuming this is a simulation or playback")
 else:
@@ -23,7 +23,7 @@ else:
 
 if _runMode != 0:
 	from esp_tester import Esp, Gps
-	simulationFileName = "/home/nathan/new_logs/Aug2/late_afternoon/extended_1659476403"
+	simulationFileName = "/home/nathan/new_logs/Aug3/fail1"
 
 else:
 	from esp_controller import Esp
@@ -33,6 +33,7 @@ else:
 import nav_functions
 import destinations as exampleDests
 import robot_website
+
 import video_navigation
 
 
@@ -43,7 +44,7 @@ useCamForNormalNav = True
 # change to False to prevent the robot from moving automatically. Useful for controlling the robot and collecting data
 moveRobot = True
 
-navDestinations = exampleDests.acreBayCornSouth # destinations the robot will go to
+navDestinations = exampleDests.acreBayCornFarNorth # destinations the robot will go to
 
 
 
@@ -65,6 +66,7 @@ class Robot:
 
 		print("creating robot")
 
+
 		self.startTime =  int(time.time()) # seconds
 
 		self.notCtrlC = True # tag used to have graceful shutdowns. When this is set to false, would-be inifnite loops stop
@@ -75,6 +77,7 @@ class Robot:
 		self.runMode = runMode
 
 		self.navStatus = {0} # number representing a message. See html file for the status types
+		self.lastNavStatus = {0} 
 
 
 		###############################
@@ -101,8 +104,11 @@ class Robot:
 
 		# the type of movement the robot is making. First element is type of movement second element is time the movement started.
 		# motion types are: {waiting, straight-nav, 0-pt-turn, calibration-forward}
-		self.motionType = ["waiting", time.time()] 
+		self.motionType = ["waiting", time.time()]
 
+		self.inRowTime = 0
+
+		self.bounces = 0 # number of attempts to enter a row and needing to back up
 
 		###############################
 		# position-target variables
@@ -175,7 +181,7 @@ class Robot:
 				else:
 					print("unknown device port", i[0])
 
-			self.cam = video_navigation.RSCamera(self, useCamera=True, saveVideo=True,
+			self.cam = video_navigation.RSCamera(self, saveVideo=True,
 						filename=self.logFileName, navMethod=0, playbackLevel=self.runMode)
 			self.cam.begin()
 			self.videoThread = Thread(target=self.cam.videoNavigate, args=([False]))
@@ -185,15 +191,16 @@ class Robot:
 		else: # simulation or playback
 			self.espModule = Esp(self, 0)
 			self.gpsModule = Gps()
-			self.cam = video_navigation.RSCamera(self, useCamera=False, saveVideo=False,
+			self.cam = video_navigation.RSCamera(self, saveVideo=False,
 						filename=simulationFileName, navMethod=0, startFrame=0, playbackLevel=self.runMode)
 			print("made cam")
 
 			if self.runMode < 3: # simulation
 				self.espModule.begin()
 
-			if self.runMode > 1 or self.runMode==0:
-				self.cam.begin()
+			
+			self.cam.begin()
+
 			self.videoThread = Thread(target=self.cam.videoNavigate, args=([True]))
 			self.videoThread.start()
 
@@ -253,12 +260,22 @@ class Robot:
 
 
 		while self.notCtrlC and len(self.destinations) > 0:
-			self.navStatus = set()
+			self.navStatus = set() # nav status is a set of numbers, each corresponding to a message that can be viewed on the website. See the index.html to see what they are
+			
+			 # get the details from the current destination
 			dest = destinations[0]
 			self.targetDestination = dest["coord"]
-			self.atDestinationTolerance = self.defaultAtDestinationTolerance
+			self.atDestinationTolerance = self.defaultAtDestinationTolerance # how far away from the destination before saying it is close enough
 			if "destTolerance" in dest:
 				self.atDestinationTolerance = dest["destTolerance"]
+
+			if "rowDirection" in dest: # optional parameter, directon of row. Very helpful for entering row
+				self.rowDirection = dest["rowDirection"]
+			else:
+				self.rowDirection = -1
+
+
+			# navigate according to the destination type
 			navType = dest["destType"]
 
 			if navType == "point":
@@ -319,9 +336,6 @@ class Robot:
 		0 (if GPS accuracy and heading is good)
 		waitTime (number) (if GPS is bad)
 		"""
-
-		if self.runMode != 0:
-			return 0
 
 		connectionTypesLabels = ["Position not known", "Position known without RTK", "DGPS", "UNKNOWN FIX LEVEL 3", "RTK float", "RTK fixed"]
 
@@ -408,12 +422,15 @@ class Robot:
 
 			else:
 				print("turning to avoid the obstacle")
+
 				self.targetSpeed = [self.topSpeed*0.3, -self.topSpeed*0.5]
 				self.navStatus.add(22)
 				self.motionType = ["avoidingObstacle", time.time()]
 			return 0.3
-		elif self.motionType[0] == "avoidingObstacle" and time.time()-self.motionType[1] < 3:
+
+		elif self.motionType[0] == "avoidingObstacle" and time.time()-self.motionType[1] < 6:
 			self.targetSpeed = [self.topSpeed*0.3, self.topSpeed*0.3]
+			print("moving forward straight to avoid obstacle")
 			return 0.2
 
 			
@@ -437,9 +454,7 @@ class Robot:
 
 			finalHeading = False
 			if "finalHeading" in target:
-				
 				finalHeading = target["finalHeading"]
-				# print("final heading present", finalHeading, "\n\n\n")
 
 
 			# find target heading
@@ -458,9 +473,9 @@ class Robot:
 					self.navStatus.add(8)
 					self.targetSpeed = [0, 0]
 					time.sleep(1)
-					if abs(nav_functions.findShortestAngle(finalHeading, self.trueHeading)) < 5:
+					if abs(nav_functions.findShortestAngle(finalHeading, self.trueHeading)) < 5: # still at the destination after a second of not moving
 						print("actually at the right heading")
-						time.sleep(2)
+						time.sleep(1)
 						return -1
 					else:
 						print("stopped being at right heading")
@@ -515,14 +530,11 @@ class Robot:
 				return 0.5
 			else:
 				self.navStatus.add(4)
-			print("navStatus", self.navStatus)
+			# print("navStatus", self.navStatus)
 
 
 			# conver the target speed from the above function to a real speed. target speed percent is -100 to 100. the robot should usually move -2 to 2 mph
 			self.targetSpeed = [targetSpeedPercent[0]*self.topSpeed/100, targetSpeedPercent[1]*self.topSpeed/100]
-
-
-
 
 			# Print status
 			self.printStatus(targetCoords, distToTarget)
@@ -534,6 +546,7 @@ class Robot:
 
 
 	def printStatus(self, targetCoords, distToTarget):
+		return
 		# prints relevant variables for the robot. This should be the only place where stuff is printed
 		print("heading:", self.trueHeading, "target heading:", self.targetHeading, "heading accuracy:", self.headingAccuracy)
 
@@ -546,7 +559,7 @@ class Robot:
 
 
 
-	def interRowNavigate(self, destination = False):
+	def interRowNavigate(self, rowInfo = False):
 		"""
 		Call the navigation time
 
@@ -558,7 +571,6 @@ class Robot:
 			time to delay before calling this function again
 
 		"""
-
 		maxSpeed = self.topSpeed
 
 
@@ -570,32 +582,59 @@ class Robot:
 			print("stopped camera stream")
 			return -1
 
+
+		# check to know when the robot has exited the row
+		if self.cam.outsideRow and self.inRowTime != 0: # check if the robot is in the row
+
+			inCoordRow = nav_functions.pointInPoly(self.coords, rowInfo["rowShape"])
+			if not inCoordRow:
+				if time.time()-self.inRowTime > 20: # was inside the row for at least 20 seconds
+					print("exited row")
+					self.targetSpeed = [0,0]
+					self.navStatus.add(24)
+					time.sleep(1)
+					return -1
+				else: # never was in the row
+					self.inRowTime = 0
+
+		elif self.inRowTime == 0: # the robot is not yet in the row
+			if nav_functions.pointInPoly(self.coords, rowInfo["rowShape"]):
+				self.inRowTime = time.time()
+
+
 		# copy the variable to this scope because there is a slight chance it will change as it is being analyzed (threading thing)
 		camHeading = self.cam.heading 
-
+		
+		self.rowEntrances = []
 		if type(camHeading) == list: # there are multiple rows that the robot can enter
+			l = [x + self.trueHeading for x in camHeading]
+			print("cam headings:", l, "relative:", camHeading)
+
+
 			if self.rowDirection == -1: # no specific row direction, go into the center row
 				camHeading = camHeading[int(len(camHeading)/2)]
+
 			else:
+				# get the heading that is most in line with the the row direction. This needs to change eventually
 				bestHeading = camHeading[0]
-				bestHeadingDif = abs(nav_functions.findShortestAngle(self.rowDirection, camHeading[0]+self.trueHeading))
-				
+				bestHeadingDif = abs(nav_functions.findShortestAngle(self.rowDirection, camHeading[0]+self.trueHeading))	
 				ind = 0
 				bestInd = 0
-				print("true heading", self.trueHeading)
 				for i in camHeading:
-
 					headingDif = abs(nav_functions.findShortestAngle(self.rowDirection, i+self.trueHeading))
-					print("heading dif", headingDif, "angle", i)
 					if bestHeadingDif > headingDif:
 						bestHeadingDif = headingDif
 						bestHeading = i
 						bestInd = ind
+
 					ind+=1
 
 
 				print("best index", bestInd, "\n")
 				camHeading = bestHeading
+		else:
+			print("single cam heading", camHeading)
+		
 
 
 		if abs(camHeading)<100:
@@ -627,21 +666,45 @@ class Robot:
 				self.motionType = ["reversing", time.time()]
 				self.navStatus.add(18)
 				self.navStatus.add(20)
+				
 				return 0.3
 
-		elif self.motionType[0] == "reversing" and time.time()-self.motionType[1] < 5: # continue to back up for a bit even when there is no longer an obstacle
+		elif self.motionType[0] == "reversing" and time.time()-self.motionType[1] < 1: # normal reverse for a bit more
 			print("backing up - just to be safe")
 			self.targetSpeed = [-self.topSpeed*0.2, -self.topSpeed*0.2]
 			self.navStatus.add(21)
+			if len(self.motionType)==2 and camHeading>0:
+				self.bounces += 1
+				self.motionType += [1]
+			elif len(self.motionType) == 2:
+				self.motionType += [-1]
+				self.bounces += 1
 			return 0.3
-		elif self.motionType[0] == "reversing" and time.time()-self.motionType[1] < 10: # 0-pt turn to face the target location this time
-			if camHeading > 0:
-				print("turning left after reversing")
-				self.targetSpeed = [-self.topSpeed*0.15, self.topSpeed*0.1]
 
+		elif self.motionType[0] == "reversing" and self.bounces > 2 and time.time()-self.motionType[1] < 10 + self.bounces*2: # it went back and forth too many times
+			print("backing up a lot more- break the bouncing cycle")
+			self.targetSpeed = [-self.topSpeed*0.2, -self.topSpeed*0.2]
+			self.navStatus.add(21)
+
+			if time.time()-self.motionType[1] > 9+ self.bounces*2:
+				self.motionType = ["normal", 0]
+			return 0.3
+
+		elif self.motionType[0] == "reversing" and time.time()-self.motionType[1] < 10: # back up but turn to face heading
+			if self.motionType[2] < 0:
+				self.targetSpeed = [-self.topSpeed*0.2, -self.topSpeed*0.1]
 			else:
-				print("turning right after reversing")
-				self.targetSpeed = [self.topSpeed*0.1, -self.topSpeed*0.15]
+				self.targetSpeed = [-self.topSpeed*0.1, -self.topSpeed*0.2]
+			print("turning while reversing")
+			return 0.3
+
+		elif self.motionType[0] == "reversing" and time.time()-self.motionType[1] < 15: # back up but turn to face eheading
+			if self.motionType[2] > 0:
+				self.targetSpeed = [-self.topSpeed*0.1, self.topSpeed*0.1]
+			else:
+				self.targetSpeed = [self.topSpeed*0.1, -self.topSpeed*0.1]
+			print("turning while going forward - after obstacle")
+			return 0.3
 
 		else:
 			self.motionType = ["normal", 0]
@@ -672,9 +735,8 @@ class Robot:
 		speedRange = abs(maxSpeed)
 
 
-		# note the /60 part of the equation is a hard-coded value. Change as seen fit
-		if self.cam.distFromCorn > 1200:
-			print("outside row")
+		if self.cam.outsideRow:
+			print("outside row, dist from corn", self.cam.distFromCorn/100)
 
 			rowDirAngle = nav_functions.findShortestAngle(self.rowDirection, self.trueHeading)
 			print("row angle", rowDirAngle)
@@ -682,16 +744,19 @@ class Robot:
 				if abs(rowDirAngle) > 20:
 					rowDirAngle = 20*abs(rowDirAngle)/rowDirAngle
 
-				travelDirection = rowDirAngle
+
+				travelDirection = rowDirAngle 
 				self.navStatus.add(17)
 
-			slowerWheelSpeed = maxSpeed - (abs(travelDirection)/40 *  speedRange)
+			if self.cam.distFromCorn > 4000: # be willing to make sharp turns if far from corn entrance
+				travelDirection *= 1.4
+
+			slowerWheelSpeed = maxSpeed - (abs(travelDirection)/40 *  speedRange) # sharper turns when outside row
 
 			self.navStatus.add(11)
 
 		else:
-			slowerWheelSpeed = maxSpeed - (abs(travelDirection)/60 *  speedRange)
-
+			slowerWheelSpeed = maxSpeed - (abs(travelDirection)/60 *  speedRange) # note the /60 part of the equation is a hard-coded value. Change as seen fit
 
 
 		if slowerWheelSpeed > maxSpeed:

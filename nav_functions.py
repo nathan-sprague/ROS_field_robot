@@ -3,6 +3,14 @@ import numpy as np
 import pyproj
 from shapely.geometry import Point, Polygon
 
+"""
+This file contains a bunch of helpful files functions used to help navigate. This file does nothing on its own
+
+
+"""
+
+
+
 
 def findShortestAngle(targetHeading, heading):
     # finds the smaller angle between one heading or another (go negative or positive)
@@ -336,6 +344,12 @@ def findDiffSpeeds(currentCoords, targetCoords, currentHeading, targetHeading, f
 
     return robotSpeed
 
+def pointInPoly(point, poly):
+    poly = Polygon(poly)
+    point = Point(point[0], point[1])
+    if point.within(poly):
+        return True
+    return False
 
 
 

@@ -10,6 +10,18 @@ import time
 import random
 
 
+# # _filename = "/media/nathan/SDCARD/bags/rs_1658520500.bag"
+# _filename = "/home/nathan/bag_files/enter_row/blah"
+# _filename = "/home/nathan/bag_files/tall"
+_filename = "/home/nathan/old_logs/bag_files/tall.bag"
+
+
+
+_useCamera = False
+_showStream = True
+_useBag = True
+_saveVideo = False
+
 
 # convert bag files to three avi files. This results in a much smaller and more flexible file to save
 
@@ -398,17 +410,7 @@ if __name__ == "__main__":
     print("running")
   
 
-    # # _filename = "/media/nathan/SDCARD/bags/rs_1658520500.bag"
-    # _filename = "/home/nathan/bag_files/enter_row/blah"
-    # _filename = "/home/nathan/bag_files/tall"
-    _filename = "/home/nathan/new_logs/july27/enter_row_full_10fps/"
 
-
-
-    _useCamera = True
-    _showStream = False
-    _useBag = False
-    _saveVideo = False
 
 
 

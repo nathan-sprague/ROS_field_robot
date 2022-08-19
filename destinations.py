@@ -1,3 +1,17 @@
+"""
+A bunch of lists of dictionaries of destinations at various spots tested.
+Possible keys:
+    obstacles (not currently used)
+    destType: (point/beginRow/endRow/sample)
+    coord: (lat&long)
+    finalHading: (degrees) - the robot must face this heading before moving to the next destination
+    destTolerance (m) distance from the actual destination the robot can be before it considers it at the destination
+    rowDirection (degrees) - orientation of the row. Very helpful for the robot entering the row
+
+"""
+
+
+
 # # locations at ACRE corn field
 acreLocations = [{"coord": [40.471649, -86.994065], "destType": "point"},
                     {"coord": [40.471569, -86.994081], "destType": "point"},
@@ -40,17 +54,27 @@ acreBayCorn = [{"obstacles": []},
                     {"coord": [40.469955, -86.995278], "destType": "point", "destTolerance": 1.5},
 
                     {"coord": [40.4699390, -86.9953355], "finalHeading": 270, "destType": "point", "destTolerance": 0.4},
-                    {"coord": [40.4699390, -86.99533555], "destType": "row", "rowDirection": 270}]
+                    {"coord": [40.4699390, -86.99533555], "rowShape": [[0,0],[0,1000], [1000,1000],[1000,0]], "destType": "row", "rowDirection": 270}]
                     # {"coord": [40.469810, -86.996626], "destType": "endRow"}]
 
 acreBayCornNorth = [{"obstacles":[]},                 #   {"coord": [40.4705652, -86.9952982], "destType": "point"}, # test point inside of obstacle
                     {"coord": [40.4705473, -86.9952983], "finalHeading": 360, "destType": "point", "destTolerance": 0.4},
-                    {"coord": [40.4705473, -86.9952983], "destType": "row", "rowDirection": 360},
+                    {"coord": [40.4705473, -86.9952983], "rowShape": [[0,0],[0,1000], [1000,1000],[1000,0]], "destType": "row", "rowDirection": 360},
                     {"coord": [40.470558, -86.995371], "destType": "point"}]
 
 acreBayCornSouth = [{'obstacles': []},
                     {"coord": [40.4698295, -86.9954764], "finalHeading": 270, "destType": "point", "destTolerance": 0.4},
                     {"coord": [40.4698295, -86.9954764], "destType": "row", "rowDirection": 270},
                     {"coord": [40.4698172, -86.9968853], "destType": "point"}]
-                  
+
+acreBayCornFarNorth = [{'obstacles': []},
+                     # {"coord": [40.4717164, -86.9951846], "destType": "point", "destTolerance": 1.5},
+                     {"coord": [40.4717972, -86.9951975], "destType": "point", "finalHeading": 270, "destTolerance": 0.4},
+                     {"coord": [40.4717972, -86.9951975], "destType": "row", "rowDirection": 270, "rowShape": [[40.4716242, -86.9952919], [40.4718456, -86.9952928], [40.4718402,-86.9959584], [40.4716069,-86.9960634]], "destTolerance": 1.5},
+
+
+                     {"coord": [40.4717703, -86.9960504], "destType": "point", "destTolerance": 1.5},
+                     {"coord": [40.4718123, -86.9960236], "destType": "point", "finalHeading": 85, "destTolerance": 0.4}]
+                     # {"coord": [40.4718123, -86.9960236], "destType": "row", "rowShape": [[40.4716242, -86.9952919], [40.4718456, -86.9952928], [40.4718402,-86.9959584], [40.4716069,-86.9960634]], "destTolerance": 1.5}]
+ 
                     

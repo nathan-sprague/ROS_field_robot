@@ -333,22 +333,29 @@ class StandardDetection():
         corn = depth_image[int(ht*0.3):int(ht*0.6), :]
 
 
-        # std = np.std(depth_image[np.nonzero(depth_image)])
-        distFromCorn = np.median(corn[np.nonzero(corn)])# - int(std)
+        if np.count_nonzero(corn) == 0 or np.count_nonzero(right) == 0 or np.count_nonzero(left) == 0:
+            print("all zeros found")
+            distFromCorn = 1000
+            distFromCornRight = 1000
+            distFromCornLeft = 1000
 
-        # stdR = np.std(right[np.nonzero(right)])
-        distFromCornRight = np.median(right[np.nonzero(right)])
-   
+        else:
 
-        # stdL = np.std(left[np.nonzero(left)])
-        distFromCornLeft = np.median(left[np.nonzero(left)])
-       
+                
+            # std = np.std(depth_image[np.nonzero(depth_image)])
+            distFromCorn = np.median(corn[np.nonzero(corn)])# - int(std)
 
-        # print(distFromCorn, distFromCornLeft, distFromCornRight)
+            # stdR = np.std(right[np.nonzero(right)])
+            distFromCornRight = np.median(right[np.nonzero(right)])
+
+            # stdL = np.std(left[np.nonzero(left)])
+            distFromCornLeft = np.median(left[np.nonzero(left)])
+            # print(distFromCorn, distFromCornLeft, distFromCornRight)
 
         distFromCornSide = distFromCornLeft + distFromCornRight
 
 
+        # calculate whether the robot is/was in the row so it can know when it exits the row
         rst = time.time()-self.lastRowSideTime
         if rst > 1000:
             rst = 0
@@ -377,19 +384,6 @@ class StandardDetection():
 
         self.lastRowSideTime = time.time()
 
-
-
-
-        # if distFromCornSide > 2000:
-
-        #     if not self.outsideRow:
-        #         print("outside row", distFromCornSide)
-        #         self.outsideRow = True
-        # else:
-
-        #     if self.outsideRow:
-        #         print("inside row", distFromCornSide)
-        #         self.outsideRow = False
 
         return distFromCorn
 
@@ -426,8 +420,6 @@ class StandardDetection():
     def checkIfHitting(self, depth_image, obstacleImg, showStream=False, hitableArea=(0.3,0.2), center = 320, distThresh=3):
         ht = 480
         wt = 640
-
-
 
         hitArea = int(ht/2-(ht*hitableArea[1])), int(ht/2+(ht*hitableArea[1])), int(center-(wt*hitableArea[0])), int(center+(wt*hitableArea[0]))
 
@@ -468,6 +460,8 @@ class StandardDetection():
 
         if showStream:
             cv2.imshow("og", depth_image)
+            bright = (depth_image/256).astype('uint8')
+            cv2.imshow("og2", bright)
 
         # find the distance from corn. This determines whether it does row-entry navigation or inter-row navigation
         distFromCorn = self.findDistFromCorn(depth_image)
@@ -563,10 +557,6 @@ class StandardDetection():
         return rampr16
 
 
-
-    def grayscale_transform(self, image_in):
-        b, g, r = cv2.split(image_in)
-        return 2*g - r - b
 
     def apply_brightness_contrast(self, input_img, brightness=0, contrast=0):
     # found this function on stack overflow. All I know is that it works

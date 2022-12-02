@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<script>
+
+
+var desVars = {"maxSpeed": 0, "pwmLimitHigh": 190, "pwmLimitLow": 120, "kp": 1, "ki": 0, "kd": 0};
+
+
+var realVars = {};
+
+
+var statuses = ["&#10060;", "&#128472;", "&#9989;"];
+
+
+console.log("Starting");
+
+var getInfoAttempts = 0;
+
+ready = true;
+function requestInfo(){  
+  console.log("requesting info");
+
+ if (true){
+   // ready = false;
+     var xhttp = new XMLHttpRequest();
+     xhttp.onreadystatechange = function() {
+       if (this.readyState == 4 && this.status == 200) {
+
+          info = JSON.parse(this.responseText);
+          console.log(info);
+            for (const [key, value] of Object.entries(info)) {
+              document.getElementById(key).innerHTML = value;
+              document.getElementById(key+"Status").innerHTML = statuses[2];
+            }
+            getInfoAttempts = 0;
+
+
+       } else if (this.status == 0){
+         // ready = false;
+        }
+     };
+
+      //displaySpeed();
+
+
+    console.log("arg list: /request");
+     xhttp.open('GET', '/_request', true);
+     xhttp.send();
+     getInfoAttempts += 1;
+    
+     if (getInfoAttempts > 10){
+        document.getElementById("realRightSpeedStatus").innerHTML = statuses[0]
+        document.getElementById("realLeftSpeedStatus").innerHTML = statuses[0]
+      } else if (getInfoAttempts > 4){
+        document.getElementById("realRightSpeedStatus").innerHTML = statuses[1]
+        document.getElementById("realLeftSpeedStatus").innerHTML = statuses[1]
+      } 
+ } else {
+    console.log("not ready");
+ }
+}
+
+function sendInfo(){
+   // ready = false;
+   console.log("sending info");
+   var xhttp = new XMLHttpRequest();
+   xhttp.onreadystatechange = function() {
+
+     if (this.readyState == 4 && this.status == 200) {
+        for (const [key, value] of Object.entries(desVars)) {
+          document.getElementById(key+"Status").innerHTML = statuses[2];
+        }
+
+
+     } else if (this.status == 0){
+       // ready = false;
+      }
+   };
+
+    //displaySpeed();
+  args = "";
+  desVars = {"maxSpeed": document.getElementById("maxSpeed").value, "pwmLimitHigh": document.getElementById("pwmLimitHigh").value, "pwmLimitLow": document.getElementById("pwmLimitLow").value, "kp": document.getElementById("kp").value, "ki": document.getElementById("ki").value, "kd": document.getElementById("kd").value};
+  if (document.getElementById("pwmControl").checked) {
+    desVars["pwmControl"] = "1";
+  } else {
+    desVars["pwmControl"] = "0";
+  }
+
+  for (const [key, value] of Object.entries(desVars)) {
+    if (realVars[key] != value){
+      args += "&" + key + "=" + value;
+    }
+
+  }
+
+  args = "?" + args.substring(1);
+
+
+
+  console.log("sending: /_info" + args);
+  xhttp.open('GET', '/_info' + args, true);
+  xhttp.send();
+  console.log(desVars)
+  for (const [key, value] of Object.entries(desVars)) {
+    console.log(key+"Status");
+    document.getElementById(key + "Status").innerHTML = statuses[1];
+  }
+}
+
+
+function displayInfo(){
+  for (const [key, value] of Object.entries(desVars)) {
+    console.log(key);
+    document.getElementById(key).value = value;
+  }
+}
+
+
+var myInterval = setInterval(requestInfo, 500);
+
+</script>
+
+
+
+<html>
+
+
+
+
+...............................................................Updated:<br><br>
+
+PID Control: <input type="checkbox" id="pwmControl" checked> ..........................................<span id="pwmControlStatus">&#10060;</span><br><br>
+
+
+True Right Speed: <span id="realRightSpeed">__</span> mph ............................<span id="realRightSpeedStatus">&#128472;</span><br>
+True Left Speed: <span id="realLeftSpeed">__</span> mph ..............................<span id="realLeftSpeedStatus">&#128472;</span><br><br>
+
+Max Speed: <input type="number" id="maxSpeed"> ............<span id="maxSpeedStatus">&#10060;</span><br><br>
+
+PWM Upper Limit: <input type="number" id="pwmLimitHigh"> ...<span id="pwmLimitHighStatus">&#10060;</span><br><br>
+
+PWM Lower Limit: <input type="number" id="pwmLimitLow"> ...<span id="pwmLimitLowStatus">&#10060;</span><br><br>
+
+kp: <input type="number" id="kp"> ..........................<span id="kpStatus">&#10060;</span><br><br>
+
+ki: <input type="number" id="ki"> ..........................<span id="kiStatus">&#10060;</span><br><br>
+
+kd: <input type="number" id="kd"> .........................<span id="kdStatus">&#10060;</span><br><br>
+
+
+
+
+
+<button type="button" id="setTarget", onclick="sendInfo();">Update</button>
+</p>
+
+</html>
+
+<script>
+displayInfo();
+</script>

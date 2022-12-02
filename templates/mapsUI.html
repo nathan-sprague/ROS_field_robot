@@ -1,0 +1,130 @@
+<script>
+
+function buildUI(){
+  makeToolBar()
+  makeLeftSettings()
+  makeRightSettings()
+  makeMap()
+
+}
+
+// window.localStorage.setItem("data", "abcd");
+// if (window.localStorage.getItem("data")) {
+//     console.log(window.localStorage.getItem("data"));
+//     window.localStorage.removeItem('data');
+// } else {
+//   console.log("no data")
+// }
+
+
+function makeRadioButton(name, value, text) {
+
+  var label = document.createElement("label");
+  var radio = document.createElement("input");
+  radio.type = "radio";
+  radio.name = name;
+  radio.value = value;
+
+  label.appendChild(radio);
+
+  label.appendChild(document.createTextNode(text));
+  return label;
+}
+
+
+
+function makeLeftSettings(){
+  const panel = document.createElement("div")
+  panel.id="panelDiv"
+  panel.style.position = "relative";
+  // panel.style.left = "0%";
+  panel.style.height = "calc(100% - 40px)"
+  panel.style.width = "20%"
+  panel.style.backgroundColor = "green"
+  // panel.style.transform = "translateX(-50%)";
+  document.body.appendChild(panel)
+
+  const x = document.createElement("INPUT");
+  x.setAttribute("type", "checkbox");
+  x.id="labelNum"
+  var newlabel = document.createElement("Label");
+    newlabel.setAttribute("for", "labelNum");
+    newlabel.innerHTML = "Label Point numbers";
+
+  panel.appendChild(x)
+  panel.appendChild(newlabel)
+
+  var pointTypes = makeRadioButton("pointButton", "yes", "Oh yea! do it!");
+  document.body.appendChild(yes_button);
+
+
+  
+}
+
+function makeRightSettings(){
+  const panel = document.createElement("div")
+  panel.id="panelDiv"
+  panel.style.position = "absolute";
+  panel.style.height = "calc(100% - 48px)"
+  panel.style.top = "48px"
+  panel.style.left = "calc(20% + 700px)";
+  panel.style.width = "calc(80% - 700px"
+  panel.style.backgroundColor = "orange"
+  // panel.style.transform = "translateX(-50%)";
+  document.body.appendChild(panel)
+
+
+  // panel.appendChild(label)
+}
+
+
+function makeMap(){
+  const panel = document.createElement("div")
+  panel.id="mapDiv"
+  panel.style.position = "absolute";
+  panel.style.left = "20%";
+  panel.style.top = "48px";
+  panel.style.height = "700px"
+  panel.style.width = "700px"
+  panel.style.backgroundColor = "blue"
+  document.body.appendChild(panel)
+
+}
+
+
+function makeToolBar(){
+  const toolBar = document.createElement("div")
+  toolBar.id="toolBarDiv"
+  toolBar.style.position = "relative";
+  // toolBar.style.left = "0%";
+  toolBar.style.height = "40px"
+  toolBar.style.width = "100%"
+  toolBar.style.backgroundColor = "red"
+  // toolBar.style.transform = "translateX(-50%)";
+  document.body.appendChild(toolBar)
+
+  const x = document.createElement("INPUT");
+  x.setAttribute("type", "button");
+  x.value = "Download"
+  toolBar.appendChild(x)
+
+  const y = document.createElement("INPUT");
+  y.setAttribute("type", "button");
+  y.value = "Load File"
+  toolBar.appendChild(y)
+
+
+}
+
+
+</script>
+
+<html>
+  <head>
+    <title>Points Creator</title>
+  </head>
+</html>
+<script>
+
+buildUI();
+</script>

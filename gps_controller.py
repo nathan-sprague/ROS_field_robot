@@ -6,6 +6,7 @@ import time
 import pynmea2
 import nav_functions
 from threading import Thread, Lock
+import datetime
 from io import BufferedReader
 from pyubx2 import (
     UBXMessage,
@@ -61,7 +62,7 @@ class Gps():
         if self.mainGpsPort == "none":
             print("no GPS Connected to computer")
             return False
-        # self.device = serial.Serial(port='/dev/ttyUSB0', baudrate=38400, timeout=1)
+        # self.device = serial.Serial(port='/dev/ttyUSB0', baudrate=115200, timeout=1)
         try:
             self.device = serial.Serial(port=self.mainGpsPort, baudrate=115200, timeout=1)
         except:
@@ -112,7 +113,10 @@ class Gps():
                         # print("")
 
                         # print(parsed_data.identity)
-
+                        # if parsed_data.identity == "GNGLL":
+                        #     t= str(parsed_data.time) #yo 15:50:29.600000
+                        #     x = "11/11/2022, " + str(x[0:-7])
+                        #     self.robot.gpsUnixTime = datetime.datetime.strptime(x,"%m/%d/%Y, %H:%M:%S")
 
                         if parsed_data.identity == "NAV-RELPOSNED": #hasattr(parsed_data, "relPosHeading"):
                             # print("identity")#, #parsed_data.identity)
@@ -149,9 +153,11 @@ class Gps():
                         if parsed_data.identity == "RXM-RTCM":
                             # RTK2B heading msg: <UBX(RXM-RTCM, version=2, crcFailed=0, msgUsed=2, subType=0, refStation=0, msgType=1230)>
                             # RTK base msg:      <UBX(RXM-RTCM, version=2, crcFailed=0, msgUsed=1, subType=1, refStation=0, msgType=4072)>
-
+                            # print(parsed_data.msgType)
                             if parsed_data.msgType == 1230: # heading board id is 1230. I think it should be parsed_data.refStation so pyubx updates may break this in the future.
                                 self.debugOptions["heading board connected"] = [True, int(time.time())]
+                                if self.verbose:
+                                    print("heading device connected")
                             else: # rtk base message
                                 self.debugOptions["RTK signal available"] = [True, int(time.time())]
 
@@ -179,6 +185,7 @@ if __name__ == "__main__":
             self.gpsAccuracy = 0
             self.connectionType = 0
             self.notCtrlC = True
+
 
 
     portsConnected = [tuple(p) for p in list(serial.tools.list_ports.comports())]

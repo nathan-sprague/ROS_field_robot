@@ -591,7 +591,7 @@ if __name__ == "__main__":
 
 
     # _filename = "/home/nathan/new_logs/july27_wont_work/enter_row_fail"
-    _filename = "/home/nathan/new_logs/july29/afternoon/log_1659126759"
+    _filename = "/home/nathan/new_logs/aug31/success1"
 
     _useCamera = False
     _showStream = True

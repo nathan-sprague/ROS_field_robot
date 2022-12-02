@@ -4,8 +4,8 @@ import pyproj
 from shapely.geometry import Point, Polygon
 
 """
-This file contains a bunch of helpful files functions used to help navigate. This file does nothing on its own
-
+This file contains a bunch of helpful files functions used to help navigate.
+This file does nothing on its own.
 
 """
 

@@ -4,6 +4,9 @@ import serial.tools.list_ports
 import time
 from threading import Thread
 import math
+import json
+import os
+
 
 class Esp():
     def __init__(self, robot, portName):
@@ -37,6 +40,7 @@ class Esp():
 
         # Status of the ESP32
         self.stopped = False
+        self.apRobot = False
 
 
 
@@ -71,12 +75,17 @@ class Esp():
             joins the read and write threads and tells the ESP to stop
         """
 
+
+
         self.rxThread.join()
 
         if self.txThread != False:
             self.txThread.join()
 
         self.device.write(bytes("s", 'utf-8'))
+
+        self.device.write(bytes("k", 'utf-8'))
+
 
         return True
 
@@ -95,20 +104,6 @@ class Esp():
             else:
                 time.sleep(0.1)
 
-
-    def processSerial(self, message_bin):
-        """
-        process the incoming serial message and do the appropriate actions
-
-        It still has some old ids and commands that are no longer used by the robot, like the role of the ESP.
-            I may add it back in someday so I won't remove it yet.
-
-        Parameters:
-            message_bin - a message with some characters at the beginning and end. It is technically a string, not binary
-
-        Returns:
-            nothing
-        """
 
     def processSerial(self, message_bin):
         """
@@ -134,8 +129,27 @@ class Esp():
             # print("got message:", message)
 
             if msgType == ".": # suppressed print statement
-                
+                print("suppressed print statement", message)
                 return
+
+            elif msgType == "m": # esp requests info
+                responseDict = {"coords":  self.robot.coords, "realSpeed": self.robot.realSpeed, "targetSpeed": self.robot.targetSpeed, 
+                    "heading":  self.robot.trueHeading, "headingAccuracy": self.robot.headingAccuracy,
+                    "targetHeading":  self.robot.targetHeading%360, "gpsAccuracy": self.robot.gpsAccuracy, "connectionType": self.robot.connectionType,
+                    "runID": str( self.robot.startTime), "runTime": int(time.time()- self.robot.startTime), "status": list(self.robot.navStatus)}
+                rd = json.dumps(responseDict)
+                self.apRobot = True
+
+                self.device.write(bytes("m" + rd, 'utf-8'))
+                time.sleep(0.1)
+
+            elif msgType == "k": # esp wants to kill navigation program
+                print("kill request from ESP")
+                self.robot.notCtrlC = False
+                self.robot.closeRobot()
+                time.sleep(0.5)
+                os.kill(os.getpid(), signal.SIGUSR1)
+
 
             elif msgType == "-":
 
@@ -168,6 +182,7 @@ class Esp():
 
             # analyze the message based on the prefix
             if msgType == "w": # speed of both wheels
+                self.apRobot = False
                 leftSpeed = ""
                 rightSpeed = ""
                 writeLeft = True
@@ -200,29 +215,29 @@ class Esp():
         """
         while self.robot.notCtrlC:
             messagesToSend = self.updateMessages()
-            
-            for prefix in messagesToSend:
+            if not self.apRobot:
+                for prefix in messagesToSend:
 
-                # check to see if the message was sent in the past. Dont bother to send the same command twice (avoids serial traffic)
-            
-                 # send the prefix and value to the ESP32
-                msg = prefix + str(messagesToSend[prefix])
-                self.device.write(bytes(msg, 'utf-8'))
-                self.lastSent[prefix] = [messagesToSend[prefix], False, time.time(), 0] # [value, confirmed, sent time, response time]
-                self.lastSentTime = time.time()
-         #       print("sending message:", msg)
-                time.sleep(0.05)
+                    # check to see if the message was sent in the past. Dont bother to send the same command twice (avoids serial traffic)
+                
+                     # send the prefix and value to the ESP32
+                    msg = prefix + str(messagesToSend[prefix])
+                    self.device.write(bytes(msg, 'utf-8'))
+                    self.lastSent[prefix] = [messagesToSend[prefix], False, time.time(), 0] # [value, confirmed, sent time, response time]
+                    self.lastSentTime = time.time()
+                    print("sending message:", msg)
+                    time.sleep(0.05)
 
-            if messagesToSend =={} and time.time()-self.lastSentTime > 0.5:
-                # send an empty message to keep the ESP informed that there is a connection
-                self.device.write(bytes(".", 'utf-8'))
-                self.lastSentTime = time.time()
-                # print("sending empty")
-                time.sleep(0.05)
-            elif messagesToSend == {}:
-                time.sleep(0.05)
-            # time.sleep(0.1)
-         #   print("done sending messages")
+                if messagesToSend =={} and time.time()-self.lastSentTime > 0.5:
+                    # send an empty message to keep the ESP informed that there is a connection
+                    self.device.write(bytes(".", 'utf-8'))
+                    self.lastSentTime = time.time()
+                    print("sending empty")
+                    time.sleep(0.05)
+                elif messagesToSend == {}:
+                    time.sleep(0.05)
+                # time.sleep(0.1)
+             #   print("done sending messages")
 
 
     def updateMessages(self):
@@ -270,6 +285,14 @@ if __name__ == "__main__":
             self.esp = ""
             self.observers = []
             self.testType = 2
+            self.coords = [0,0]
+            self.trueHeading = 0
+            self.headingAccuracy = 0
+            self.targetHeading = 0
+            self.connectionType = 0
+            self.gpsAccuracy = 0
+            self.startTime = 0
+            self.navStatus = set()
 
         
 
@@ -295,7 +318,7 @@ if __name__ == "__main__":
                                 if self.esp.lastSent['l'][0] == self.targetSpeed[0] and self.esp.lastSent['r'][0] == self.targetSpeed[1]:
                                     if speedupTime == 0:
                                         speedupTime = time.time()
-                                    if abs(self.targetSpeed[0]-self.realSpeed[0]) < 0.2 and abs(self.targetSpeed[0]-self.realSpeed[0]) < 0.2:
+                                    if abs(self.targetSpeed[0]-self.realSpeed[0]) < 0.2 and abs(self.targetSpeed[1]-self.realSpeed[1]) < 0.2:
                                         break
                         except:
                             pass
@@ -329,7 +352,7 @@ if __name__ == "__main__":
     print("set up", len(espList), "ESPs")
     if len(espList) > 0:
         b.esp = espList[0]
-        b.run()
+        # b.run()
 
     
     

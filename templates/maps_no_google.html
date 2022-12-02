@@ -1,0 +1,983 @@
+<!DOCTYPE html>
+<html>
+  <head>
+   <title>Robot Monitor</title>
+  </head>
+
+	<body style="background-color: rgb(200, 200,255);">
+ 
+  </body>
+</html>
+
+<script>
+
+
+var canvasScale = 1000000
+var canvasCenterCoords = [40.4699462,-86.9953345];
+
+var destinationPoints = [];
+var obstaclePoints = [];
+var subPoints = []
+var rows = [];
+var walls = [];
+
+var movePath = [];
+var tempPath = [];
+
+var firstRowPt = [];
+var firstWallPt = [];
+
+
+var boxes = [];
+
+var mapFeatures = [
+["green", [40.4718357, -86.9967665], [40.4697490, -86.9967665], [40.4697678, -86.9955130], [40.4698261, -86.9955234], [40.4699289, -86.9953532], [40.4705472, -86.9953564], [40.4705693, -86.9952035], [40.4718479, -86.9952443], [40.4718402,-86.9959584], [40.4716069,-86.9960634], [40.4716518,-86.9961884], [40.4718329,-86.9961076]], ["gray", [40.470539, -86.995253], [40.469761, -86.995264], [40.469761, -86.996155], [40.469697, -86.996155], [40.469697, -86.995155], [40.470540, -86.995163]]];
+
+
+var mouseDown = false;
+var dragged = false;
+var lastMouseSpot = [0,0]
+
+
+
+
+
+
+function coordToCtx(lat, long){
+  var longCorrection = Math.cos(canvasCenterCoords[0]*Math.PI/180);
+ 
+  var x = -canvasScale*(long - canvasCenterCoords[1])*longCorrection;
+  var y = (canvasScale*(lat - canvasCenterCoords[0]));
+
+  return [x,y];
+}
+
+function ctxToCoord(x, y){
+  var longCorrection = Math.cos(canvasCenterCoords[0]*Math.PI/180);
+  var long = (-x)/(canvasScale*longCorrection);
+  var lat = -y/canvasScale;
+  return [lat,long];
+}
+
+
+
+
+function drawBoard(){
+	let c = document.getElementById("pointMap");
+	let ctx = c.getContext("2d");
+	let canvasWidth = c.width;
+	let canvasHeight = c.height;
+	  //adjust this!
+
+	let canvasSize = c.getBoundingClientRect();
+
+
+	let centerCtxCoords = [canvasWidth/2, canvasHeight/2]
+
+	ctx.clearRect(0, 0, canvasWidth, canvasHeight);
+
+
+	//draw map features
+	let i=0;
+	if (mapFeatures.length > 0){
+
+		while (i<mapFeatures.length) {
+
+			ctx.beginPath();
+
+			ctx.fillStyle = mapFeatures[i][0]
+
+			let firstCoords = coordToCtx(mapFeatures[i][1][0], mapFeatures[i][1][1]);
+			firstCoords = [centerCtxCoords[0]-firstCoords[0], (centerCtxCoords[1]-firstCoords[1])];
+			moveTo(firstCoords[0], firstCoords[1]);
+			let j = 2;
+			while (j<mapFeatures[i].length){
+
+				let coords = coordToCtx(mapFeatures[i][j][0], mapFeatures[i][j][1]);
+				coords = [centerCtxCoords[0]-coords[0], (centerCtxCoords[1]-coords[1])];
+				ctx.lineTo(coords[0], coords[1])
+		    j+=1;
+		  }
+
+		  // ctx.fillStyle = "red";
+		  ctx.lineTo(firstCoords[0], firstCoords[1])
+		  ctx.closePath();
+		  ctx.fill();
+		  ctx.stroke();
+			i+=1
+		}
+	}
+
+
+	// draw rows
+	ctx.lineWidth = 1
+	ctx.strokeStyle = "black"
+	i = 0;
+	while (i<rows.length){
+		ctx.beginPath();
+		let coords = coordToCtx(rows[i][0][0], rows[i][0][1]);
+		coords = [centerCtxCoords[0]-coords[0], (centerCtxCoords[1]-coords[1])];
+		ctx.moveTo(coords[0], coords[1])
+
+		coords = coordToCtx(rows[i][1][0], rows[i][1][1]);
+		coords = [centerCtxCoords[0]-coords[0], (centerCtxCoords[1]-coords[1])];
+		ctx.lineTo(coords[0], coords[1])
+		ctx.stroke()
+		i+=1
+	}
+
+	// draw walls
+	ctx.lineWidth = 3
+	ctx.strokeStyle = "red"
+	i = 0;
+	while (i<walls.length){
+		ctx.beginPath();
+		let coords = coordToCtx(walls[i][0][0], walls[i][0][1]);
+		coords = [centerCtxCoords[0]-coords[0], (centerCtxCoords[1]-coords[1])];
+		ctx.moveTo(coords[0], coords[1])
+
+		coords = coordToCtx(walls[i][1][0], walls[i][1][1]);
+		coords = [centerCtxCoords[0]-coords[0], (centerCtxCoords[1]-coords[1])];
+		ctx.lineTo(coords[0], coords[1])
+		ctx.stroke()
+		i+=1
+	}
+
+
+	//temp path
+	ctx.lineWidth = 2
+	ctx.strokeStyle = "rgb(255,255,0)"
+	i = 0;
+	while (i<tempPath.length){
+		ctx.beginPath();
+		let j = 0;
+		while (j<tempPath[i].length){
+			let coords = coordToCtx(tempPath[i][j][0], tempPath[i][j][1]);
+			coords = [centerCtxCoords[0]-coords[0], (centerCtxCoords[1]-coords[1])];
+			if (j==0){
+				ctx.moveTo(coords[0], coords[1])
+			} else{
+				ctx.lineTo(coords[0], coords[1])
+			}
+			j+=1
+		}
+		ctx.stroke()
+		i+=1
+	}
+
+
+	// real path
+	ctx.lineWidth = 2
+	ctx.strokeStyle = "rgb(0,255,0)"
+	i = 0;
+	while (i<movePath.length){
+
+		ctx.beginPath();
+		let j = 0;
+		while (j<movePath[i].length){
+			let coords = coordToCtx(movePath[i][j][0], movePath[i][j][1]);
+			coords = [centerCtxCoords[0]-coords[0], (centerCtxCoords[1]-coords[1])];
+			if (j==0){
+				ctx.moveTo(coords[0], coords[1])
+			} else{
+				ctx.lineTo(coords[0], coords[1])
+			}
+			j+=1
+		}
+		ctx.stroke()
+		i+=1
+	}
+	ctx.strokeStyle = "black"
+
+
+
+	// draw sub points
+	if (document.getElementById("subPointsBox").checked){
+		i=0;
+		while (i<subPoints.length){
+			let coords = coordToCtx(subPoints[i][0], subPoints[i][1]);
+			coords = [centerCtxCoords[0]-coords[0], (centerCtxCoords[1]-coords[1])];
+			ctx.fillStyle = "blue"
+			ctx.beginPath();
+			ctx.arc(coords[0], coords[1], 4, 0, 2 * Math.PI);
+			ctx.fill();
+
+	    ctx.stroke();
+			i+=1
+		}
+	}
+
+
+
+	// draw destinations
+	i=0;
+	while (i<destinationPoints.length){
+		let coords = coordToCtx(destinationPoints[i][0], destinationPoints[i][1]);
+		coords = [centerCtxCoords[0]-coords[0], (centerCtxCoords[1]-coords[1])];
+
+		ctx.fillStyle = "black"
+		ctx.beginPath();
+		ctx.arc(coords[0], coords[1], 8, 0, 2 * Math.PI);
+		ctx.fill();
+		// ctx.stroke();
+		ctx.font = '25px serif';
+    ctx.fillText(i+1, coords[0]-5, coords[1]-12);
+    ctx.stroke();
+		i+=1
+	}
+
+	// draw start destination
+	coords = coordToCtx(ogStartPoint[0], ogStartPoint[1]);
+	coords = [centerCtxCoords[0]-coords[0], (centerCtxCoords[1]-coords[1])];
+
+	ctx.fillStyle = "rgb(0,255,0)"
+	ctx.beginPath();
+	ctx.arc(coords[0], coords[1], 8, 0, 2 * Math.PI);
+	ctx.fill();
+	ctx.stroke();
+	ctx.fillStyle = "black"
+	ctx.font = '25px serif';
+  ctx.fillText("start", coords[0]-5, coords[1]-12);
+  ctx.stroke();
+	i+=1
+	
+}
+
+// returns true if the line from (a,b)->(c,d) intersects with (p,q)->(r,s)
+function intersects(a,b,c,d,p,q,r,s) {
+  var det, gamma, lambda;
+  det = (c - a) * (s - q) - (r - p) * (d - b);
+  if (det === 0) {
+    return false;
+  } else {
+    lambda = ((s - q) * (r - a) + (p - r) * (s - b)) / det;
+    gamma = ((b - d) * (r - a) + (c - a) * (s - b)) / det;
+    return (0 < lambda && lambda < 1) && (0 < gamma && gamma < 1);
+  }
+}
+
+
+console.log("inter", intersects(0,0,0,0,0,0,0,0))
+
+
+function findStraightDistances(dests, rowList, rowCrossCost){
+	let i = 0;
+	destCtx = []
+	while (i < dests.length) {
+		destCtx.push(coordToCtx(dests[i][0], dests[i][1]))
+		i+=1
+	}
+
+	i=0
+	rowCtx = []
+	while (i < rowList.length) {
+		rowCtx.push([coordToCtx(rowList[i][0][0], rowList[i][0][1]), coordToCtx(rowList[i][1][0], rowList[i][1][1])])
+		i+=1
+	}
+
+	let dists = []
+	i = 0;
+	while (i<destCtx.length){
+		d = []
+		let j=0;
+		while (j<destCtx.length){
+			cost = (Math.floor(Math.sqrt(Math.pow(destCtx[i][0] - destCtx[j][0], 2) + Math.pow(destCtx[i][1] - destCtx[j][1], 2))))
+
+			let k = 0;
+			intersects = 0
+			while (k<rowCtx.length){
+
+
+				let inter = false;
+				a = rowCtx[k][0][0];
+				b=rowCtx[k][0][1]
+				c =rowCtx[k][1][0]
+				dd=rowCtx[k][1][1]
+				p=destCtx[i][0]
+				q=destCtx[i][1]
+				r=destCtx[j][0]
+				s= destCtx[j][1]
+
+				var det, gamma, lambda;
+			  det = (c - a) * (s - q) - (r - p) * (dd - b);
+			  if (det === 0) {
+			    inter = false;
+			  } else {
+			    lambda = ((s - q) * (r - a) + (p - r) * (s - b)) / det;
+			    gamma = ((b - dd) * (r - a) + (c - a) * (s - b)) / det;
+			    inter = (0 < lambda && lambda < 1) && (0 < gamma && gamma < 1);
+			  }
+
+				 //intersects(0,0,0,0,0,0,0,0)//rowCtx[i][0][0], rowCtx[i][0][1], rowCtx[i][1][0], rowCtx[i][1][1], destCtx[i][0], destCtx[i][1], destCtx[j][0], destCtx[j][1])
+				if (inter!=false){
+					intersects += 1;
+					if (rowList[k][2] == -2){
+						intersects = 10000
+						cost = 100000000
+						break
+					}
+				}
+				k+=1
+			}
+
+
+			cost += rowCrossCost * intersects
+
+			d.push(cost)
+
+			j+=1
+		}
+		dists.push(d)
+
+		i+=1
+	}
+	return dists
+}
+
+function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+
+
+async function dijikstra(startPt, endPt, rowCrossCost, endInd){
+	rowCrossCost = document.getElementById("cornCost").value
+	let dests = [startPt, endPt, ...subPoints]
+
+	let showProcess = document.getElementById("pathProcessBox").checked
+
+	let linesList = [...rows, ...walls]
+	let dists = findStraightDistances(dests, linesList, rowCrossCost)
+
+
+	bestCosts = {}
+
+
+	i=0;
+	while (i<dests.length){
+		cost = dists[0][i]
+		bestCosts[i]=[cost, [startPt, dests[i]]]
+		i+=1
+	}
+	// console.log("straight", bestCosts)
+	resCost = -1
+	i = 0;
+	let worked = 1;
+	while (i<10 && worked > 0){
+		if (showProcess){
+			drawBoard()
+			await sleep(1000);
+		}
+		tempPath = [bestCosts[1][1]]
+
+		let j=0
+
+		worked = 0
+		while (j<Object.keys(bestCosts).length){
+			if (bestCosts[j][1].length < i || bestCosts[j][0] > bestCosts[1][0]){
+				// console.log("optimized", j)
+				
+			} else {
+				worked += 1;
+				tempPath.push(bestCosts[j][1])
+				let k = 0;
+				while(k<Object.keys(bestCosts).length){
+					if (k!=j){
+						cost = dists[j][k]
+						cost += bestCosts[j][0]
+						
+						if (k==1){
+							if (resCost > cost || resCost == -1){
+								resCost = cost
+								console.log("cost", cost)
+							}
+						}
+
+
+						// console.log("cost", cost, bestCosts[k][1].length)
+						if (cost < bestCosts[k][0]){
+							console.log("best", bestCosts[k])
+							
+							let p = [...bestCosts[j][1]]
+							p.push(dests[k])
+							// console.log("adding", dests[k])
+							bestCosts[k] = [cost, p]
+						}
+					}
+					k+=1
+				}
+			}
+
+			j+=1
+			// delete thisIsObject[key]; 
+		}
+		
+		
+
+		i+=1;
+	}
+
+	console.log("final costs", bestCosts)
+	console.log("final cost val", bestCosts[1][1])
+	tempPath = []
+	movePath.push(bestCosts[1][1])
+	console.log("final to dest", movePath)
+	startPoint = [...endPt]
+
+	drawBoard()
+
+	if (endInd === undefined) {
+        let i=0;
+   } else{
+   	if (destinationPoints[endInd].length == 2){
+	   	destinationPoints[endInd].push(resCost)
+	  } else {
+	  	destinationPoints[endInd][2] = resCost
+	  }
+   }
+	
+
+
+}
+
+
+
+
+
+
+
+
+
+
+function findShortestDistBrute2(startPt, dests){
+	// evaluate the permutations as they are created
+	// if it is already worse than one, move to different type
+
+	let shortestDist = 9999999999; // not a very good way to do this
+
+	let dists = findStraightDistances(startPt, dests)
+
+	let defaultPath = Array.from(dests.keys());
+	defaultPath.push(defaultPath.length) // include one for the start point
+
+	let test = [...defaultPath]
+
+	let shortestPath = [...test];
+
+	let iter = 0;
+
+	let checkInd = test.length-1
+	let checkableSpots = [test[checkInd]]
+
+	
+	while (iter < 10000 && checkInd > 0){
+
+		checkSpot = defaultPath.slice(0, checkInd)
+		console.log("family", checkSpot)
+
+		// get value up to checkable spot
+		let i = 0;
+		let dist = 0
+		while (i < checkSpot.length-1){
+			iter += 1
+			let d = dists[checkSpot[i]][checkSpot[i+1]]
+			iter += 1;
+			dist += d;
+			if (dist > shortestDist){
+				break
+			}
+			i+=1
+		}
+		console.log("family length", dist)
+
+		if (dist > shortestDist) {
+			// distance so bad, dont even bother with permutations
+			checkInd -= 1
+			console.log("distance not worth it for family", checkSpot)
+
+		} else {
+			// get permutations of checkable spot and beyond
+			baseDist = dist
+			perms = permutator(defaultPath.slice(checkInd))
+			i = 0;
+
+			console.log("perms", perms)
+			
+			while (i < perms.length) {
+				
+				let dist = baseDist + dists[checkSpot[checkSpot.length-1]][perms[0][0]]
+				j = 1;
+				while (j < perms[i].length){
+					let d = dists[perms[i][j-1]][perms[i][j]]
+					
+					dist += d
+					if (dist > shortestDist) {
+						break;
+					}
+					j += 1
+					iter += 1 
+				}
+				console.log("dist", dist)
+
+				if (dist < shortestDist){
+					shortestDist = dist
+					shortestPath = checkSpot.concat(perms[i])
+				}
+				i+=1;
+			}
+			checkInd -= 1
+
+
+
+		}
+		
+
+
+	}
+	console.log("best route", shortestPath)
+	console.log("done in", iter)
+
+
+}
+
+
+
+
+function findShortestDistBrute(){
+	// create all the permutations and test each one.
+	// If it is already longer than one, move to the next permutation
+	let iter = 0;
+	let i = 0;
+
+	let destCtx = []
+	while (i < destinationPoints.length) {
+		destCtx.push(coordToCtx(destinationPoints[i][0], destinationPoints[i][1]))
+		i+=1
+	}
+
+	startPt = coordToCtx(startPoint[0], startPoint[1])
+
+
+	bestRoute = Array.from(destCtx.keys())
+	
+	bestRouteDist = 100000000
+
+
+	console.log("best route", bestRouteDist)
+
+	options = permutator(bestRoute)
+
+	i = 0;
+		// console.log("start", startPt[0])// Math.pow(startPt[0] - destCtx[options[i][0]][0], 2))
+
+	while (i<options.length){
+
+		
+		
+
+		let dist = Math.sqrt(Math.pow(startPt[0] - destCtx[options[i][0]][0], 2) + Math.pow(startPt[1] - destCtx[options[i][0]][1], 2))
+		let j = 1;
+		while (j<options[i].length && dist < bestRouteDist){
+			let d = Math.sqrt(Math.pow(destCtx[options[i][j-1]][0] - destCtx[options[i][j]][0], 2) + Math.pow(destCtx[options[i][j-1]][1] - destCtx[options[i][j]][1], 2))
+			dist += d
+			j+=1
+			iter += 1;
+		}
+
+		if (dist < bestRouteDist){
+			bestRouteDist = dist;
+			bestRoute = options[i]
+		}
+		// console.log("bpd", bestRouteDist)
+		i+=1;
+		if (i%50 == 0){
+			console.log(Math.floor(100*i/options.length) + "%")
+		}
+	}
+
+	console.log("best", bestRoute)
+	console.log("iterations", iter)
+	newDests = []
+	i = 0;
+	while (i<bestRoute.length){
+		newDests.push(destinationPoints[bestRoute[i]])
+		i+=1;
+	}
+	destinationPoints = newDests
+	console.log(destinationPoints)
+}
+
+function permutator(inputArr) {
+  var results = [];
+
+  function permute(arr, memo) {
+    var cur, memo = memo || [];
+
+    for (var i = 0; i < arr.length; i++) {
+      cur = arr.splice(i, 1);
+      if (arr.length === 0) {
+        results.push(memo.concat(cur));
+      }
+      permute(arr.slice(), memo.concat(cur));
+      arr.splice(i, 0, cur[0]);
+    }
+
+    return results;
+  }
+
+  return permute(inputArr);
+}
+
+
+
+
+
+
+
+
+function makeCanvasDiv(){
+	a = document.createElement("div");
+	a.style.position = "absolute";
+	a.style.width = "60%";
+	a.style.height = "70%"
+	a.style.left = "50%";
+	a.style.transform = "translate(-50%, -50%)";
+	a.style.top = "50%";
+
+	document.body.appendChild(a);
+	b = document.createElement("canvas");
+	originalCanvasShape = [b.width, b.height]
+
+	b.id="pointMap"
+
+	b.onmousemove = function(event){
+		if (mouseDown) {
+			let bound = document.getElementById("pointMap").getBoundingClientRect();
+			let currentMouseSpot = [event.clientX - bound.x, event.clientY - bound.y];
+			if (lastMouseSpot[0] != 0) {
+
+				let coordChange = ctxToCoord(lastMouseSpot[0]-currentMouseSpot[0], lastMouseSpot[1]-currentMouseSpot[1])
+				canvasCenterCoords[0] += coordChange[0];
+				canvasCenterCoords[1] -= coordChange[1];
+			}
+			lastMouseSpot = currentMouseSpot;
+
+			drawBoard();
+			
+			dragged = true;
+		}
+	};
+	b.onmousedown = function(event) {
+		mouseDown = true;
+		let bound = document.getElementById("pointMap").getBoundingClientRect();
+		lastMouseSpot = [event.clientX - bound.x, event.clientY - bound.y];
+		dragged = false;
+	}
+	b.onmouseup = function(event){
+			mouseDown = false;
+			let bound = document.getElementById("pointMap").getBoundingClientRect();
+			let currentMouseSpot = [event.clientX - bound.x, event.clientY - bound.y];
+			if (dragged == false){
+					let c = document.getElementById("pointMap");
+					let ctx = c.getContext("2d");
+					let canvasWidth = c.width;
+					let canvasHeight = c.height;
+					let canvasSize = c.getBoundingClientRect();
+					let ctxCenterCoords = [canvasWidth/2, canvasHeight/2]
+					let crds = ctxToCoord(ctxCenterCoords[0]-currentMouseSpot[0], currentMouseSpot[1]-ctxCenterCoords[1])
+					crds[0] += canvasCenterCoords[0]
+					crds[1] += canvasCenterCoords[1]
+					crds[0] = crds[0].toFixed(7)
+					crds[1] = crds[1].toFixed(7)
+					// Math.floor(crds[0]*10000000)/10000000
+					console.log(crds)
+
+					if (document.getElementById("rowMake").checked){
+						if (firstRowPt.length==0){
+
+							firstRowPt = [...crds]
+						} else {
+							lLat = Math.max(crds[0], firstRowPt[0])
+							rLat = Math.min(crds[0], firstRowPt[0])
+
+							lLon = Math.max(crds[1], firstRowPt[1])
+							rLon = Math.min(crds[1], firstRowPt[1])
+
+							makeRows([lLat, lLon], [rLat, rLon])
+							console.log("rows at", [lLat, lLon], [rLat, lLon])
+							drawBoard();
+							firstRowPt = []
+							// makeRows([big, small], [small, -86.99526654660023])
+
+						}
+
+					} else if (document.getElementById("wallMake").checked){
+						if (firstWallPt.length==0){
+
+							firstWallPt = [...crds]
+						} else {
+
+							makeWall(crds, firstWallPt)
+							drawBoard();
+							firstWallPt = []
+
+						}
+
+					} else if (document.getElementById("startMake").checked){
+						startPoint = [...crds]
+						ogStartPoint = [...startPoint]
+						drawBoard()
+ 
+					} else if (document.getElementById("destMake").checked){
+						
+						destinationPoints.push(crds)
+						dijikstra(startPoint, crds, 1000, destinationPoints.length-1)
+						console.log("res cost", crds[2])
+
+						
+						buildDivs();
+						drawBoard();
+					}
+					
+
+			}
+
+	}
+
+	b.style.width="100%";
+	b.style.height="100%";
+
+	
+	canvasScale=1000000
+	b.addEventListener('wheel',function(event){
+		if ((Math.abs(canvasScale)>1 || event.deltaY>0) && (Math.abs(canvasScale)<10000000 || event.deltaY<0)) {
+		    canvasScale *= (1+event.deltaY/500);
+		    
+		    event.preventDefault();
+		    // console.log("scale", canvasScale)
+		   
+				drawBoard();
+	
+		}
+	}, false);
+
+	b.style.background = "rgb(200,255,200)";
+	a.appendChild(b);
+	a.style.border = "2px solid #73AD21";
+
+	//get DPI
+	let dpi = window.devicePixelRatio;
+	//get canvas
+	let canvas = document.getElementById('pointMap');
+	//get context
+	let ctx = canvas.getContext('2d');
+	function fix_dpi() {
+		//get CSS height
+		//the + prefix casts it to an integer
+		//the slice method gets rid of "px"
+		let style_height = +getComputedStyle(canvas).getPropertyValue("height").slice(0, -2);
+		//get CSS width
+		let style_width = +getComputedStyle(canvas).getPropertyValue("width").slice(0, -2);
+		//scale the canvas
+		canvas.setAttribute('height', style_height * dpi);
+		canvas.setAttribute('width', style_width * dpi);
+	}
+	fix_dpi()
+}
+
+
+function makeRows(topLeft, bottomRight){
+	let i = 0;
+	rowWidth = 0.00002
+	subPoints.push([topLeft[0]-rowWidth/2, topLeft[1]+rowWidth])
+	subPoints.push([topLeft[0]-rowWidth/2, bottomRight[1]-rowWidth])
+	while (topLeft[0] > bottomRight[0]){
+		topLeft[0] -= rowWidth
+		console.log(topLeft[0], bottomRight[0])
+		rows.push([[topLeft[0], topLeft[1]], [topLeft[0], bottomRight[1]], -1])
+		subPoints.push([topLeft[0]-rowWidth/2, topLeft[1]+rowWidth])
+		subPoints.push([topLeft[0]-rowWidth/2, bottomRight[1]-rowWidth])
+		i+=1;
+	}
+}
+
+function makeWall(pt1, pt2){
+	// parameters a misnomer. Too lazy to change
+
+	let rowWidth = 0.00002
+	
+
+	walls.push([[pt1[0], pt1[1]], [pt2[0], pt2[1]], -2])
+	let slope = 999
+	let dif0 = (pt1[0]-pt2[0])
+	let dif1 = (pt1[1]-pt2[1])
+	if (pt1[0] != pt2[0]){
+		slope =  dif1 / dif0
+	}
+	let lineLen = Math.sqrt(Math.pow(dif0, 2) + Math.pow(dif1, 2))
+	let angle = Math.atan(slope)
+	if (dif0 < 0){
+		let pt = [pt1[0] + Math.cos(angle) * (lineLen+rowWidth), pt1[1] + Math.sin(angle) * (lineLen+rowWidth)]
+		subPoints.push(pt)
+		pt = [pt2[0] - Math.cos(angle) * (lineLen+rowWidth), pt2[1] - Math.sin(angle) * (lineLen+rowWidth)]
+		subPoints.push(pt)
+	} else {
+		let pt = [pt2[0] + Math.cos(angle) * (lineLen+rowWidth), pt2[1] + Math.sin(angle) * (lineLen+rowWidth)]
+		subPoints.push(pt)
+		pt = [pt1[0] - Math.cos(angle) * (lineLen+rowWidth), pt1[1] - Math.sin(angle) * (lineLen+rowWidth)]
+		subPoints.push(pt)
+	}
+		
+}
+
+
+function buildDivs(){
+
+  let i = 0;
+  while (i<boxes.length){
+    boxes[i].remove();
+    i+=1
+  }
+
+  i=0;
+  while (i<destinationPoints.length) {
+    boxName = "box"+i
+    makeBox([740, 50+i*140], 200, boxName)
+    boxes.push(document.getElementById("box"+i));
+
+    // console.log(destinationPoints[i])
+
+    document.getElementById(boxName+"Header").innerHTML = [[destinationPoints[i][0], destinationPoints[i][1]]]
+
+
+    const b = document.getElementById(boxName+"Body")
+    b.innerHTML = "Cost: " + destinationPoints[i][2] + " ft<br>Pt type: "
+
+    const e = document.createElement("select")
+    var option = document.createElement("option");
+    option.text = "Waypoint";
+    e.add(option);
+    b.appendChild(e);
+
+    var option2 = document.createElement("option");
+    option2.text = "Start Row";
+    e.add(option2);
+    b.appendChild(e);
+
+    var option3 = document.createElement("option");
+    option3.text = "Take Sample";
+    e.add(option3);
+    b.appendChild(e);
+
+    const f = document.createElement("button")
+    f.innerHTML = "delete"
+    f.id = "delete_" + i
+    f.onclick = function(){
+      console.log("deleted")
+     
+      deleteNum = Math.floor(this.id.slice(7))
+      console.log("deleting at " + deleteNum)
+
+
+      destinationPoints.splice(deleteNum, 1)
+      let n = 0;
+      movePath = []
+      if (destinationPoints.length > 0){
+      	console.log("making first path")
+      	dijikstra(ogStartPoint, destinationPoints[n])
+      	while (n < destinationPoints.length-1){
+      		console.log("making path", n)
+	      	dijikstra(destinationPoints[n], destinationPoints[n+1])
+	      	n+=1
+	      }
+      }
+      
+
+     	drawBoard()
+    
+      
+      buildDivs()
+    }
+
+    b.appendChild(f)
+
+    i+=1
+  }
+}
+
+
+
+function makeBox(location, width, id){
+  d = document.createElement("div");
+  d.id = id
+  d.style.border = "2px solid rgb(0,0,0)";
+  d.style.position = "absolute";
+  d.style.textAlign = "center";
+  d.style.backgroundColor = "rgb(200,200,200)";
+  d.style.left = "82%";
+  d.style.transform = "translate(-50%, -50)";
+  d.style.top = location[1] + "px";
+  d.style.borderRadius = "10px";
+  d.style.width = width + "px";
+  // d.style.border = "2px solid #73AD21";
+  document.body.appendChild(d);
+
+  e = document.createElement("div");
+  e.id = id + "Header";
+  // e.innerHTML = "clcik here";
+  // e.style.cursor = "move";
+  e.style.padding = "10px";
+  e.style.borderRadius = "10px 10px 0px 0px";
+  e.style.backgroundColor = "#2196F3";
+  d.appendChild(e);
+
+  e = document.createElement("p")
+  // e.innerHTML = "blah"
+  e.id = id + "Body"
+  d.appendChild(e);
+}
+
+
+
+
+
+
+
+makeCanvasDiv();
+
+
+startPoint = [40.46997992501954, -86.99562606814787]
+ogStartPoint = [...startPoint]
+
+
+
+</script>
+
+
+
+</body>
+
+<input type="button" value="reset all" onclick="rows=[]; subPoints=[]; destinationPoints=[]; movePath=[]; tempPath=[]; startPoint=[...ogStartPoint]; drawBoard()"><br>
+
+
+<input type="checkbox" id="pathProcessBox" name="pathProcess">
+<label for="pathProcess"> Show path process</label><br>
+<input type="checkbox" id="subPointsBox" name="subPoints" onclick="drawBoard()">
+<label for="subPoints"> Show sub-points</label><br>
+
+cost for running over corn (ft): <input type="number" id="cornCost" value=123> <br>
+
+<input type="radio" id="rowMake" name="fav_language" value="HTML">
+<label for="html">Make rows</label><br>
+<input type="radio" id="startMake" name="fav_language" value="CSS">
+<label for="css">make start point</label><br>
+<input type="radio" id="destMake" name="fav_language" value="JavaScript" checked>
+<label for="javascript">make destination</label><br>
+<input type="radio" id="wallMake" name="fav_language" value="wall">
+<label for="wall">make wall</label>
+
+<script>
+drawBoard();
+	</script>
+
+</html>

@@ -25,7 +25,7 @@ _startFrame = 300
 
 
 class RSCamera:
-    def __init__(self, useCamera,  filename=""):
+    def __init__(self, useCamera,  filename="", rgbFilename=""):
         self.useCamera = useCamera
         self.stop = False
         self.heading = 0
@@ -33,7 +33,10 @@ class RSCamera:
         self.flagCenter = -1000
         self.distFromCorn = 0
         startFrame = 5
-        
+        if rgbFilename != "":
+            self.cap = cv2.VideoCapture(rgbFilename)
+            return
+
         if useCamera:
             self.pipeline = rs.pipeline()
             self.config = rs.config()
@@ -79,6 +82,24 @@ class RSCamera:
             img[:, shiftAmountPx::] = img[:, 0:ht-shiftAmountPx]
         # cv2.imshow("shifted", img)
 
+
+    def webcamNavigate(self, navFunction, showStream=False):
+        key = -1
+        waitKeyType = -1
+        while True:
+            (ret, color_image) = self.cap.read()
+            self.heading, self.distFromCorn, self.status = navFunction(color_image, showStream)
+
+            if showStream:
+                if waitKeyType == 32:
+                    key = cv2.waitKey(0)
+                else:
+                    key = cv2.waitKey(1)
+                waitKeyType = key
+                if key == 27:
+                    cv2.destroyAllWindows()
+                    self.stopStream()
+                    break
 
 
     def videoNavigate(self, navFunction, showStream=False):

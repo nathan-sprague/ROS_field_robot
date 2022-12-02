@@ -15,15 +15,27 @@ class ObjShape:
 
         self.pts = np.array(pts).transpose() # numpy array format ((x1, x2, x3...) (y1,y2,y3...) (z1,z2,z3...))
         self.triangles = np.array(triangles) # numpy array format ((pt1, pt2, pt3), (pt1,pt2,pt3)...)
+
         self.color = color
 
         # upper and lower limits to avoid calculating every point to see the layer number of the leaf
         self.limits = ((np.min(self.pts[0]), np.max(self.pts[0])), (np.min(self.pts[1]), np.max(self.pts[1])), (np.min(self.pts[2]), np.max(self.pts[2])))
+        self.lowResTriangles = np.array([[0,1,2]])
+        self.lowResPts = np.array([np.random.choice(self.pts[0], 3), np.random.choice(self.pts[1], 3), np.random.choice(self.pts[2], 3)])
+            # [np.min(self.pts[0]), np.min(self.pts[1]), np.min(self.pts[2])], 
+            # [np.max(self.pts[0]), np.min(self.pts[1]), np.min(self.pts[2])],
+            # [np.min(self.pts[0]), np.max(self.pts[1]), np.max(self.pts[2])]  ] ).transpose()
 
+        # print(self.lowResPts)
+        # print("pts real", self.pts)
+        # print()
 
+        # print(self.lowResTriangles)
+        # print("triangle real", self.triangles)
+        # exit()
 
 class VideoSim:
-    def __init__(self, freeMove = False):
+    def __init__(self, freeMove = False, rows = []):
         """
         generates a simulated video of corn
         """
@@ -31,6 +43,7 @@ class VideoSim:
         print("setting up video simulation")
 
         self.freeMove = freeMove
+        self.rows = rows
 
         self.objList = []
         self.drawPts = False
@@ -60,18 +73,17 @@ class VideoSim:
         numPlants = 0
         i=-3
         while i<3:
-            j=-40+(abs(i)*10)
+            j=-200+(abs(i)*10)
             while j < 0:
 
                 # make the projection thing manually. I tried pyproj but it didn't work quite right
-
                 coords = [40.471797, -86.995246] # starting point from acre bay far north destination. Find a way to make it work for any destination later.
                 x = coords[1] * 364000
                 longCorrection = math.cos(coords[0] * math.pi / 180)
                 y = coords[0] * longCorrection * 364000
                 x*=self.projectionFactor
                 y*=self.projectionFactor
-                totalPts += self.makeCorn(x+j*4, y+i*30, 1.3, 60, 3)# 30-inch rows, 4 inches apart
+                totalPts += self.makeCorn(x+j*4, y+i*30+0, 1.3, 60, 3)# 30-inch rows, 4 inches apart
                 numPlants += 1
                  
                 j+=1 
@@ -85,10 +97,12 @@ class VideoSim:
         if self.freeMove: # allow the user to move the camera manually
             # x,y =coords
             cameraView = [1.6, 0]
+
             cameraLocation = [x+1, y-30, 12]
             key = 0
 
             while key != 27:
+
                 depth_image, color_image = self.draw3D(cameraView, cameraLocation)
                 cv2.imshow("free depth", depth_image)
                 cv2.imshow("free color", color_image)
@@ -256,10 +270,14 @@ class VideoSim:
             cv2.rectangle(color_image, (0, 0), (self.wt, self.ht), groundColor, -1);
         # print(horiz)
 
-        depth_image = self.floor.copy()#np.zeros((self.ht, self.wt)).astype('uint16')
+        depth_image = self.floor.copy() # np.zeros((self.ht, self.wt)).astype('uint16')
+
+        return depth_image, color_image # DELETE THIS IF YOU ACTUALLY WANT VIDEO!!!!!!!
 
 
         objsToUse = [];
+        trianglesMade = 0
+
 
         # constants to rotate the points
         s1 = math.sin(cameraView[0])
@@ -273,7 +291,12 @@ class VideoSim:
 
             
             if minPt[1] < 0 or maxPt[1] < 0: # in sight of the camera, add to the list of objects to draw
-                objsToUse += [[(maxPt[1]+minPt[1])/2, i]]
+
+                d = (cameraLocation[0]-i.limits[0][0])**2 + (cameraLocation[1]-i.limits[1][0])**2 + (cameraLocation[2]-i.limits[2][0])**2 # squared distance from camera
+                if d < 90000:
+                    objsToUse += [[(maxPt[1]+minPt[1])/2, i, d]]
+                
+
         
 
         objsToUse.sort(key = lambda x: x[0])
@@ -281,10 +304,18 @@ class VideoSim:
 
 
         for i in objsToUse:
+
+            if False:# i[2] > 20000:
+                triangles = i[1].lowResTriangles
+                pts = i[1].lowResPts
+            else:
+                triangles = i[1].triangles
+                pts = i[1].pts
+
             # get the relative coordinates
-            x = i[1].pts[0]-cameraLocation[0]
-            y = i[1].pts[1]-cameraLocation[1]
-            z = i[1].pts[2]-cameraLocation[2]
+            x = pts[0]-cameraLocation[0]
+            y = pts[1]-cameraLocation[1]
+            z = pts[2]-cameraLocation[2]
 
 
             # left/right rotation
@@ -301,9 +332,9 @@ class VideoSim:
             z = yRot
 
             # triangle coords
-            triX = x[i[1].triangles]
-            triY = y[i[1].triangles]
-            triZ = z[i[1].triangles]
+            triX = x[triangles]
+            triY = y[triangles]
+            triZ = z[triangles]
 
             j=0
             while j<len(triZ):
@@ -318,9 +349,11 @@ class VideoSim:
                     
                     cv2.fillPoly(depth_image, [poly], int(dist)*40)
                     cv2.fillPoly(color_image, [poly], i[1].color)
+                    trianglesMade += 1
                     j+=1
 
         depth_image = cv2.blur(depth_image, (5, 5)) # blur it a bit becasue the IRL depth isn't great
+        # print("made", trianglesMade, "triangles")
 
         return depth_image, color_image
 
@@ -347,5 +380,17 @@ class VideoSim:
 
 
 
+
+
 if __name__ == "__main__":
-    cam = VideoSim(freeMove = True)
+
+    startRow = (40.4718345, -86.9952429)
+    rows = []
+    i = 0
+    while i < 10:
+        rows += [[[startRow[0]-i*0.00001, startRow[1]], [startRow[0]-i*0.00001, startRow[1]-0.0007]]]
+        i+=1
+
+
+    cam = VideoSim(freeMove = True, rows = rows)
+

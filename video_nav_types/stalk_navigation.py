@@ -23,7 +23,7 @@ class StalkDetection():
 
 
 
-    def rowNavigation(self, depth_image, color_image, depth_color_image, showStream=False):
+    def rowNavigation(self, depth_image, color_image, showStream=False):
 #    self.findString(color_image)
         # cv2.imshow('depth', depth_image)
         # if not self.useCamera and self.playbackSpeed<1:
@@ -104,6 +104,7 @@ class StalkDetection():
 
         #  cv2.imshow('lines', cdstP)
         cv2.imshow('color', cl)
+        return 0, 0, 0
 
     #         cv2.imshow('stalk', resized)
 
@@ -164,10 +165,11 @@ class StalkDetection():
 
 
 
+
 if __name__ == "__main__":
     print("running")
     
-    _filename = "/home/nathan/tall/rs_1629482645.bag"#
+    _filename = "/home/nathan/new_logs/aug31/success1"#
     # _filename = "Desktop/fake_track/object_detection6.bag"
     # _filename=""
     _useCamera = False

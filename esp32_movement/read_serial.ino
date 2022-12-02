@@ -15,32 +15,27 @@ void readSerial() {
     Serial Message Prefixes:
 
     Informational:
-    x: gps latitude
-    y: gps longitude
-    l: left wheel speed
-    r: right wheel speed
-    h: heading
+    w: each wheel speed
 
     Command:
-    d: both wheel distances to travel (ft) and top speed when doing it (mph) (separated by a comma and letter 's', ex: d1.5,1.2s3.1)
     w: both wheel speed (mph) (separated by a comma, ex: w1.5,1.2)
     l: left wheel speed (mph) (old)
     r: right wheel speed (mph) (old)
-    s: stop - sets target speed to 0, clears distance goals
+    s: stop - sets target speed to 0
     g: go (unused)
 
     Other:
     .: console log, the Pi/Nano ignore these messages
     -: acknowledge the message
-    +: say the message is irrelevant to this microcontroller
+    +: say the message is irrelevant to this microcontroller (unused currently)
 
 
   */
   if (Serial.available()) {
 
-    lastSerialTime = millis(); // timer looking to reset radio. Different from lastSerailReadTime
+    lastSerialTime = millis(); // timer looking to reset radio. Different from lastSerialReadTime
 
-    if (haveSerial && lastSerialReadTime > 30) { // must wait for >30 milliseconds for the full serial message to arrive
+    if (haveSerial && lastSerialReadTime > 30) { // wait for > 30 milliseconds for the full serial message to arrive
       haveSerial = false; // reset tag for next message
       char commandType = Serial.read();
       String serialMsg = "";
@@ -69,53 +64,30 @@ void readSerial() {
           i++;
         }
         targetSpeed[0] = leftSpeed.toFloat();
-        targetSpeed[1] = rightSpeed.toFloat();
-        useTargetDist[0] = false;
-        useTargetDist[1] = false;
+        targetSpeed[1] = leftSpeed.toFloat();
         
-        Serial.println("-w" + String(int(targetSpeed[0]) * 10 + int(targetSpeed[1])));
+        targetSpeed[2] = rightSpeed.toFloat();
+        targetSpeed[3] = rightSpeed.toFloat();
 
-      } else if (commandType == 'd') {
-        int i = 0;
-        bool readLeft = true;
-        bool readDist = true;
-        String leftDist = "";
-        String rightDist = "";
-        String topSpeed = "";
-        while (i < serialMsg.length()) {
-          if (serialMsg[i] == ',') {
-            readLeft = false;
-          } else if (serialMsg[i] == 's') {
-            readDist = false;
-          } else if (readLeft) {
-            leftDist += serialMsg[i];
-          } else if (readDist) {
-            rightDist += serialMsg[i];
-          } else {
-            topSpeed += serialMsg[i];
-          }
-          i++;
-        }
 
-        targetDistance[0] = leftDist.toFloat();
-        targetDistance[1] = rightDist.toFloat();
-        distTravelled[0] = 0;
-        distTravelled[1] = 0;
-        if (topSpeed != "") {
-          topDistSpeed = topSpeed.toFloat();
-        }
-        useTargetDist[0] = true;
-        useTargetDist[1] = true;
-        Serial.println("-d" + String(int(targetDistance[0]) * 10 + int(targetDistance[1])));
+         for (int j=0; j<4; j++){
+          integratedError[j] = 0;
+          derivativeError[j] = 0;
+         }
+        
+      //  Serial.println("target speed" + String(targetSpeed[0]) + ", "+ String(targetSpeed[2]));
+        
+        
+        Serial.println("-w" + String(int(targetSpeed[0]) * 10 + int(targetSpeed[2])));
 
       } else if (commandType == 'l') {
-        useTargetDist[0] = false;
         targetSpeed[0] = serialMsg.toFloat();
+        targetSpeed[1] = serialMsg.toFloat();
         Serial.println("-l" + String(int(targetSpeed[0])));
 
       } else if (commandType == 'r') {
-        useTargetDist[1] = false;
-        targetSpeed[1] = serialMsg.toFloat();
+        targetSpeed[2] = serialMsg.toFloat();
+        targetSpeed[3] = serialMsg.toFloat();
         Serial.println("-r" + String(int(targetSpeed[1])));
 
       } else if (commandType == 's') {
@@ -124,16 +96,12 @@ void readSerial() {
         targetSpeed[1] = 0;
         pwmSpeed[0] = 0;
         pwmSpeed[1] = 0;
-        useTargetDist[0] = false;
-        useTargetDist[1] = false;
         Serial.println("-s");
 
       } else if (commandType == 'g') {
         //        stopNow = false;
         Serial.println("-g");
       }
-
-
 
     } else if (!haveSerial) {
       haveSerial = true;
@@ -146,19 +114,19 @@ void readSerial() {
 
 
 void sendSerial() {
-  if (millis() - lastPrintTime > 200) {
-    //    Serial.println("target speed: " + String(targetSpeed[0]));
-    //    Serial.println("pwm speed: " + String(pwmSpeed[0]));
-    //    Serial.println("l" + String(wheelSpeed[0], 3));
+  /*
+   Print out whatever relevant information here
+   */
+  
+  if (millis() - lastPrintTime > 100) {
+//        Serial.println("target speed: " + String(targetSpeed[0]));
+//        Serial.println("pwm speed: " + String(pwmSpeed[0]));
+//        Serial.println("l" + String(wheelSpeed[0], 3));
     //
-    //    Serial.println("r" + String(wheelSpeed[1], 3));
-    Serial.println("w" + String(wheelSpeed[1], 3) + "," + String(wheelSpeed[1], 3));
-
-    if (useTargetDist[0] || useTargetDist[1]) {
-      Serial.println("d" + String(distTravelled[0], 3) + "," + String(distTravelled[1], 3));
-    }
-
-    //      Serial.println(".pwm control: " + String(pwmIn[0]) + ", " + String(pwmIn[1]));
+//        Serial.println("r" + String(wheelSpeed[1], 3));
+    Serial.println("w" + String(wheelSpeed[0], 3) + "," + String(wheelSpeed[1], 3) + "," + String(wheelSpeed[2], 3) + "," + String(wheelSpeed[3], 3));
+ //   Serial.println("," + String(pwmSpeed[0], 3) + "," + String(pwmSpeed[1], 3) + "," + String(pwmSpeed[2], 3) + "," + String(pwmSpeed[3], 3));
+  //  Serial.println("," + String(proportionalError[0], 3) + "," + String(proportionalError[1], 3) + "," + String(proportionalError[2], 3) + "," + String(proportionalError[3], 3));
 
     lastPrintTime = millis();
 

@@ -63,6 +63,10 @@ class RSCamera:
         self.totalFrameCount = 0
         self.lastProcessedFrame = -1
 
+
+        self.firstPositionRead = True
+        self.deleteThisVar = 0
+
         self.lastFrameTime = -1
 
         self.destID = -1
@@ -112,10 +116,29 @@ class RSCamera:
                 print("WARNING: Using camera but NOT saving video. Are you sure?\n\n\n\n\n\n")
 
         elif self.playbackLevel == 1: # simulation mode
+            if self.saveVideo:
+                size = (640, 480)
+                if os.path.exists(self.filename):
+                    self.filename += str(int(time.time())%1000)
+                    os.makedirs(self.filename)
+
+                fileType = ".avi"
+                fileNames = ["color", "depth1", "depth2"]
+                print("saving files as:", fileNames, "at", self.filename)
+                print("for example:", self.filename + "/" + fileNames[0] + fileType)
+
+                saveMethod = 'MJPG'
+                self.colorWriter = cv2.VideoWriter(self.filename + "/" + fileNames[0] + fileType, cv2.VideoWriter_fourcc(*saveMethod), 30, size)
+
+                saveMethod = 'png '
+                self.depthWriter1 = cv2.VideoWriter(self.filename + "/" + fileNames[1] + fileType, cv2.VideoWriter_fourcc(*saveMethod), 30, size, 0)
+                self.depthWriter2 = cv2.VideoWriter(self.filename + "/" + fileNames[2] + fileType, cv2.VideoWriter_fourcc(*saveMethod), 30, size, 0)
+
 
             import video_simulator
             self.videoSim = video_simulator.VideoSim()
             self.videoSim.begin()
+
 
 
         else:
@@ -201,38 +224,41 @@ class RSCamera:
                     # highly unoptimized, for debugging. DELETE!
                     rx = x*self.videoSim.projectionFactor
                     ry = y*self.videoSim.projectionFactor
-                    import video_simulator
-                    n = 0
-                    h = self.heading
-                    if type(h) != list:
-                        h = [h]
-                    for i in h:
-                        # print("dfc", self.distFromCorn[0])
-                        dfc = self.distFromCorn
-                        if type(self.distFromCorn) == list:
-                            dfc = self.distFromCorn[0]
-                        if dfc == 0:
-                            dfc = 1
+                    # import video_simulator
+                    # n = 0
+                    # h = self.heading
+                    # if type(h) != list:
+                    #     h = [h]
+                    # for i in h:
+                        # # print("dfc", self.distFromCorn[0])
+                        # dfc = self.distFromCorn
+                        # if type(self.distFromCorn) == list:
+                        #     dfc = self.distFromCorn[0]
+                        # if dfc == 0:
+                        #     dfc = 1
 
-                        x = rx + dfc / 500 * self.videoSim.projectionFactor * math.sin((-i+self.robot.trueHeading) * math.pi/180)
-                        y = ry + dfc / 500 * self.videoSim.projectionFactor * math.cos((-i+self.robot.trueHeading) * math.pi/180)
+                        # x = rx + dfc / 500 * self.videoSim.projectionFactor * math.sin((-i+self.robot.trueHeading) * math.pi/180)
+                        # y = ry + dfc / 500 * self.videoSim.projectionFactor * math.cos((-i+self.robot.trueHeading) * math.pi/180)
                         # self.videoSim.makeCorn(x, y, 1.3, 100, 3)
 
-                        self.videoSim.objList += [video_simulator.ObjShape([[x,y, 0], [x+10, y+10,0], [x, y+10, 0]], [[0,1,2]])]
+                        # # uncomment the line below to actually do something
+                        # self.videoSim.objList += [video_simulator.ObjShape([[x,y, 0], [x+10, y+10,0], [x, y+10, 0]], [[0,1,2]])]
+                        
                         # print("pts", self.videoSim.objList[-1].pts)
                         # print("compare", self.videoSim.objList[-2].pts)
-                        print("dif", rx-x, ry-y, math.sin((i+self.robot.trueHeading) * math.pi/180), math.cos((i+self.robot.trueHeading) * math.pi/180))
-                        n+=1
+                        # print("dif", rx-x, ry-y, math.sin((i+self.robot.trueHeading) * math.pi/180), math.cos((i+self.robot.trueHeading) * math.pi/180))
+                        # n+=1
 
                     depth_image, color_image = self.videoSim.draw3D(robotView, robotLocation)
-                    print("made", n, "entrances")
-                    if n > 0:
-                        self.videoSim.objList = self.videoSim.objList[0:-n]
+                    # print("made", n, "entrances")
+                    # if n > 0:
+                    #     self.videoSim.objList = self.videoSim.objList[0:-n]
 
                 else:
                     (ret, color_image) = self.rgbCap.read()
                     (ret1, depth1_image) = self.depthCap1.read()
                     (ret2, depth2_image) = self.depthCap2.read()
+
 
                     if ret == False or ret1 == False or ret2 == False:
                         print("couldnt get frame")
@@ -268,7 +294,7 @@ class RSCamera:
                 self.depth_image = depth_image
                 
 
-                if self.playbackLevel == 0 and self.saveVideo:
+                if self.saveVideo: # self.playbackLevel == 0 and 
                     self.logVals(depth_image)
 
                     self.colorWriter.write(color_image)
@@ -486,13 +512,36 @@ class RSCamera:
             if self.playbackLevel < 3:
                 return values[1]/100
             elif self.playbackLevel == 3:
-                self.robot.coords[0] = (values[10] - 10**14) / (10**7)
-                self.robot.coords[1] = (values[11] - 10**14) / (10**7)
+                c = (values[10] - 10**14) / (10**7)
+                # self.robot.coords[1] = (values[11] - 10**14) / (10**7)
+                # self.robot.trueHeading = values[2] / 100 + 180
+                self.robot.gpsAccuracy = values[12]
+                self.robot.connectionType = values[13]
+                self.robot.headingAccuracy = 1
+                self.robot.lastHeadingTime = time.time()
+                self.robot.realSpeed[0]= (values[6] - 32768)/100
+                self.robot.realSpeed[1]= (values[7] - 32768)/100
+                self.robot.targetSpeed[0]= (values[8] - 32768)/200
+                self.robot.targetSpeed[1]= (values[9] - 32768)/200
+
+                if self.firstPositionRead and abs(c) > 10:
+                    self.robot.coords[0] = (values[10] - 10**14) / (10**7)
+                    self.robot.coords[1] = (values[11] - 10**14) / (10**7)
+                    self.firstPositionRead = False
+                self.deleteThisVar += 1
+                if self.deleteThisVar==80:
+                    self.deleteThisVar = 0
+                    self.robot.espModule.trueCoords[0] = (values[10] - 10**14) / (10**7)
+                    self.robot.espModule.trueCoords[1] = (values[11] - 10**14) / (10**7)
+                    self.robot.espModule.realRobotHeading = values[2] / 100
+
+
+
                 return values[1]/100
 
 
 
-            self.robot.trueHeading = values[2] / 100
+            self.robot.trueHeading = values[2] / 100 + 180
             self.robot.headingAccuracy = values[3] / 100
             self.robot.targetHeading = values[4] / 100
             self.originalTargetHeading = self.robot.targetHeading-self.robot.trueHeading
@@ -660,7 +709,7 @@ class RSCamera:
                             self.stopStream()
                             break
 
-                
+
 
     def stopStream(self):
         """
@@ -669,7 +718,7 @@ class RSCamera:
 
         self.heading = -1000
         
-        if self.playbackLevel==0 and self.saveVideo != False:
+        if self.saveVideo != False: #and self.playbackLevel==0:
             self.colorWriter.release()
             self.depthWriter1.release()
             self.depthWriter2.release()
@@ -680,6 +729,7 @@ class RSCamera:
                 print("pipeline stopped")
             except:
                 print("pipeline already stopped")
+        self.robot.notCtrlC = False
 
 
 

@@ -20,6 +20,8 @@ class Gps():
                             "SIV": [99, 0], 
                             "RTK signal available": [True, 0],
                             "RTK signal used": [True, 0]}
+    def endGPS(self):
+        return True
 
 
 class Esp():
@@ -47,6 +49,8 @@ class Esp():
 
         self.espType = "unknown"
 
+        self.infoThread = False
+
         # Status of the ESP32
         self.stopped = False
 
@@ -58,7 +62,6 @@ class Esp():
 
         
         if self.espNum == 0:
-            
             self.infoThread = Thread(target=self.update)
             self.infoThread.start()
             return True
@@ -72,7 +75,8 @@ class Esp():
             joins the read and write threads and tells the ESP to stop
         """
 
-        self.infoThread.join()
+        if self.infoThread != False:
+            self.infoThread.join()
 
 
         return True
@@ -89,7 +93,7 @@ class Esp():
         # use the indiana map projection
         p = pyproj.Proj('epsg:2793')
 
-        turningSpeedConst = 3.7 / 0.3 * self.updateSpeed 
+        turningSpeedConst = 1.7 / 0.3 * self.updateSpeed 
         movementSpeedConst = 0.35
         
         realHeadingChange = (self.robot.realSpeed[0]-self.robot.realSpeed[1])*turningSpeedConst
@@ -145,8 +149,7 @@ class Esp():
            # self.robot.realSpeed = self.robot.targetSpeed[:]
         
             scc = self.speedChangeConstant
-
-            self.robot.realSpeed = [(self.robot.targetSpeed[0]+self.robot.realSpeed[0]*scc)/(scc+1), (self.robot.targetSpeed[1]+self.robot.realSpeed[1]*scc)/(scc+1)]
+            # self.robot.realSpeed = [(self.robot.targetSpeed[0]+self.robot.realSpeed[0]*scc)/(scc+1), (self.robot.targetSpeed[1]+self.robot.realSpeed[1]*scc)/(scc+1)]
 
 
 

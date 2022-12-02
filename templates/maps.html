@@ -1,0 +1,393 @@
+<script>
+pathPts = []
+boxes = []
+markers = []
+lines = []
+
+// Initialize and add the map
+function initMap() {
+  var radioInput = document.createElement('input');
+radioInput.setAttribute('type', 'radio');
+radioInput.setAttribute('name', name);
+
+document.body.appendChild(radioInput)
+
+  // The location of Uluru
+  const uluru = { lat: 40.4717703, lng: -86.9960504 };
+
+  var myLatlng = new google.maps.LatLng(-34.397, 150.644);
+  var mapOptions = {
+    zoom: 18,
+    center: uluru,
+    mapTypeId: 'satellite'
+  };
+  var map = new google.maps.Map(document.getElementById('map'),
+      mapOptions);
+
+  var lineSymbol = {
+    path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW,
+  };
+
+
+  console.log("making lines")
+  const flightPlanCoordinates = [
+    
+  ];
+  var flightPath = new google.maps.Polyline({
+    path: flightPlanCoordinates,
+    icons: [
+      {
+        icon: lineSymbol,
+        offset: "100%",
+      },
+    ],
+    offset: "100%",
+    // geodesic: true,
+    strokeColor: "#FF0000",
+    strokeOpacity: 1.0,
+    strokeWeight: 2,
+  });
+
+  lines.push(flightPath)
+
+
+  flightPath.setMap(map);
+ 
+
+  // Configure the click listener.
+  map.addListener("click", (mapsMouseEvent) => {
+    console.log(mapsMouseEvent.latLng)
+    ll = mapsMouseEvent.latLng.toJSON(), null, 2
+    console.log("click", ll["lat"], ll["lng"])
+    let i = 0;
+    while (i<markers){
+        markers[i].setIcon({
+          path: google.maps.SymbolPath.CIRCLE,
+          fillColor: '#00F',
+          fillOpacity: 0.6,
+          strokeColor: '#00A',
+          strokeOpacity: 0.1,
+          strokeWeight: 1,
+          animation: google.maps.Animation.DROP,
+          draggable: true,
+          scale: 7
+
+        })
+      i+=1
+    }
+
+
+    const marker = new google.maps.Marker({
+      map: map,
+      position: ll,
+      icon: {
+          path: google.maps.SymbolPath.CIRCLE,
+
+          fillColor: '#00F',
+          fillOpacity: 0.6,
+          strokeColor: '#00A',
+          strokeOpacity: 0.1,
+          strokeWeight: 1,
+          animation: google.maps.Animation.DROP,
+          draggable: true,
+          scale: 7
+      }
+    });
+    marker.addListener("click", () => {
+      console.log("marker click", marker.getPosition());
+      marker.setIcon({
+          path: google.maps.SymbolPath.CIRCLE,
+          fillColor: '#FFF',
+          fillOpacity: 0.6,
+          strokeColor: '#00A',
+          strokeOpacity: 0.1,
+          strokeWeight: 1,
+          scale: 7
+        })
+    });
+    pathPts.push({"Pt": [ll["lat"].toFixed(6), ll["lng"].toFixed(6)]})
+    markers.push(marker)
+
+    buildDivs()
+    
+    const path = flightPath.getPath();
+
+    // Because path is an MVCArray, we can simply append a new coordinate
+    // and it will automatically appear.
+    pt = new google.maps.LatLng(ll["lat"], ll["lng"])
+    path.push(pt);
+   
+  });
+  console.log("made rect")
+
+
+  const bounds = {
+    north: 44.599,
+    south: 44.49,
+    east: -78.443,
+    west: -78.649,
+  };
+  
+  const rectangle = new google.maps.Rectangle({
+    bounds: bounds,
+    editable: true,
+    draggable: true,
+  });
+
+  rectangle.setMap(map);
+
+  // listen to changes
+  ["bounds_changed", "dragstart", "drag", "dragend"].forEach((eventName) => {
+    rectangle.addListener(eventName, () => {
+      console.log({ bounds: rectangle.getBounds()?.toJSON(), eventName });
+    });
+  });
+
+
+
+
+  // makeLines(map)
+
+}
+
+window.initMap = initMap;
+
+
+function downloadPts() {
+    let filename = "pts.py"
+    let text = "pts={"
+    let i = 0;
+    while (i<pathPts.length){
+      text += "{'coord': [" + pathPts[i]["Pt"] + "], 'destType': 'point'},\n"
+      i+=1;
+    }
+
+    text = text.slice(0,-2)
+    text += "]"
+    console.log(text)
+
+    var pom = document.createElement('a');
+    pom.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(text));
+    pom.setAttribute('download', filename);
+
+    if (document.createEvent) {
+        var event = document.createEvent('MouseEvents');
+        event.initEvent('click', true, true);
+        pom.dispatchEvent(event);
+    }
+    else {
+        pom.click();
+    }
+}
+
+function makeLines(map){
+
+  const lineSymbol = {
+    path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW,
+  };
+
+
+  console.log("making lines")
+  const flightPlanCoordinates = [
+    {lat: 40.4717703, lng: -86.9960504 },
+    {lat: 40.4717703, lng: -86.9950504 },
+  ];
+  const flightPath = new google.maps.Polyline({
+    path: flightPlanCoordinates,
+    icons: [
+      {
+        icon: lineSymbol,
+        offset: "100%",
+      },
+    ],
+    offset: "100%",
+    // geodesic: true,
+    strokeColor: "#FF0000",
+    strokeOpacity: 1.0,
+    strokeWeight: 2,
+  });
+
+  flightPath.setMap(map);
+
+
+  const path = flightPath.getPath();
+
+  // Because path is an MVCArray, we can simply append a new coordinate
+  // and it will automatically appear.
+  pt = new google.maps.LatLng(40.4727703, -86.9950504 )
+  path.push(pt);
+  path.removeAt(1);
+  // path.splice(1,0)
+  // path.pop()
+
+  // flightPath.path.push({lat: 40.4715703, lng: -86.9950504 })
+}
+
+function buildDivs(){
+
+  let i = 0;
+  while (i<boxes.length){
+    boxes[i].remove();
+    i+=1
+  }
+
+  i=0;
+  while (i<pathPts.length) {
+    boxName = "box"+i
+    makeBox([740, 50+i*120], 200, boxName)
+    boxes.push(document.getElementById("box"+i));
+    console.log(pathPts[i]["Pt"])
+
+    document.getElementById(boxName+"Header").innerHTML = pathPts[i]["Pt"]
+
+
+    const b = document.getElementById(boxName+"Body")
+    b.innerHTML = "Pt type: "
+
+    const e = document.createElement("select")
+    var option = document.createElement("option");
+    option.text = "Waypoint";
+    e.add(option);
+    b.appendChild(e);
+
+    var option2 = document.createElement("option");
+    option2.text = "Start Row";
+    e.add(option2);
+    b.appendChild(e);
+
+    var option3 = document.createElement("option");
+    option3.text = "Take Sample";
+    e.add(option3);
+    b.appendChild(e);
+
+    const f = document.createElement("button")
+    f.innerHTML = "delete"
+    f.id = "delete_" + i
+    f.onclick = function(){
+      console.log("deleted")
+      // markers[i]
+      deleteNum = Math.floor(this.id.slice(7))
+
+      console.log("deleting at " + deleteNum)
+
+      pathPts.splice(deleteNum, 1)
+      markers[deleteNum].setMap(null)
+      markers.splice(deleteNum, 1)
+      lines[0].getPath().removeAt(deleteNum);
+      console.log("marker delete", markers[deleteNum])
+      
+      buildDivs()
+
+    }
+
+    b.appendChild(f)
+
+
+
+    i+=1
+  }
+
+}
+
+
+function makeBox(location, width, id){
+  d = document.createElement("div");
+  d.id = id
+  d.style.border = "2px solid rgb(0,0,0)";
+  d.style.position = "absolute";
+  d.style.textAlign = "center";
+  d.style.backgroundColor = "rgb(200,200,200)";
+  d.style.left = location[0]+"px";
+  d.style.transform = "translate(-50%, -50)";
+  d.style.top = location[1] + "px";
+  d.style.borderRadius = "10px";
+  d.style.width = width + "px";
+  // d.style.border = "2px solid #73AD21";
+  document.body.appendChild(d);
+
+  e = document.createElement("div");
+  e.id = id + "Header";
+  // e.innerHTML = "clcik here";
+  // e.style.cursor = "move";
+  e.style.padding = "10px";
+  e.style.borderRadius = "10px 10px 0px 0px";
+  e.style.backgroundColor = "#2196F3";
+  d.appendChild(e);
+
+  e = document.createElement("p")
+  // e.innerHTML = "blah"
+  e.id = id + "Body"
+  d.appendChild(e);
+}
+
+
+
+</script>
+
+
+<style>
+/* Set the size of the div element that contains the map */
+#map {
+  height: 700px;
+  /* The height is 400 pixels */
+  width: 700px;
+  /* The width is the width of the web page */
+}
+</style>
+
+
+<html>
+  <head>
+    <title>Add Map</title>
+    <script src="http://polyfill.io/v3/polyfill.min.js?features=default" onload="console.log('yo')"></script>
+
+    <!-- <link rel="stylesheet" type="text/css" href="./style.css" /> -->
+    <!-- <script type="module" src="./index.js"></script> -->
+  </head>
+  <body>
+    <h3>My Google Maps Demo</h3>
+    <!--The div element for the map -->
+    <div id="map"></div>
+
+    <!-- 
+     The `defer` attribute causes the callback to execute after the full HTML
+     document has been parsed. For non-blocking uses, avoiding race conditions,
+     and consistent behavior across browsers, consider loading using Promises
+     with https://www.npmjs.com/package/@googlemaps/js-api-loader.
+    -->
+    <script
+      src="https://maps.googleapis.com/maps/api/js?key=AIzaSyB41DRUbKWJHPxaFjMAwdrzWzbVKartNGg&callback=initMap&v=weekly" onload="console.log('yolo')"
+      defer
+      
+    ></script>
+  </body>
+
+
+<input type="radio" id="depth" name="imgType" value="depth" onclick="drawBoard();">
+<label for="depth">Make Path</label><br>
+<input type="radio" id="color" name="imgType" value="color" checked onclick="drawBoard();">
+<label for="color">Make Obstacles</label><br>
+
+<input type="button" value="Download points" onclick="downloadPts();">
+</html>
+<script>
+
+
+
+  function makeRadioButton(name, value, text) {
+
+    var label = document.createElement("label");
+    var radio = document.createElement("input");
+    radio.type = "radio";
+    radio.name = name;
+    radio.value = value;
+
+    label.appendChild(radio);
+
+    label.appendChild(document.createTextNode(text));
+    return label;
+  }
+
+  var yes_button = makeRadioButton("yesbutton", "yes", "Oh yea! do it!");
+  document.body.appendChild(yes_button);
+</script>

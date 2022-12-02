@@ -1,3 +1,7 @@
+/*
+Interrupts to read the radio's PWM
+ */
+
 
 void rightPwmIntRise() {
   attachInterrupt(radioPinR, rightPwmIntFall, FALLING);
@@ -23,9 +27,4 @@ void leftPwmIntFall() {
   if (abs(pwmIn[1] - 155) < 3){
     pwmIn[1] = 155;
   }
-}
-
-
-void readRadioSpeed() {
-
 }

@@ -379,7 +379,7 @@ class StandardDetection():
 
 
 
-    def rowNavigation(self, depth_image, color_image, depth_color_image, webcamFrame, showStream=False):
+    def rowNavigation(self, webcamFrame, showStream=False):
         # self.colorBasedNavigation(depth_image, color_image)
         # self.houghLineAttempt(depth_color_image)
         # return
@@ -439,6 +439,7 @@ class StandardDetection():
 
 
         self.getHoughLinesOptimized(res2, webcamFrame, showStream=showStream)
+        return 0,0,0
 
 
 
@@ -495,5 +496,5 @@ if __name__ == "__main__":
 
     sd = StandardDetection()
 
-    cam = navTypeTester.RSCamera(useCamera=_useCamera, filename=_filename, realtime = False, useRGB=True, rgbFilename="/home/nathan/Desktop/webcam/t.webm")
-    cam.videoNavigate(sd.rowNavigation, _showStream)
+    cam = navTypeTester.RSCamera(useCamera=False, rgbFilename="/home/nathan/old_logs/short_1.mov")
+    cam.webcamNavigate(sd.rowNavigation, _showStream)

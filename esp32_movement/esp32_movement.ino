@@ -1,6 +1,5 @@
 void ICACHE_RAM_ATTR handleInterrupt();
 
-
 bool stopNow = false;
 
 unsigned long lastSerialTime = 0;

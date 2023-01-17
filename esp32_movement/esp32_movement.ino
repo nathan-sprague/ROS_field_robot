@@ -1,5 +1,12 @@
+#define RUNFREQ 1000 // hz (max seems to be ~10khz)
 void ICACHE_RAM_ATTR handleInterrupt();
 
+// Timing 
+volatile int interruptCounter = 0; // Counter for # loops to run
+int interruptBackups = 0; // Counter for # times interruptCounter > 1
+hw_timer_t* timer = NULL;
+portMUX_TYPE timerMux = portMUX_INITIALIZER_UNLOCKED; // lock for interruptCounter
+void IRAM_ATTR onTimer(); // Prototype for timer handler func
 
 bool stopNow = false;
 
@@ -83,6 +90,12 @@ void setMotorSpeed();
 void setup() {
   Serial.begin(115200);
 
+  // timer setup
+  timer = timerBegin(0, 80, true); // 1,000,000 ticks/s
+  timerAttachInterrupt(timer, &onTimer, true);
+  timerAlarmWrite(timer, 1000000 / (RUNFREQ), true); // set timer to activate at RUNFREQ hz
+  timerAlarmEnable(timer);
+
 
   // have to enable interrupts individually, for some reason
   attachInterrupt(digitalPinToInterrupt(encoderPinLF1), updateEncoderLF1, CHANGE);
@@ -123,12 +136,17 @@ void setup() {
   ledcAttachPin(motorPinRB, 4);
 }
 
+void IRAM_ATTR onTimer() {
+  portENTER_CRITICAL_ISR(&timerMux);
+  interruptCounter++; // Increment interruptCounter on timer
+  portEXIT_CRITICAL_ISR(&timerMux);
+}
 
 void calculateSpeed() {
   /*
-   calculate speed and error for each wheel
+     calculate speed and error for each wheel
    */
-  
+
 
   for (int wheelNum=0; wheelNum < 4; wheelNum++) {
 
@@ -143,16 +161,16 @@ void calculateSpeed() {
 
     lastSpeedCalcTime[wheelNum] = millis();
 
-//    // dampen wheel speed calculation
-//    if (abs(wheelSpeed[wheelNum]-ws * goingForward[wheelNum]) < 1.5){
-//       wheelSpeed[wheelNum] = (wheelSpeed[wheelNum]*0.9 + ws * goingForward[wheelNum] * 0.1);
-//
-//    } else {
-//      wheelSpeed[wheelNum] = (wheelSpeed[wheelNum]*0.5 + ws * goingForward[wheelNum] * 0.5);
-//    }
+    //    // dampen wheel speed calculation
+    //    if (abs(wheelSpeed[wheelNum]-ws * goingForward[wheelNum]) < 1.5){
+    //       wheelSpeed[wheelNum] = (wheelSpeed[wheelNum]*0.9 + ws * goingForward[wheelNum] * 0.1);
+    //
+    //    } else {
+    //      wheelSpeed[wheelNum] = (wheelSpeed[wheelNum]*0.5 + ws * goingForward[wheelNum] * 0.5);
+    //    }
 
-    
-    
+
+
     // calculate the proportional/integral/derivative errors
     float error = (targetSpeed[wheelNum] - wheelSpeed[wheelNum]);
 
@@ -165,33 +183,6 @@ void calculateSpeed() {
 
 }
 
-
-
-
-  /*
-    Have to update the encoders in separate functions for some reason due to the way how interreupts work.
-    Format:
-    
-    Forward:
-    hall pin 1 low
-    hall pin 2 high
-    hall pin 1 high
-    hall pin 2 low
-    hall pin 1 low
-    hall pin 2 high
-    hall pin 1 high
-    hall pin 2 low
-
-    Backward:
-    hall pin 1 low
-    hall pin 1 high
-    hall pin 2 high
-    hall pin 1 low
-    hall pin 2 low
-    hall pin 1 high
-  */
-
- 
 // If A channel is freshly high when B channel is high, wheel is going one way.  
 // When it is freshly low, the other.
 // Only counting changes of A channel when B channel active b/c of encoder issues.
@@ -221,6 +212,17 @@ void updateEncoderRB1() {
 }
 
 void loop() {
+  if(interruptCounter <= 0) { // skip loop if no timer interrupt
+    return;
+  }
+
+  portENTER_CRITICAL_ISR(&timerMux);
+  interruptCounter--; // decrement interruptCounter
+  portEXIT_CRITICAL_ISR(&timerMux);
+
+  if(interruptCounter > 1) {
+    interruptBackups++;
+  }
 
   readSerial(); // look for serial messages
 
@@ -232,13 +234,13 @@ void loop() {
     int limit = 10;
     int j = 0;
 
-//  limit the maximum PWM the radio can give
-//    while (j < 2){
-//      if (pwmIn[j] > 155 + limit){pwmIn[j] = 155+limit;}
-//       if (pwmIn[j] < 155 - limit){pwmIn[j] = 155-limit;}
-//       j+=1;
-//    }
-    
+    //  limit the maximum PWM the radio can give
+    //    while (j < 2){
+    //      if (pwmIn[j] > 155 + limit){pwmIn[j] = 155+limit;}
+    //       if (pwmIn[j] < 155 - limit){pwmIn[j] = 155-limit;}
+    //       j+=1;
+    //    }
+
     ledcWrite(1, pwmIn[0]);
     ledcWrite(2, pwmIn[0]);
 
@@ -256,13 +258,10 @@ void loop() {
       ledcWrite(wheelNum+1, 0);
       pwmSpeed[wheelNum] = 0;
     }
-    
+
   } else if (pidControl) { // PID serial control
     setMotorSpeed();
   }
 
   sendSerial();
-
-  delay(1);
-
 }

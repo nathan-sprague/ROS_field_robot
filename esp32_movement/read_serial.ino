@@ -124,7 +124,7 @@ void sendSerial() {
 //        Serial.println("l" + String(wheelSpeed[0], 3));
     //
 //        Serial.println("r" + String(wheelSpeed[1], 3));
-    Serial.println("w" + String(wheelSpeed[0], 3) + "," + String(wheelSpeed[1], 3) + "," + String(wheelSpeed[2], 3) + "," + String(wheelSpeed[3], 3));
+    Serial.println(String(wheelSpeed[0], 3) + "," + String(wheelSpeed[1], 3) + "," + String(wheelSpeed[2], 3) + "," + String(wheelSpeed[3], 3));
  //   Serial.println("," + String(pwmSpeed[0], 3) + "," + String(pwmSpeed[1], 3) + "," + String(pwmSpeed[2], 3) + "," + String(pwmSpeed[3], 3));
   //  Serial.println("," + String(proportionalError[0], 3) + "," + String(proportionalError[1], 3) + "," + String(proportionalError[2], 3) + "," + String(proportionalError[3], 3));
 

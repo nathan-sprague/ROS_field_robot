@@ -42,8 +42,8 @@ const int outputFreq = 100;
 const int resolution = 10;
 
 // saturation PWM output limits (only used for PID speed control)
-int pwmLimitLow = 110;
-int pwmLimitHigh = 200;
+int pwmLimitLow = 65;
+int pwmLimitHigh = 245;
 
 // left/right radio
 volatile int pwmIn[] = {0, 0}; // volatile type because it is handled by interrupts
@@ -86,16 +86,17 @@ void setup() {
 
   // have to enable interrupts individually, for some reason
   attachInterrupt(digitalPinToInterrupt(encoderPinLF1), updateEncoderLF1, CHANGE);
-  attachInterrupt(digitalPinToInterrupt(encoderPinLF2), updateEncoderLF2, CHANGE);
 
   attachInterrupt(digitalPinToInterrupt(encoderPinLB1), updateEncoderLB1, CHANGE);
-  attachInterrupt(digitalPinToInterrupt(encoderPinLB2), updateEncoderLB2, CHANGE);
 
   attachInterrupt(digitalPinToInterrupt(encoderPinRF1), updateEncoderRF1, CHANGE);
-  attachInterrupt(digitalPinToInterrupt(encoderPinRF2), updateEncoderRF2, CHANGE);
 
   attachInterrupt(digitalPinToInterrupt(encoderPinRB1), updateEncoderRB1, CHANGE);
-  attachInterrupt(digitalPinToInterrupt(encoderPinRB2), updateEncoderRB2, CHANGE);
+
+  pinMode(encoderPinLF2, INPUT);
+  pinMode(encoderPinLB2, INPUT);
+  pinMode(encoderPinRF2, INPUT);
+  pinMode(encoderPinRB2, INPUT);
 
 
   // pins for radio controller
@@ -134,9 +135,8 @@ void calculateSpeed() {
     float timeBetweenHits = (millis() - lastSpeedCalcTime[wheelNum]);
     if (timeBetweenHits == 0) { return;} // shouldnt be a problem, but avoiding a divide by zero error
 
-    // calculate wheel speed. The /10 is some constant I made up to get mph-ish units
-    float ws = encoderTicks[wheelNum] / timeBetweenHits / 10;
-
+    // calculate wheel speed. 16,000 ticks/rev, circumference of tire is 1 meter
+    wheelSpeed[wheelNum] = (encoderTicks[wheelNum] * 2.2394) / (16.0 * timeBetweenHits);
 
     // reset the encoder tick count
     encoderTicks[wheelNum] = 0;
@@ -152,7 +152,6 @@ void calculateSpeed() {
 //    }
 
     
-    wheelSpeed[wheelNum] = ws * goingForward[wheelNum];
     
     // calculate the proportional/integral/derivative errors
     float error = (targetSpeed[wheelNum] - wheelSpeed[wheelNum]);
@@ -193,52 +192,33 @@ void calculateSpeed() {
   */
 
  
-int checkDirection(int pin1, int pin2){
-  if (digitalRead(pin1) == digitalRead(pin2)) return 1;
-  return -1;
+// If A channel is freshly high when B channel is high, wheel is going one way.  
+// When it is freshly low, the other.
+// Only counting changes of A channel when B channel active b/c of encoder issues.
+// Another solution could be debouncing, but we don't need that high of prec.
+
+static inline int handleEncoder(int encoderPin, int encoderPinPair) {
+  if(digitalRead(encoderPinPair)) {
+    return digitalRead(encoderPin) ? 1 : -1;
+  }
+  return 0;
 }
 
 void updateEncoderLF1() {
-
-  goingForward[0] = checkDirection(encoderPinLF1, encoderPinLF2);
-  encoderTicks[0]++; // add 1 to the number of ticks experienced
-}
-
-void updateEncoderLF2() {
-  goingForward[0] = checkDirection(encoderPinLF1, encoderPinLF2) * -1;
-  encoderTicks[0]++; // add 1 to the number of ticks experienced
+  encoderTicks[0] += handleEncoder(encoderPinLF1, encoderPinLF2);
 }
 
 void updateEncoderLB1() {
-  goingForward[1] = checkDirection(encoderPinLB1, encoderPinLB2) * -1;
-  encoderTicks[1]++; 
-}
-
-void updateEncoderLB2() {
- goingForward[1] = checkDirection(encoderPinLB1, encoderPinLB2);
- encoderTicks[1]++;
+  encoderTicks[1] -= handleEncoder(encoderPinLB1, encoderPinLB2);
 }
 
 void updateEncoderRF1() {
-   goingForward[2] = checkDirection(encoderPinRF1, encoderPinRF2);
-  encoderTicks[2]++;
- }
-
-void updateEncoderRF2() {
-  goingForward[2] = checkDirection(encoderPinRF1, encoderPinRF2) * -1;
-  encoderTicks[2]++;
+  encoderTicks[2] += handleEncoder(encoderPinRF1, encoderPinRF2);
 }
 
 void updateEncoderRB1() {
-   goingForward[3] = checkDirection(encoderPinRB1, encoderPinRB2) * -1;
-  encoderTicks[3]++; 
- }
-
-void updateEncoderRB2() {
-  goingForward[3] = checkDirection(encoderPinRB1, encoderPinRB2);
-  encoderTicks[3]++;
+  encoderTicks[3] -= handleEncoder(encoderPinRB1, encoderPinRB2);
 }
-
 
 void loop() {
 
@@ -283,6 +263,6 @@ void loop() {
 
   sendSerial();
 
-  delay(5);
+  delay(1);
 
 }

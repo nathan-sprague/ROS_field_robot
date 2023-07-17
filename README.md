@@ -132,6 +132,18 @@ sudo adduser dialout [your username]
 <br>
 
 # Things Left To Do
-- The robot struggles to enter the row coming from point-based navigation
-- The robot does not move through all types of corn height.
-- Destinations and movement must be given to the robot manually. While it can do basic obstacle avoidance, it cannot optimize a path around the obstacles.
+- Video Navigation
+  - fix logs
+  - implement ML
+  - Implement zed camera swapping
+- GPS control
+  - Enable NMEA
+  - Enable the SBF thing if possible
+- Simulation
+  - find what might need to be fixed
+- ESP controller
+  - check if works- do hot swap of ESP
+
+
+
+

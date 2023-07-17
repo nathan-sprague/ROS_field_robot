@@ -24,18 +24,18 @@ def base():
 @app.route("/_info", methods=['GET'])
 def update():
 
-    runID = str(myRobot.startTime)
-    if myRobot.runMode>0 and myRobot.runMode < 2:
+    runID = str(myRobot.start_time)
+    if myRobot.run_mode != "real":
         runID = "sim_" + runID
-    elif myRobot.runMode>1:
+    else:
         runID = "playback_" + runID
 
 
     # print("real speed", myRobot.realSpeed, "\n\n\n\n\n\n\n")
-    responseDict = {"coords": myRobot.coords, "realSpeed": myRobot.realSpeed, "targetSpeed": myRobot.targetSpeed, 
-                    "heading": myRobot.trueHeading, "headingAccuracy": myRobot.headingAccuracy,
-                    "targetHeading": myRobot.targetHeading%360, "gpsAccuracy": myRobot.gpsAccuracy, "connectionType": myRobot.connectionType,
-                    "runID": runID, "runTime": int(time.time()-myRobot.startTime), "status": list(myRobot.navStatus)}
+    responseDict = {"coords": myRobot.coords["coords"], "realSpeed": myRobot.real_speed, "targetSpeed": myRobot.target_speed, 
+                    "heading": myRobot.heading["heading"], "headingAccuracy": myRobot.heading["accuracy"],
+                    "targetHeading": myRobot.target_heading%360, "gpsAccuracy": myRobot.coords["accuracy"], "connectionType": myRobot.coords["fix"],
+                    "runID": runID, "runTime": int(time.time()-myRobot.start_time), "status": list(myRobot.navStatus)}
 
 
     if request.args.get('destID') != str(myRobot.destID):
@@ -44,20 +44,10 @@ def update():
             destinationsList += [i["coord"]]
         responseDict["destinations"] = destinationsList
         responseDict["destID"] = myRobot.destID
-
-
-    if request.args.get('obstaclesID') != str(myRobot.obstaclesID):
+        
+    if request.args.get('obstructionsID') != str(myRobot.obstaclesID):
         responseDict["obstacles"] = myRobot.obstacles
         responseDict["obstaclesID"] = myRobot.obstaclesID
-
-    if request.args.get('rows') != str(myRobot.rowsID):
-        responseDict["rows"] = myRobot.rows
-        responseDict["rowsID"] = myRobot.rowsID
-        # print("sending rows out\n\n\n", myRobot.rows)
-
-
-    if True:#request.args.get('obstructionsID') != str(myRobot.obstructionsID):
-        responseDict["obstructions"] = myRobot.obstructions
        # responseDict["obstructionsID"] = myRobot.obstructionsID
 
     if "maxSpeed" in request.args:

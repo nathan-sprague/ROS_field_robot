@@ -1,23 +1,16 @@
 
 from re import L
-import serial
-import serial.tools.list_ports
+
 import time
 import pynmea2
 import nav_functions
 from threading import Thread, Lock
 import datetime
-from io import BufferedReader
-from pyubx2 import (
-    UBXMessage,
-    UBXReader,
-    POLL,
-    UBX_MSGIDS,
-)
+import socket
 
 
 class Gps():
-    def __init__(self, robot, mainGpsPort, verbose = False):
+    def __init__(self, robot, verbose = False):
         """
         This class for the GPS board. It continually looks for position and accuracy of the robot
         """
@@ -27,7 +20,6 @@ class Gps():
         self.headingDeviceConnected = False
         self.headingCoords = [0,0]
         self.headingFixLevel = 0
-        self.mainGpsPort = mainGpsPort
 
         self.debugOptions = {"heading board connected": [False, 0], 
                             "SIV": [0, 0], 
@@ -36,6 +28,8 @@ class Gps():
 
         self.t = 0
         self.ht = time.time()
+
+        
 
 
         """
@@ -59,26 +53,14 @@ class Gps():
         """
         print("setting up GPS")
 
-        if self.mainGpsPort == "none":
-            print("no GPS Connected to computer")
-            return False
-        # self.device = serial.Serial(port='/dev/ttyUSB0', baudrate=115200, timeout=1)
-        try:
-            self.device = serial.Serial(port=self.mainGpsPort, baudrate=115200, timeout=1)
-        except:
-            print("unable to connect to GPS, maybe check permissions?", self.mainGpsPort)
-            return False
-        time.sleep(0.5)
-        print("connected to main gps on port", self.mainGpsPort)
-
-           # create UBXReader instance, reading only UBX messages
-        ubr = UBXReader(BufferedReader(self.device))
-        serial_lock = Lock()
-
-
-        self.rxThread = Thread(target=self.readUBX, args=[self.device, serial_lock, ubr])
+        self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        server_address = ('192.168.3.1', 28784)
+#        server_address = ('localhost', 28784)
+        self.sock.connect(server_address)
+       
+        self.rxThread = Thread(target=self.read_gps)
         self.rxThread.start()
-
+        print("done setting up")
 
         return True
     
@@ -94,110 +76,62 @@ class Gps():
         return True
 
 
-    def readUBX(self, stream, lock, ubxreader):
-        """
-        reads, parses and prints out incoming UBX and NMEA messages
-        """
-    # pylint: disable=unused-variable, broad-except
 
-        while self.robot.notCtrlC:
-            if stream.in_waiting:
-                try:
-                    lock.acquire()
-                    (raw_data, parsed_data) = ubxreader.read()
-                    lock.release()
+    def read_gps(self):
+        
+        
+        try:
+            data = ""
+            while True:
+                chunk = self.sock.recv(1).decode('UTF-8')
+                data += chunk
 
-                    if parsed_data:
-                        # print(parsed_data.identity)
-                        # print(parsed_data)
-                        # print("")
+                if data and data[-1] == '\n':
+                    try:
+                        sentence = data.strip('\n\r')
+                        
+                        if sentence:
+                            msg = pynmea2.parse(sentence)
+                            try:
+                                if isinstance(msg, pynmea2.types.talker.GGA):
+                                    self.robot.coords["coords"] = [float(msg.latitude), float(msg.longitude)]
+                                    self.robot.coords["time"] = time.time()
+                                    self.robot.coords["fix"] = int(msg.gps_qual)
+                                    if msg.gps_qual > 1:
+                                        self.robot.coords["accuracy"] = 0.1
+                                    elif msg.gps_qual == 1:
+                                        self.robot.coords["accuracy"] = 10
+                                    else:
+                                        self.robot.coords["accuracy"] = 123456
+                                    if self.verbose:
+                                        print(f"Qual: {msg.gps_qual}, Lat: {msg.latitude}, long: {msg.longitude}, alt: {msg.altitude}")
 
-                        # print(parsed_data.identity)
-                        # if parsed_data.identity == "GNGLL":
-                        #     t= str(parsed_data.time) #yo 15:50:29.600000
-                        #     x = "11/11/2022, " + str(x[0:-7])
-                        #     self.robot.gpsUnixTime = datetime.datetime.strptime(x,"%m/%d/%Y, %H:%M:%S")
+                                if isinstance(msg, pynmea2.types.talker.HDT):
+                                    self.robot.heading["heading"] = float(msg.heading)
+                                    self.robot.heading["time"] = time.time()
+                                    self.robot.heading["accuracy"] = 0.1
+                                    if self.verbose:
+                                        print(f"heading: {msg.heading}")
+                            except:
+                                print("bad")
 
-                        if parsed_data.identity == "NAV-RELPOSNED": #hasattr(parsed_data, "relPosHeading"):
-                            # print("identity")#, #parsed_data.identity)
-                            
-
-                            headingAccuracy = parsed_data.accHeading
-                            heading = parsed_data.relPosHeading
-                            self.robot.trueHeading = parsed_data.relPosHeading # add a constant if the antennas aren't in line with the robot
-                            self.robot.trueHeading %= 360
-
-
-                            if headingAccuracy != 0.0 or heading != 0: # good heading
-                                self.robot.headingAccuracy = headingAccuracy
-                            else:
-                                self.robot.headingAccuracy = 360
-                                self.robot.trueHeading = 0
-
-                            if self.verbose:
-                                print("heading", self.robot.trueHeading, "accuracy:", self.robot.headingAccuracy)
-                                print("")
-
-                            self.robot.lastHeadingTime = time.time()
-
-                        if parsed_data.identity == "NAV-PVT": #hasattr(parsed_data, "lon"):
-                            # if parsed_data.identity == "NAV-PVT":
-                            #     print("nav pvt data type")
-                            if self.verbose:
-                                print("coords:", parsed_data.lon, parsed_data.lat, "fix type:", parsed_data.fixType, "accuracy:", parsed_data.hAcc, "mm")
-                            self.robot.coords = [parsed_data.lat, parsed_data.lon]
-                            # self.robot.connectionType = parsed_data.fixType
-                            self.robot.gpsAccuracy = parsed_data.hAcc
-
-    
-                        if parsed_data.identity == "RXM-RTCM":
-                            # RTK2B heading msg: <UBX(RXM-RTCM, version=2, crcFailed=0, msgUsed=2, subType=0, refStation=0, msgType=1230)>
-                            # RTK base msg:      <UBX(RXM-RTCM, version=2, crcFailed=0, msgUsed=1, subType=1, refStation=0, msgType=4072)>
-                            # print(parsed_data.msgType)
-                            if parsed_data.msgType == 1230: # heading board id is 1230. I think it should be parsed_data.refStation so pyubx updates may break this in the future.
-                                self.debugOptions["heading board connected"] = [True, int(time.time())]
-                                if self.verbose:
-                                    print("heading device connected")
-                            else: # rtk base message
-                                self.debugOptions["RTK signal available"] = [True, int(time.time())]
-
-                                if parsed_data.msgUsed > 1:
-                                    self.debugOptions["RTK signal used"] = [True, int(time.time())]
-                                elif time.time() - self.debugOptions["RTK signal used"][1] > 2:
-                                    self.debugOptions["RTK signal used"] = [False, int(time.time())]
-
-                                                        
-                        if parsed_data.identity == "GNGGA":
-                            if self.verbose:
-                                print("quality:", parsed_data.quality)
-                            self.robot.connectionType = parsed_data.quality
-                            self.debugOptions["SIV"] = [parsed_data.numSV, int(time.time())]
-                            
-                except:
-                    pass
+                    except pynmea2.ParseError:
+                        print("gps bad")
+                    data = ""
+        finally:
+            self.sock.close()
 
 
 if __name__ == "__main__":
     class Blah:
         def __init__(self):
-            self.coords = [-1,-1]
-            self.heading = 0
-            self.gpsAccuracy = 0
-            self.connectionType = 0
-            self.notCtrlC = True
+            self.coords = {"coords":[-1,-1], "time":0, "fix":0, "accuracy":0}
+            self.heading = {"heading":0, "time":0, "accuracy":0}
 
 
 
-    portsConnected = [tuple(p) for p in list(serial.tools.list_ports.comports())]
-
-    mainGpsPort = "none"
-    for i in portsConnected: # connect to all of the relevant ports
-
-        if i[1] == "u-blox GNSS receiver":
-            mainGpsPort = i[0]
-        
     blah = Blah()
 
-    gps = Gps(blah, mainGpsPort, verbose = True)    
+    gps = Gps(blah, verbose = True)    
 
     gps.begin()

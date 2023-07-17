@@ -56,8 +56,6 @@ class Esp():
 
 
 
-
-
     def begin(self):
 
         
@@ -96,11 +94,11 @@ class Esp():
         turningSpeedConst = 1.7 / 0.3 * self.updateSpeed 
         movementSpeedConst = 0.35
         
-        realHeadingChange = (self.robot.realSpeed[0]-self.robot.realSpeed[1])*turningSpeedConst
+        realHeadingChange = (self.robot.real_speed[0]-self.robot.real_speed[1])*turningSpeedConst
 
         self.realRobotHeading += realHeadingChange
 
-        distMoved = (self.robot.realSpeed[0] + self.robot.realSpeed[1]) * 5280/3600/3.28 * movementSpeedConst
+        distMoved = (self.robot.real_speed[0] + self.robot.real_speed[1]) * 5280/3600/3.28 * movementSpeedConst
         # print("dmove", distMoved)
 
         # print("og coords", self.trueCoords)
@@ -143,20 +141,26 @@ class Esp():
         else:
             self.trueCoords = [40.470383, -86.99528]
 
+        print("starting loop for ESP")
 
         while self.robot.notCtrlC:
             self.robot.lastHeadingTime = time.time()
-           # self.robot.realSpeed = self.robot.targetSpeed[:]
+           # self.robot.real_speed = self.robot.targetSpeed[:]
         
             scc = self.speedChangeConstant
-            # self.robot.realSpeed = [(self.robot.targetSpeed[0]+self.robot.realSpeed[0]*scc)/(scc+1), (self.robot.targetSpeed[1]+self.robot.realSpeed[1]*scc)/(scc+1)]
-
-
-
+            # self.robot.real_speed = [(self.robot.target_speed[0]+self.robot.real_speed[0]*scc)/(scc+1), (self.robot.target_speed[1]+self.robot.real_speed[1]*scc)/(scc+1)]
+            self.robot.real_speed = self.robot.target_speed[:]
             
             self.estimateCoords()
             self.robot.trueHeading = self.realRobotHeading % 360 #+ random.randint(-5,5)
-            self.robot.coords = self.trueCoords[:]
+            self.robot.coords["coords"] = self.trueCoords[:]
+            self.robot.coords["accuracy"] = 0.1
+            self.robot.coords["time"] = time.time()
+            self.robot.coords["fix"] = 2
+
+            self.robot.heading["heading"] = self.realRobotHeading % 360
+            self.robot.heading["accuracy"] = 0.1
+            self.robot.heading["time"] = time.time()
             self.gpsError = [self.gpsError[0]+random.randint(-1,1)*self.gpsAccuracy/20, self.gpsError[1]+random.randint(-1,1)*self.gpsAccuracy/20]
 
             if abs(self.gpsError[0])>self.gpsAccuracy:
@@ -164,7 +168,7 @@ class Esp():
 
             if abs(self.gpsError[1])>self.gpsAccuracy:
                 self.gpsError[1] = self.gpsAccuracy * abs(self.gpsError[1])/self.gpsError[1]
-            self.robot.coords = [self.trueCoords[0] + self.gpsError[0], self.trueCoords[1] + self.gpsError[1]]
+            self.robot.coords["coords"] = [self.trueCoords[0] + self.gpsError[0], self.trueCoords[1] + self.gpsError[1]]
 
 
             # print("esp sleeping", self.robot.updateSpeed, self.updateSpeed)
@@ -175,3 +179,6 @@ class Esp():
             if self.updateSpeed+startSleepTime-time.time() > 0:
                 time.sleep(self.updateSpeed+startSleepTime-time.time())
 
+
+if __name__ == "__main__":
+    print("don't run from here")

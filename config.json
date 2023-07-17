@@ -1,0 +1,24 @@
+{
+	"runModeSwitch": true, // switch automatically between simulation and real life
+	
+	// (1=sim with sim video, 2=sim with recorded video, 3=sim with recorded video and position, 4=full playback but still process, 5=full playback)
+	"runModeDefault": 1, // if it is not real life, simulation or playback. 
+
+	"playbackFileName": "/home/nathan/new_logs/july29/morning/log_1659107371",
+
+	"saveFileLocation": "~",
+
+	"navFile": "video_nav_types/standard.py",
+
+	"destinations": "",
+
+	"saveVideo": true,
+
+	"saveName": false,
+
+	"moveRobot": true, // change to false to make the robot do everything except move (irl only)
+
+	"useCamForNormalNav": true // use camera for general obstacle detection during point-to-point navigation
+
+}
+

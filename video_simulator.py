@@ -34,6 +34,8 @@ class ObjShape:
         # print("triangle real", self.triangles)
         # exit()
 
+        
+
 class VideoSim:
     def __init__(self, freeMove = False, rows = []):
         """

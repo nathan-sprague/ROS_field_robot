@@ -132,16 +132,7 @@ class Esp():
                 print("suppressed print statement", message)
                 return
 
-            elif msgType == "m": # esp requests info
-                responseDict = {"coords":  self.robot.coords, "realSpeed": self.robot.realSpeed, "targetSpeed": self.robot.targetSpeed, 
-                    "heading":  self.robot.trueHeading, "headingAccuracy": self.robot.headingAccuracy,
-                    "targetHeading":  self.robot.targetHeading%360, "gpsAccuracy": self.robot.gpsAccuracy, "connectionType": self.robot.connectionType,
-                    "runID": str( self.robot.startTime), "runTime": int(time.time()- self.robot.startTime), "status": list(self.robot.navStatus)}
-                rd = json.dumps(responseDict)
-                self.apRobot = True
-
-                self.device.write(bytes("m" + rd, 'utf-8'))
-                time.sleep(0.1)
+          
 
             elif msgType == "k": # esp wants to kill navigation program
                 print("kill request from ESP")
@@ -182,20 +173,14 @@ class Esp():
 
             # analyze the message based on the prefix
             if msgType == "w": # speed of both wheels
+
                 self.apRobot = False
-                leftSpeed = ""
-                rightSpeed = ""
-                writeLeft = True
-                for c in res:
-                    if c == ",":
-                        writeLeft = False
-                    elif writeLeft:
-                        leftSpeed += c
-                    else:
-                        rightSpeed += c
+                res = [float(i) for i in res.split(",")]
+                leftSpeed = res[0]
+                rightSpeed = res[1]
                 try:
-                    self.robot.realSpeed[0] = float(leftSpeed)
-                    self.robot.realSpeed[1] = float(rightSpeed)
+                    self.robot.real_speed[0] = float(leftSpeed)
+                    self.robot.real_speed[1] = float(rightSpeed)
                 except:
                     print("error getting speed!!\n\n\n")
 
@@ -248,7 +233,7 @@ class Esp():
         """
 
         # Set the various message names to what the robot is targeting, namely the wheel speed
-        fullMessages = {"l": int(self.robot.targetSpeed[0]*100)/100, "r": int(self.robot.targetSpeed[1]*100)/100}
+        fullMessages = {"l": int(self.robot.target_speed[0]*100)/100, "r": int(self.robot.target_speed[1]*100)/100}
         messagesToSend = {}
 
 
@@ -278,8 +263,8 @@ if __name__ == "__main__":
     class FakeRobot:
         def __init__(self):
             self.notCtrlC = True
-            self.targetSpeed = [0,0]
-            self.realSpeed = [0,0]
+            self.target_speed = [0,0]
+            self.real_speed = [0,0]
             self.heading = 0
             self.gyroHeading = 0
             self.esp = ""
@@ -288,7 +273,7 @@ if __name__ == "__main__":
             self.coords = [0,0]
             self.trueHeading = 0
             self.headingAccuracy = 0
-            self.targetHeading = 0
+            self.target_heading = 0
             self.connectionType = 0
             self.gpsAccuracy = 0
             self.startTime = 0
@@ -302,12 +287,12 @@ if __name__ == "__main__":
                     i=0
                     while i<2:
                         # self.targetSpeed = 5
-                        self.targetSpeed[i] = (self.targetSpeed[i]+1)%4
+                        self.target_speed[i] = (self.target_speed[i]+1)%4
 
                         i+=1
                     
                     timer = time.time()
-                    self.targetSpeed = [self.targetSpeed[0], self.targetSpeed[1]]
+                    self.target_speed = [self.target_speed[0], self.target_speed[1]]
                     print("changed")
 
                     speedupTime = 0
@@ -315,10 +300,10 @@ if __name__ == "__main__":
                     while True:
                         try:
                             if self.esp.lastSent['l'][1] and self.esp.lastSent['r'][1]:
-                                if self.esp.lastSent['l'][0] == self.targetSpeed[0] and self.esp.lastSent['r'][0] == self.targetSpeed[1]:
+                                if self.esp.lastSent['l'][0] == self.target_speed[0] and self.esp.lastSent['r'][0] == self.target_speed[1]:
                                     if speedupTime == 0:
                                         speedupTime = time.time()
-                                    if abs(self.targetSpeed[0]-self.realSpeed[0]) < 0.2 and abs(self.targetSpeed[1]-self.realSpeed[1]) < 0.2:
+                                    if abs(self.target_speed[0]-self.real_speed[0]) < 0.2 and abs(self.target_speed[1]-self.real_speed[1]) < 0.2:
                                         break
                         except:
                             pass
@@ -330,11 +315,11 @@ if __name__ == "__main__":
                     time.sleep(2)
 
                 elif self.testType == 2:
-                    self.targetSpeed = [math.cos(time.time()/5)*2, math.cos(time.time()/5)*2]
+                    self.target_speed = [math.cos(time.time()/5)*2, math.cos(time.time()/5)*2]
                     time.sleep(0.2)
-                    print(self.targetSpeed[0], self.targetSpeed[1], self.realSpeed[0], self.realSpeed[1])
+                    print(self.target_speed[0], self.target_speed[1], self.real_speed[0], self.real_speed[1])
                 
-                # print(self.targetSpeed, self.realSpeed)
+                # print(self.targetSpeed, self.real_speed)
 
 
     b = FakeRobot()
